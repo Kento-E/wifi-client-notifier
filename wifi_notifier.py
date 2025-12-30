@@ -50,7 +50,11 @@ class AtermRouter:
             # Users may need to customize this based on their specific router model
             login_url = f"{self.base_url}/index.cgi/login"
             
-            # Create password hash (common for Aterm routers)
+            # Create password hash (common for older Aterm routers)
+            # NOTE: MD5 is used here for compatibility with older Aterm router models
+            # that require MD5 hashing. This is not for security purposes as the
+            # connection is over HTTP. For newer models, see CUSTOMIZATION.md for
+            # examples using SHA-256 or other methods.
             password_hash = hashlib.md5(self.password.encode()).hexdigest()
             
             login_data = {
@@ -227,11 +231,11 @@ class WiFiMonitor:
             config_path: Path to configuration file
         """
         self.config = self._load_config(config_path)
+        self._setup_logging()  # Setup logging before anything else
         self.router = None
         self.notifier = None
         self.known_devices: Set[str] = set()
         self.monitored_macs: Set[str] = set()
-        self._setup_logging()
         self._initialize_components()
     
     def _load_config(self, config_path: str) -> Dict:
@@ -240,7 +244,8 @@ class WiFiMonitor:
             with open(config_path, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except Exception as e:
-            logging.error(f"Failed to load config: {e}")
+            # Use print here since logging is not yet configured
+            print(f"Failed to load config: {e}")
             raise
     
     def _setup_logging(self):
@@ -248,13 +253,16 @@ class WiFiMonitor:
         log_level = self.config.get('log_level', 'INFO')
         log_file = self.config.get('log_file', 'wifi_notifier.log')
         
+        # Clear any existing handlers and configure from scratch
+        logging.root.handlers = []
         logging.basicConfig(
             level=getattr(logging, log_level),
             format='%(asctime)s - %(levelname)s - %(message)s',
             handlers=[
                 logging.FileHandler(log_file, encoding='utf-8'),
                 logging.StreamHandler()
-            ]
+            ],
+            force=True
         )
     
     def _initialize_components(self):
