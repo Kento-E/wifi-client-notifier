@@ -1,0 +1,24 @@
+{
+  "router": {
+    "ip": "192.168.10.1",
+    "username": "admin",
+    "password": "your_router_password"
+  },
+  "email": {
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "smtp_user": "your_email@gmail.com",
+    "smtp_password": "your_app_password",
+    "sender_email": "your_email@gmail.com",
+    "recipient_emails": [
+      "notify_recipient@example.com"
+    ],
+    "use_tls": true
+  },
+  "monitored_devices": [
+    "AA:BB:CC:DD:EE:FF"
+  ],
+  "check_interval": 60,
+  "log_level": "INFO",
+  "log_file": "wifi_notifier.log"
+}
