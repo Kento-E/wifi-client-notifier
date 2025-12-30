@@ -12,7 +12,7 @@
 
 ## PR作成時の基本方針
 
-このリポジトリは日本のAtermルータユーザー向けです。PRのタイトル、説明、コメントはすべて日本語で記述してください。
+このリポジトリは日本のWiFiルータユーザー向けです。PRのタイトル、説明、コメントはすべて日本語で記述してください。
 
 ### PRタイトル
 
@@ -24,13 +24,13 @@
 - `WiFi接続監視機能を追加`
 - `SMTP通知のバグを修正`
 - `Docker対応を追加`
-- `Atermルータ用セルフホスト型WiFi接続通知ツール`
+- `WiFiルータ用セルフホスト型WiFi接続通知ツール`
 
 悪い例（英語 - 使用禁止）：
 - `Add WiFi monitoring feature`
 - `Fix SMTP notification bug`
 - `Add Docker support`
-- `Self-hosted WiFi client notifier for Aterm routers`
+- `Self-hosted WiFi client notifier for WiFi routers`
 
 ### PR説明テンプレート
 
@@ -66,11 +66,11 @@
 ```markdown
 ## 変更概要
 
-AtermルータのWiFi接続を監視し、新規デバイス接続時にメール通知を送信する機能を実装しました。
+WiFiルータのWiFi接続を監視し、新規デバイス接続時にメール通知を送信する機能を実装しました。
 
 ## 変更理由
 
-NECのAtermステーション通知サービス終了に伴い、同等の機能を自前で実現する必要があるため。
+NECのルータ管理サービス通知サービス終了に伴い、同等の機能を自前で実現する必要があるため。
 
 ## 主な変更点
 

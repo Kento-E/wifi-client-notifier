@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Atermルータクライアント - Webスクレイピングを使用した代替実装
+WiFiルータクライアント - Webスクレイピングを使用した代替実装
 
-このモジュールは、APIアクセスが利用できない場合に、Atermルータの
+このモジュールは、APIアクセスが利用できない場合に、WiFiルータの
 Webインターフェースからデバイス情報をスクレイピングする関数を提供します。
 """
 
@@ -15,7 +15,7 @@ def parse_wireless_lan_status(html_content: str) -> List[Dict[str, str]]:
     """
     無線LANステータスページを解析して接続デバイスを抽出する。
     
-    この関数は一般的なAtermルータのHTML形式の解析を試みます。
+    この関数は一般的なルータのHTML形式の解析を試みます。
     
     Args:
         html_content: ルータの無線ステータスページからのHTMLコンテンツ
@@ -81,7 +81,7 @@ def extract_devices_from_json(json_data: Dict) -> List[Dict[str, str]]:
     """
     JSONレスポンスからデバイス情報を抽出する。
     
-    一部のAtermルータはデバイスリストをJSON形式で返します。
+    一部のルータはデバイスリストをJSON形式で返します。
     
     Args:
         json_data: ルータからのJSONレスポンス

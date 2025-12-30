@@ -15,7 +15,7 @@ from datetime import datetime
 def demo_notification():
     """メール通知機能をデモンストレートする。"""
     
-    print("=== Aterm WiFi Client Notifier デモ ===\n")
+    print("=== WiFi Client Notifier デモ ===\n")
     
     # 設定を読み込む
     if len(sys.argv) != 2:

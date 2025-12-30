@@ -1,7 +1,7 @@
 @echo off
-REM Setup script for Aterm WiFi Client Notifier (Windows)
+REM Setup script for WiFi Client Notifier (Windows)
 
-echo === Aterm WiFi Client Notifier セットアップ ===
+echo === WiFi Client Notifier セットアップ ===
 echo.
 
 REM Check Python version

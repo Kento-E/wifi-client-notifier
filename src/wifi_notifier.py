@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Aterm WiFi接続通知ツール
+WiFi接続通知ツール
 
-AtermルータのWiFi新規接続を監視し、特定のデバイスが接続された際に
+WiFiルータのWiFi新規接続を監視し、特定のデバイスが接続された際に
 メール通知を送信するスクリプトです。
 """
 
@@ -19,8 +19,8 @@ import hashlib
 from src.aterm_scraper import parse_wireless_lan_status, extract_devices_from_json
 
 
-class AtermRouter:
-    """Atermルータと通信するためのインターフェース。"""
+class WiFiRouter:
+    """WiFiルータと通信するためのインターフェース。"""
     
     def __init__(self, router_ip: str, username: str, password: str):
         """
@@ -46,12 +46,12 @@ class AtermRouter:
         """
         try:
             # 注記: これは汎用的な実装です
-            # 実際のAtermルータはモデルによって異なる認証方法が必要な場合があります
+            # 実際のWiFiルータはモデルによって異なる認証方法が必要な場合があります
             # ユーザーは特定のルータモデルに合わせてカスタマイズする必要があります
             login_url = f"{self.base_url}/index.cgi/login"
             
-            # パスワードハッシュを作成（古いAtermルータで一般的）
-            # 注記: MD5は古いAtermルータモデルとの互換性のために使用しています
+            # パスワードハッシュを作成（古いWiFiルータで一般的）
+            # 注記: MD5は古いWiFiルータモデルとの互換性のために使用しています
             # これはセキュリティ目的ではなく、HTTP接続のため。新しいモデルについては
             # CUSTOMIZATION.mdでSHA-256や他の方法の例を参照してください。
             password_hash = hashlib.md5(self.password.encode()).hexdigest()
@@ -77,7 +77,7 @@ class AtermRouter:
             各辞書には 'mac', 'ip', 'hostname' キーが含まれます
         """
         try:
-            # 注記: 実際のエンドポイントはAtermモデルによって異なります
+            # 注記: 実際のエンドポイントはルータモデルによって異なります
             # 一般的なエンドポイント: /wlmaclist.cgi, /index.cgi/wireless_status
             # ユーザーは特定のモデルに合わせてカスタマイズする必要があります
             
@@ -214,7 +214,7 @@ IPアドレス: {device_info.get('ip', 'Unknown')}
 ホスト名: {device_info.get('hostname', 'Unknown')}
 
 ---
-Aterm WiFi Client Notifier
+WiFi Client Notifier
 """
         return body.strip()
 
@@ -268,7 +268,7 @@ class WiFiMonitor:
         """ルータとメール通知のコンポーネントを初期化する。"""
         # ルータ接続を初期化
         router_config = self.config['router']
-        self.router = AtermRouter(
+        self.router = WiFiRouter(
             router_config['ip'],
             router_config['username'],
             router_config['password']

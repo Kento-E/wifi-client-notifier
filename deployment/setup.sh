@@ -1,7 +1,7 @@
 #!/bin/bash
-# Setup script for Aterm WiFi Client Notifier
+# Setup script for WiFi Client Notifier
 
-echo "=== Aterm WiFi Client Notifier セットアップ ==="
+echo "=== WiFi Client Notifier セットアップ ==="
 echo ""
 
 # Check Python version

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Aterm WiFi接続通知ツールのテストスクリプト
+WiFi接続通知ツールのテストスクリプト
 
 このスクリプトは設定と接続性のテストを支援します。
 """
@@ -89,8 +89,8 @@ def send_test_email(config):
     try:
         email_config = config['email']
         
-        msg = MIMEText("これはAterm WiFi Client Notifierからのテストメールです。", 'plain', 'utf-8')
-        msg['Subject'] = "テストメール - Aterm WiFi Client Notifier"
+        msg = MIMEText("これはWiFi Client Notifierからのテストメールです。", 'plain', 'utf-8')
+        msg['Subject'] = "テストメール - WiFi Client Notifier"
         msg['From'] = email_config['sender_email']
         msg['To'] = ', '.join(email_config['recipient_emails'])
         
@@ -114,7 +114,7 @@ def send_test_email(config):
 
 def main():
     """メインテスト関数。"""
-    print("=== Aterm WiFi Client Notifier 設定テスト ===\n")
+    print("=== WiFi Client Notifier 設定テスト ===\n")
     
     if len(sys.argv) != 2:
         print("使用方法: python test_config.py <config_file>")

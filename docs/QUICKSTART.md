@@ -1,11 +1,11 @@
 # クイックスタートガイド
 
-このガイドでは、最も簡単な方法でAterm WiFi Client Notifierをセットアップして実行する手順を説明します。
+このガイドでは、最も簡単な方法でWiFi Client Notifierをセットアップして実行する手順を説明します。
 
 ## 前提条件
 
 - Python 3.7以上がインストールされている
-- Atermルータの管理者権限（ユーザー名とパスワード）
+- WiFiルータの管理者権限（ユーザー名とパスワード）
 - メール送信用のSMTPサーバーアクセス（Gmailなど）
 
 ## 5ステップでセットアップ
@@ -100,7 +100,7 @@ Gmailを使用する場合の手順:
 2. アプリパスワードを生成
    - https://myaccount.google.com/apppasswords
    - アプリ: "その他（カスタム名）"
-   - 名前: "Aterm Notifier"
+   - 名前: "WiFi Notifier"
 
 3. 生成された16文字のパスワードを`config.json`の`smtp_password`に設定
 
@@ -151,6 +151,6 @@ Gmailを使用する場合の手順:
 https://github.com/Kento-E/aterm-wifi-client-notifier/issues
 
 以下の情報を含めてください:
-- Atermルータのモデル名
+- WiFiルータのモデル名
 - エラーメッセージやログ
 - 実行環境（OS、Pythonバージョン）

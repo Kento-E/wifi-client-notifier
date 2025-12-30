@@ -1,10 +1,10 @@
 # ルータモデルごとのカスタマイズガイド
 
-このドキュメントでは、お使いのAtermルータモデルに合わせてスクリプトをカスタマイズする方法を説明します。
+このドキュメントでは、お使いのWiFiルータモデルに合わせてスクリプトをカスタマイズする方法を説明します。
 
 ## 概要
 
-Atermルータは様々なモデルがあり、それぞれ管理画面のインターフェースが異なります。
+WiFiルータは様々なモデルがあり、それぞれ管理画面のインターフェースが異なります。
 このため、デフォルトの実装が動作しない場合は、カスタマイズが必要になることがあります。
 
 ## カスタマイズが必要な場合
@@ -37,9 +37,9 @@ Atermルータは様々なモデルがあり、それぞれ管理画面のイン
 
 ## wifi_notifier.pyのカスタマイズ方法
 
-### AtermRouterクラスの修正
+### WiFiRouterクラスの修正
 
-`src/wifi_notifier.py`の`AtermRouter`クラスを修正します。
+`src/wifi_notifier.py`の`WiFiRouter`クラスを修正します。
 
 #### 例1: ログイン方法の変更
 
@@ -245,14 +245,14 @@ def get_connected_devices(self) -> List[Dict[str, str]]:
 
 ```python
 python3
->>> from wifi_notifier import AtermRouter
->>> router = AtermRouter('192.168.10.1', 'admin', 'password')
+>>> from wifi_notifier import WiFiRouter
+>>> router = WiFiRouter('192.168.10.1', 'admin', 'password')
 >>> router.login()
 >>> devices = router.get_connected_devices()
 >>> print(devices)
 ```
 
-## 主要なAtermモデルの既知の設定
+## 主要なルータモデルの既知の設定
 
 ### WG2600シリーズ
 
@@ -276,7 +276,7 @@ python3
 
 カスタマイズに困った場合は、以下の情報と共にIssueを作成してください：
 
-1. Atermのモデル名
+1. ルータのモデル名
 2. ファームウェアバージョン
 3. ブラウザの開発者ツールで確認したリクエスト/レスポンスのスクリーンショット
 4. エラーログ（`log_level: "DEBUG"`で取得）
