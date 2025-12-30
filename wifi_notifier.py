@@ -292,8 +292,13 @@ class WiFiMonitor:
         
         logging.info("Components initialized successfully")
     
-    def start(self):
-        """WiFi接続の監視を開始する。"""
+    def start(self, single_run: bool = False):
+        """
+        WiFi接続の監視を開始する。
+        
+        Args:
+            single_run: Trueの場合、1回だけチェックして終了（GitHub Actions用）
+        """
         logging.info("Starting WiFi monitor")
         
         # ルータにログイン
@@ -307,6 +312,13 @@ class WiFiMonitor:
         initial_devices = self.router.get_connected_devices()
         self.known_devices = {dev['mac'].lower() for dev in initial_devices}
         logging.info(f"Initial devices: {len(self.known_devices)}")
+        
+        if single_run:
+            # 1回だけチェックして終了（GitHub Actions用）
+            logging.info("Single run mode - checking once and exiting")
+            self._check_for_new_devices()
+            logging.info("Single run completed")
+            return
         
         # 監視ループを開始
         check_interval = self.config.get('check_interval', 60)
@@ -362,16 +374,18 @@ def main():
     """メインエントリーポイント。"""
     import sys
     
-    if len(sys.argv) != 2:
-        print("Usage: python wifi_notifier.py <config_file>")
+    if len(sys.argv) < 2:
+        print("Usage: python wifi_notifier.py <config_file> [--single-run]")
         print("Example: python wifi_notifier.py config.json")
+        print("Example: python wifi_notifier.py config.json --single-run")
         sys.exit(1)
     
     config_file = sys.argv[1]
+    single_run = '--single-run' in sys.argv
     
     try:
         monitor = WiFiMonitor(config_file)
-        monitor.start()
+        monitor.start(single_run=single_run)
     except Exception as e:
         print(f"Error: {e}")
         sys.exit(1)

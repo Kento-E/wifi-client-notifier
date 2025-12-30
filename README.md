@@ -10,6 +10,8 @@ NECのAtermステーション通知サービスの終了（https://www.aterm.jp/
 
 **📖 すぐに始めたい方は [クイックスタートガイド](QUICKSTART.md) をご覧ください。**
 
+**☁️ GitHub Actionsで自動実行したい方は [GitHub Actions設定ガイド](GITHUB_ACTIONS.md) をご覧ください。**
+
 ## 主な機能
 
 - Atermルータへの定期的なアクセスによる接続端末の監視
