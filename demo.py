@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Demo script to simulate WiFi monitoring without a real router
+実際のルータなしでWiFi監視をシミュレートするデモスクリプト
 
-This script helps test the notification system without requiring actual router access.
+このスクリプトは実際のルータアクセスを必要とせずに通知システムをテストします。
 """
 
 import time
@@ -13,11 +13,11 @@ from datetime import datetime
 
 
 def demo_notification():
-    """Demonstrate email notification functionality."""
+    """メール通知機能をデモンストレートする。"""
     
     print("=== Aterm WiFi Client Notifier デモ ===\n")
     
-    # Load config
+    # 設定を読み込む
     if len(sys.argv) != 2:
         print("使用方法: python demo.py <config_file>")
         print("例: python demo.py config.json")
@@ -32,7 +32,7 @@ def demo_notification():
         print(f"設定ファイルの読み込みに失敗: {e}")
         sys.exit(1)
     
-    # Initialize email notifier
+    # メール通知を初期化
     email_config = config['email']
     notifier = EmailNotifier(
         email_config['smtp_server'],
@@ -44,7 +44,7 @@ def demo_notification():
         email_config.get('use_tls', True)
     )
     
-    # Simulate device connection
+    # デバイス接続をシミュレート
     demo_device = {
         'mac': 'AA:BB:CC:DD:EE:FF',
         'ip': '192.168.10.100',

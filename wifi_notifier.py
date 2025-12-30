@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Aterm WiFi Client Notifier
+Aterm WiFi接続通知ツール
 
-This script monitors an Aterm router for new WiFi connections and sends
-email notifications when specific devices connect.
+AtermルータのWiFi新規接続を監視し、特定のデバイスが接続された際に
+メール通知を送信するスクリプトです。
 """
 
 import requests
@@ -20,16 +20,16 @@ from aterm_scraper import parse_wireless_lan_status, extract_devices_from_json
 
 
 class AtermRouter:
-    """Interface to communicate with Aterm router."""
+    """Atermルータと通信するためのインターフェース。"""
     
     def __init__(self, router_ip: str, username: str, password: str):
         """
-        Initialize router connection.
+        ルータ接続を初期化する。
         
         Args:
-            router_ip: IP address of the router
-            username: Admin username
-            password: Admin password
+            router_ip: ルータのIPアドレス
+            username: 管理者ユーザー名
+            password: 管理者パスワード
         """
         self.router_ip = router_ip
         self.username = username
@@ -39,22 +39,21 @@ class AtermRouter:
         
     def login(self) -> bool:
         """
-        Login to the router.
+        ルータにログインする。
         
         Returns:
-            True if login successful, False otherwise
+            ログイン成功時はTrue、失敗時はFalse
         """
         try:
-            # Note: This is a generic implementation. 
-            # Actual Aterm routers may require different authentication methods
-            # Users may need to customize this based on their specific router model
+            # 注記: これは汎用的な実装です
+            # 実際のAtermルータはモデルによって異なる認証方法が必要な場合があります
+            # ユーザーは特定のルータモデルに合わせてカスタマイズする必要があります
             login_url = f"{self.base_url}/index.cgi/login"
             
-            # Create password hash (common for older Aterm routers)
-            # NOTE: MD5 is used here for compatibility with older Aterm router models
-            # that require MD5 hashing. This is not for security purposes as the
-            # connection is over HTTP. For newer models, see CUSTOMIZATION.md for
-            # examples using SHA-256 or other methods.
+            # パスワードハッシュを作成（古いAtermルータで一般的）
+            # 注記: MD5は古いAtermルータモデルとの互換性のために使用しています
+            # これはセキュリティ目的ではなく、HTTP接続のため。新しいモデルについては
+            # CUSTOMIZATION.mdでSHA-256や他の方法の例を参照してください。
             password_hash = hashlib.md5(self.password.encode()).hexdigest()
             
             login_data = {
@@ -71,16 +70,16 @@ class AtermRouter:
     
     def get_connected_devices(self) -> List[Dict[str, str]]:
         """
-        Get list of currently connected WiFi devices.
+        現在接続中のWiFiデバイスのリストを取得する。
         
         Returns:
-            List of dictionaries containing device information
-            Each dict has keys: 'mac', 'ip', 'hostname'
+            デバイス情報を含む辞書のリスト
+            各辞書には 'mac', 'ip', 'hostname' キーが含まれます
         """
         try:
-            # Note: The actual endpoint varies by Aterm model
-            # Common endpoints: /wlmaclist.cgi, /index.cgi/wireless_status
-            # Users may need to customize this for their specific model
+            # 注記: 実際のエンドポイントはAtermモデルによって異なります
+            # 一般的なエンドポイント: /wlmaclist.cgi, /index.cgi/wireless_status
+            # ユーザーは特定のモデルに合わせてカスタマイズする必要があります
             
             devices_url = f"{self.base_url}/index.cgi/wireless_client_list"
             response = self.session.get(devices_url, timeout=10)
@@ -89,8 +88,8 @@ class AtermRouter:
                 logging.warning(f"Failed to get device list: {response.status_code}")
                 return []
             
-            # Parse the response - this will vary by router model
-            # This is a placeholder implementation
+            # レスポンスを解析 - ルータモデルによって異なります
+            # これはプレースホルダー実装です
             devices = self._parse_device_list(response.text)
             return devices
             
@@ -100,19 +99,19 @@ class AtermRouter:
     
     def _parse_device_list(self, html_content: str) -> List[Dict[str, str]]:
         """
-        Parse HTML response to extract device information.
+        HTMLレスポンスを解析してデバイス情報を抽出する。
         
-        This method first tries to parse as JSON, then falls back to HTML scraping.
+        このメソッドはまずJSONとして解析を試み、失敗した場合はHTMLスクレイピングにフォールバックします。
         
         Args:
-            html_content: HTML/JSON response from router
+            html_content: ルータからのHTML/JSONレスポンス
             
         Returns:
-            List of device dictionaries
+            デバイス辞書のリスト
         """
         devices = []
         
-        # Try parsing as JSON first
+        # まずJSONとして解析を試みる
         try:
             json_data = json.loads(html_content)
             devices = extract_devices_from_json(json_data)
@@ -122,7 +121,7 @@ class AtermRouter:
         except (json.JSONDecodeError, ValueError):
             pass
         
-        # Fall back to HTML scraping
+        # HTMLスクレイピングにフォールバック
         devices = parse_wireless_lan_status(html_content)
         if devices:
             logging.debug(f"Parsed {len(devices)} devices from HTML")
@@ -131,22 +130,22 @@ class AtermRouter:
 
 
 class EmailNotifier:
-    """Handle email notifications via SMTP."""
+    """SMTP経由でメール通知を処理する。"""
     
     def __init__(self, smtp_server: str, smtp_port: int, smtp_user: str, 
                  smtp_password: str, sender_email: str, recipient_emails: List[str],
                  use_tls: bool = True):
         """
-        Initialize email notifier.
+        メール通知機能を初期化する。
         
         Args:
-            smtp_server: SMTP server address
-            smtp_port: SMTP server port
-            smtp_user: SMTP username
-            smtp_password: SMTP password
-            sender_email: Sender email address
-            recipient_emails: List of recipient email addresses
-            use_tls: Whether to use TLS (default: True)
+            smtp_server: SMTPサーバーアドレス
+            smtp_port: SMTPサーバーポート
+            smtp_user: SMTPユーザー名
+            smtp_password: SMTPパスワード
+            sender_email: 送信元メールアドレス
+            recipient_emails: 受信者メールアドレスのリスト
+            use_tls: TLSを使用するか（デフォルト: True）
         """
         self.smtp_server = smtp_server
         self.smtp_port = smtp_port
@@ -158,13 +157,13 @@ class EmailNotifier:
     
     def send_notification(self, device_info: Dict[str, str]) -> bool:
         """
-        Send email notification about new device connection.
+        新しいデバイス接続についてメール通知を送信する。
         
         Args:
-            device_info: Dictionary containing device information
+            device_info: デバイス情報を含む辞書
             
         Returns:
-            True if email sent successfully, False otherwise
+            メール送信成功時はTrue、失敗時はFalse
         """
         try:
             msg = MIMEMultipart()
@@ -172,11 +171,11 @@ class EmailNotifier:
             msg['To'] = ', '.join(self.recipient_emails)
             msg['Subject'] = f"新しいWiFi接続を検出 - {device_info.get('hostname', 'Unknown Device')}"
             
-            # Create email body
+            # メール本文を作成
             body = self._create_email_body(device_info)
             msg.attach(MIMEText(body, 'plain', 'utf-8'))
             
-            # Send email
+            # メールを送信
             if self.use_tls:
                 server = smtplib.SMTP(self.smtp_server, self.smtp_port)
                 server.starttls()
@@ -196,13 +195,13 @@ class EmailNotifier:
     
     def _create_email_body(self, device_info: Dict[str, str]) -> str:
         """
-        Create email body text.
+        メール本文テキストを作成する。
         
         Args:
-            device_info: Dictionary containing device information
+            device_info: デバイス情報を含む辞書
             
         Returns:
-            Formatted email body
+            フォーマット済みのメール本文
         """
         timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
@@ -221,17 +220,17 @@ Aterm WiFi Client Notifier
 
 
 class WiFiMonitor:
-    """Monitor WiFi connections and send notifications."""
+    """WiFi接続を監視して通知を送信する。"""
     
     def __init__(self, config_path: str):
         """
-        Initialize monitor with configuration.
+        設定ファイルを使用して監視機能を初期化する。
         
         Args:
-            config_path: Path to configuration file
+            config_path: 設定ファイルのパス
         """
         self.config = self._load_config(config_path)
-        self._setup_logging()  # Setup logging before anything else
+        self._setup_logging()  # 他の処理の前にロギングを設定
         self.router = None
         self.notifier = None
         self.known_devices: Set[str] = set()
@@ -239,21 +238,21 @@ class WiFiMonitor:
         self._initialize_components()
     
     def _load_config(self, config_path: str) -> Dict:
-        """Load configuration from JSON file."""
+        """JSONファイルから設定を読み込む。"""
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except Exception as e:
-            # Use print here since logging is not yet configured
+            # ロギングがまだ設定されていないためprintを使用
             print(f"Failed to load config: {e}")
             raise
     
     def _setup_logging(self):
-        """Setup logging configuration."""
+        """ロギング設定をセットアップする。"""
         log_level = self.config.get('log_level', 'INFO')
         log_file = self.config.get('log_file', 'wifi_notifier.log')
         
-        # Clear any existing handlers and configure from scratch
+        # 既存のハンドラーをクリアして最初から設定
         logging.root.handlers = []
         logging.basicConfig(
             level=getattr(logging, log_level),
@@ -266,8 +265,8 @@ class WiFiMonitor:
         )
     
     def _initialize_components(self):
-        """Initialize router and email notifier components."""
-        # Initialize router connection
+        """ルータとメール通知のコンポーネントを初期化する。"""
+        # ルータ接続を初期化
         router_config = self.config['router']
         self.router = AtermRouter(
             router_config['ip'],
@@ -275,7 +274,7 @@ class WiFiMonitor:
             router_config['password']
         )
         
-        # Initialize email notifier
+        # メール通知を初期化
         email_config = self.config['email']
         self.notifier = EmailNotifier(
             email_config['smtp_server'],
@@ -287,29 +286,29 @@ class WiFiMonitor:
             email_config.get('use_tls', True)
         )
         
-        # Load monitored devices (if specified)
+        # 監視対象デバイスを読み込む（指定されている場合）
         monitored_devices = self.config.get('monitored_devices', [])
         self.monitored_macs = {mac.lower() for mac in monitored_devices}
         
         logging.info("Components initialized successfully")
     
     def start(self):
-        """Start monitoring WiFi connections."""
+        """WiFi接続の監視を開始する。"""
         logging.info("Starting WiFi monitor")
         
-        # Login to router
+        # ルータにログイン
         if not self.router.login():
             logging.error("Failed to login to router")
             return
         
         logging.info("Successfully logged in to router")
         
-        # Get initial device list
+        # 初期デバイスリストを取得
         initial_devices = self.router.get_connected_devices()
         self.known_devices = {dev['mac'].lower() for dev in initial_devices}
         logging.info(f"Initial devices: {len(self.known_devices)}")
         
-        # Start monitoring loop
+        # 監視ループを開始
         check_interval = self.config.get('check_interval', 60)
         
         try:
@@ -322,23 +321,23 @@ class WiFiMonitor:
             logging.error(f"Monitor error: {e}")
     
     def _check_for_new_devices(self):
-        """Check for new device connections."""
+        """新しいデバイス接続をチェックする。"""
         try:
             current_devices = self.router.get_connected_devices()
             current_macs = {dev['mac'].lower() for dev in current_devices}
             
-            # Find new devices
+            # 新しいデバイスを検出
             new_macs = current_macs - self.known_devices
             
             for mac in new_macs:
-                # Find device info
+                # デバイス情報を検索
                 device_info = next((dev for dev in current_devices if dev['mac'].lower() == mac), None)
                 
                 if device_info:
-                    # Check if we should notify about this device
+                    # このデバイスについて通知すべきかチェック
                     should_notify = (
-                        not self.monitored_macs or  # Notify all if no filter
-                        mac in self.monitored_macs   # Or if in monitored list
+                        not self.monitored_macs or  # フィルターがない場合は全て通知
+                        mac in self.monitored_macs   # または監視リストに含まれている場合
                     )
                     
                     if should_notify:
@@ -349,7 +348,7 @@ class WiFiMonitor:
                     
                     self.known_devices.add(mac)
             
-            # Remove disconnected devices from known set
+            # 既知セットから切断されたデバイスを削除
             disconnected = self.known_devices - current_macs
             if disconnected:
                 logging.info(f"Devices disconnected: {len(disconnected)}")
@@ -360,7 +359,7 @@ class WiFiMonitor:
 
 
 def main():
-    """Main entry point."""
+    """メインエントリーポイント。"""
     import sys
     
     if len(sys.argv) != 2:

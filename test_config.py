@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Test script for Aterm WiFi Client Notifier
+Aterm WiFi接続通知ツールのテストスクリプト
 
-This script helps test the configuration and connectivity.
+このスクリプトは設定と接続性のテストを支援します。
 """
 
 import sys
@@ -13,7 +13,7 @@ from email.mime.text import MIMEText
 
 
 def test_config_file(config_path):
-    """Test if config file can be loaded."""
+    """設定ファイルが読み込み可能かテストする。"""
     print("設定ファイルをテスト中...")
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
@@ -29,7 +29,7 @@ def test_config_file(config_path):
 
 
 def test_router_connection(config):
-    """Test connection to router."""
+    """ルータへの接続をテストする。"""
     print("\nルータへの接続をテスト中...")
     try:
         router_ip = config['router']['ip']
@@ -53,7 +53,7 @@ def test_router_connection(config):
 
 
 def test_smtp_connection(config):
-    """Test SMTP connection and authentication."""
+    """SMTP接続と認証をテストする。"""
     print("\nSMTP接続をテスト中...")
     try:
         email_config = config['email']
@@ -84,7 +84,7 @@ def test_smtp_connection(config):
 
 
 def send_test_email(config):
-    """Send a test email."""
+    """テストメールを送信する。"""
     print("\nテストメールを送信中...")
     try:
         email_config = config['email']
@@ -113,7 +113,7 @@ def send_test_email(config):
 
 
 def main():
-    """Main test function."""
+    """メインテスト関数。"""
     print("=== Aterm WiFi Client Notifier 設定テスト ===\n")
     
     if len(sys.argv) != 2:
@@ -123,25 +123,25 @@ def main():
     
     config_path = sys.argv[1]
     
-    # Test config file
+    # 設定ファイルをテスト
     config = test_config_file(config_path)
     if not config:
         sys.exit(1)
     
-    # Test router connection
+    # ルータ接続をテスト
     router_ok = test_router_connection(config)
     
-    # Test SMTP connection
+    # SMTP接続をテスト
     smtp_ok = test_smtp_connection(config)
     
-    # Offer to send test email
+    # テストメール送信を提案
     if smtp_ok:
         print("\nテストメールを送信しますか? (y/n): ", end='')
         response = input().lower()
         if response == 'y':
             send_test_email(config)
     
-    # Summary
+    # サマリー
     print("\n=== テスト結果 ===")
     print(f"設定ファイル: ✓")
     print(f"ルータ接続: {'✓' if router_ok else '✗'}")
