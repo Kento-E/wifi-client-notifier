@@ -71,6 +71,18 @@ cp config.example.json config.json
 }
 ```
 
+3. 設定をテスト:
+
+```bash
+python test_config.py config.json
+```
+
+このテストスクリプトは以下を確認します：
+- 設定ファイルの読み込み
+- ルータへの接続
+- SMTP認証
+- テストメールの送信（オプション）
+
 ### Gmail設定の注意事項
 
 Gmailを使用する場合：
@@ -92,32 +104,58 @@ python wifi_notifier.py config.json
 nohup python wifi_notifier.py config.json &
 ```
 
-### systemdサービスとして実行（Linux）
+### Dockerで実行
 
-1. サービスファイルを作成: `/etc/systemd/system/wifi-notifier.service`
+1. config.jsonを作成して設定を入力
 
-```ini
-[Unit]
-Description=Aterm WiFi Client Notifier
-After=network.target
-
-[Service]
-Type=simple
-User=your_user
-WorkingDirectory=/path/to/aterm-wifi-client-notifier
-ExecStart=/usr/bin/python3 /path/to/aterm-wifi-client-notifier/wifi_notifier.py /path/to/config.json
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
+2. Dockerイメージをビルド:
+```bash
+docker-compose build
 ```
 
-2. サービスを有効化して起動:
+3. コンテナを起動:
+```bash
+docker-compose up -d
+```
+
+4. ログを確認:
+```bash
+docker-compose logs -f
+```
+
+5. コンテナを停止:
+```bash
+docker-compose down
+```
+
+### systemdサービスとして実行（Linux）
+
+1. サービスファイルをカスタマイズ:
+
+`wifi-notifier.service`ファイルを編集し、以下を実際のパスに置き換えます：
+- `your_user`: 実行ユーザー名
+- `your_group`: 実行グループ名
+- `/path/to/aterm-wifi-client-notifier`: このリポジトリのパス
+
+2. サービスファイルをコピー:
 
 ```bash
+sudo cp wifi-notifier.service /etc/systemd/system/
+```
+
+3. サービスを有効化して起動:
+
+```bash
+sudo systemctl daemon-reload
 sudo systemctl enable wifi-notifier
 sudo systemctl start wifi-notifier
 sudo systemctl status wifi-notifier
+```
+
+4. ログを確認:
+
+```bash
+sudo journalctl -u wifi-notifier -f
 ```
 
 ## ルータモデルごとのカスタマイズ

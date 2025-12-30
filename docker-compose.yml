@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  wifi-notifier:
+    build: .
+    container_name: aterm-wifi-notifier
+    restart: unless-stopped
+    volumes:
+      - ./config.json:/config/config.json:ro
+      - ./logs:/app/logs
+    network_mode: bridge
+    environment:
+      - TZ=Asia/Tokyo
