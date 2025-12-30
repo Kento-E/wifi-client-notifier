@@ -8,7 +8,7 @@ Type=simple
 User=your_user
 Group=your_group
 WorkingDirectory=/path/to/aterm-wifi-client-notifier
-ExecStart=/usr/bin/python3 /path/to/aterm-wifi-client-notifier/wifi_notifier.py /path/to/aterm-wifi-client-notifier/config.json
+ExecStart=/usr/bin/python3 /path/to/aterm-wifi-client-notifier/src/wifi_notifier.py /path/to/aterm-wifi-client-notifier/config.json
 
 # Restart on failure
 Restart=on-failure

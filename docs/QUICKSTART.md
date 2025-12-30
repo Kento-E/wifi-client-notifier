@@ -21,12 +21,12 @@ cd aterm-wifi-client-notifier
 
 **Linux/Mac:**
 ```bash
-./setup.sh
+./deployment/setup.sh
 ```
 
 **Windows:**
 ```bash
-setup.bat
+deployment\setup.bat
 ```
 
 または手動で:
@@ -37,7 +37,7 @@ pip install -r requirements.txt
 ### ステップ3: 設定ファイルを作成
 
 ```bash
-cp config.example.json config.json
+cp config/config.example.json config.json
 ```
 
 `config.json`を編集して以下を設定:
@@ -60,7 +60,7 @@ cp config.example.json config.json
 ### ステップ4: 設定をテスト
 
 ```bash
-python test_config.py config.json
+python src/test_config.py config.json
 ```
 
 このコマンドで以下を確認:
@@ -73,7 +73,7 @@ python test_config.py config.json
 
 **テスト実行（フォアグラウンド）:**
 ```bash
-python wifi_notifier.py config.json
+python src/wifi_notifier.py config.json
 ```
 
 Ctrl+Cで停止できます。
@@ -82,7 +82,7 @@ Ctrl+Cで停止できます。
 
 Linux/Mac:
 ```bash
-nohup python wifi_notifier.py config.json &
+nohup python src/wifi_notifier.py config.json &
 ```
 
 または、Docker:

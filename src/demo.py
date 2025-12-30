@@ -8,7 +8,7 @@
 import time
 import json
 import sys
-from wifi_notifier import EmailNotifier
+from src.wifi_notifier import EmailNotifier
 from datetime import datetime
 
 

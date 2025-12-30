@@ -101,10 +101,10 @@ GitHub Actions用に `--single-run` フラグが実装されています：
 
 ```bash
 # 通常モード（継続的に監視）
-python wifi_notifier.py config.json
+python src/wifi_notifier.py config.json
 
 # シングルランモード（1回だけチェック）
-python wifi_notifier.py config.json --single-run
+python src/wifi_notifier.py config.json --single-run
 ```
 
 シングルランモードでは：

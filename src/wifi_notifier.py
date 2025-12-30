@@ -16,7 +16,7 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 from typing import Dict, List, Set, Optional
 import hashlib
-from aterm_scraper import parse_wireless_lan_status, extract_devices_from_json
+from src.aterm_scraper import parse_wireless_lan_status, extract_devices_from_json
 
 
 class AtermRouter:

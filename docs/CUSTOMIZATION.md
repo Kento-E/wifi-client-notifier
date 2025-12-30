@@ -39,7 +39,7 @@ Atermルータは様々なモデルがあり、それぞれ管理画面のイン
 
 ### AtermRouterクラスの修正
 
-`wifi_notifier.py`の`AtermRouter`クラスを修正します。
+`src/wifi_notifier.py`の`AtermRouter`クラスを修正します。
 
 #### 例1: ログイン方法の変更
 

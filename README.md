@@ -8,9 +8,38 @@ Atermルータに無線接続した端末を検出し、メール通知を送信
 NECのAtermステーション通知サービスの終了（https://www.aterm.jp/product/atermstation/info/2025/info0929.html）に伴い、
 同様の機能を自前で実現するために開発されました。
 
-**📖 すぐに始めたい方は [クイックスタートガイド](QUICKSTART.md) をご覧ください。**
+**📖 すぐに始めたい方は [クイックスタートガイド](docs/QUICKSTART.md) をご覧ください。**
 
-**☁️ GitHub Actionsで自動実行したい方は [GitHub Actions設定ガイド](GITHUB_ACTIONS.md) をご覧ください。**
+**☁️ GitHub Actionsで自動実行したい方は [GitHub Actions設定ガイド](docs/GITHUB_ACTIONS.md) をご覧ください。**
+
+## プロジェクト構成
+
+```
+aterm-wifi-client-notifier/
+├── src/                      # ソースコード
+│   ├── wifi_notifier.py      # メイン監視スクリプト
+│   ├── aterm_scraper.py      # HTML/JSONパーサー
+│   ├── test_config.py        # 設定テストツール
+│   └── demo.py               # デモスクリプト
+├── docs/                     # ドキュメント
+│   ├── QUICKSTART.md         # クイックスタート
+│   ├── GITHUB_ACTIONS.md     # GitHub Actions設定ガイド
+│   ├── CUSTOMIZATION.md      # カスタマイズガイド
+│   └── CONTRIBUTING.md       # 貢献ガイドライン
+├── config/                   # 設定ファイル
+│   ├── config.example.json   # 設定例
+│   └── wifi-notifier.service # systemdサービスファイル
+├── deployment/               # デプロイ関連
+│   ├── Dockerfile            # Dockerイメージ
+│   ├── docker-compose.yml    # Docker Compose設定
+│   ├── setup.sh              # セットアップスクリプト（Linux/Mac）
+│   └── setup.bat             # セットアップスクリプト（Windows）
+├── scripts/                  # ユーティリティスクリプト
+│   └── generate_config.py    # GitHub Actions用設定生成
+└── .github/                  # GitHub設定
+    ├── workflows/            # GitHub Actionsワークフロー
+    └── agents/               # AIエージェント指示書
+```
 
 ## 主な機能
 
@@ -43,7 +72,7 @@ pip install -r requirements.txt
 
 1. サンプル設定ファイルをコピー:
 ```bash
-cp config.example.json config.json
+cp config/config.example.json config.json
 ```
 
 2. `config.json`を編集して、環境に合わせて設定:
@@ -78,7 +107,7 @@ cp config.example.json config.json
 3. 設定をテスト:
 
 ```bash
-python test_config.py config.json
+python src/test_config.py config.json
 ```
 
 このテストスクリプトは以下を確認します：
@@ -99,13 +128,13 @@ Gmailを使用する場合：
 ### 基本的な使用
 
 ```bash
-python wifi_notifier.py config.json
+python src/wifi_notifier.py config.json
 ```
 
 ### バックグラウンドで実行（Linux/Mac）
 
 ```bash
-nohup python wifi_notifier.py config.json &
+nohup python src/wifi_notifier.py config.json &
 ```
 
 ### Dockerで実行
@@ -136,7 +165,7 @@ docker-compose down
 
 1. サービスファイルをカスタマイズ:
 
-`wifi-notifier.service`ファイルを編集し、以下を実際のパスに置き換えます：
+`config/wifi-notifier.service`ファイルを編集し、以下を実際のパスに置き換えます：
 - `your_user`: 実行ユーザー名
 - `your_group`: 実行グループ名
 - `/path/to/aterm-wifi-client-notifier`: このリポジトリのパス
@@ -144,7 +173,7 @@ docker-compose down
 2. サービスファイルをコピー:
 
 ```bash
-sudo cp wifi-notifier.service /etc/systemd/system/
+sudo cp config/wifi-notifier.service /etc/systemd/system/
 ```
 
 3. サービスを有効化して起動:
@@ -165,7 +194,9 @@ sudo journalctl -u wifi-notifier -f
 ## ルータモデルごとのカスタマイズ
 
 このスクリプトは汎用的な実装となっています。ご使用のAtermルータモデルによっては、
-`wifi_notifier.py`の`AtermRouter`クラスをカスタマイズする必要がある場合があります。
+`src/wifi_notifier.py`の`AtermRouter`クラスをカスタマイズする必要がある場合があります。
+
+詳細は [カスタマイズガイド](docs/CUSTOMIZATION.md) をご覧ください。
 
 特に以下のメソッドを確認してください：
 - `login()`: 認証方法がモデルにより異なる場合があります
