@@ -1,0 +1,156 @@
+# クイックスタートガイド
+
+このガイドでは、最も簡単な方法でAterm WiFi Client Notifierをセットアップして実行する手順を説明します。
+
+## 前提条件
+
+- Python 3.7以上がインストールされている
+- Atermルータの管理者権限（ユーザー名とパスワード）
+- メール送信用のSMTPサーバーアクセス（Gmailなど）
+
+## 5ステップでセットアップ
+
+### ステップ1: リポジトリをクローン
+
+```bash
+git clone https://github.com/Kento-E/aterm-wifi-client-notifier.git
+cd aterm-wifi-client-notifier
+```
+
+### ステップ2: 依存パッケージをインストール
+
+**Linux/Mac:**
+```bash
+./setup.sh
+```
+
+**Windows:**
+```bash
+setup.bat
+```
+
+または手動で:
+```bash
+pip install -r requirements.txt
+```
+
+### ステップ3: 設定ファイルを作成
+
+```bash
+cp config.example.json config.json
+```
+
+`config.json`を編集して以下を設定:
+
+**必須項目:**
+- `router.ip`: ルータのIPアドレス（例: 192.168.10.1）
+- `router.username`: 管理者ユーザー名（通常は "admin"）
+- `router.password`: 管理者パスワード
+- `email.smtp_server`: SMTPサーバー（Gmail: smtp.gmail.com）
+- `email.smtp_port`: SMTPポート（Gmail: 587）
+- `email.smtp_user`: メールアドレス
+- `email.smtp_password`: SMTPパスワード（Gmailの場合はアプリパスワード）
+- `email.sender_email`: 送信元メールアドレス
+- `email.recipient_emails`: 通知先メールアドレスのリスト
+
+**オプション:**
+- `monitored_devices`: 監視したい特定のMACアドレス（空の場合は全デバイス）
+- `check_interval`: チェック間隔（秒）、デフォルトは60秒
+
+### ステップ4: 設定をテスト
+
+```bash
+python test_config.py config.json
+```
+
+このコマンドで以下を確認:
+- ✓ 設定ファイルが正しく読み込めるか
+- ✓ ルータに接続できるか
+- ✓ SMTP認証が成功するか
+- オプションでテストメールを送信
+
+### ステップ5: 実行
+
+**テスト実行（フォアグラウンド）:**
+```bash
+python wifi_notifier.py config.json
+```
+
+Ctrl+Cで停止できます。
+
+**バックグラウンド実行（推奨）:**
+
+Linux/Mac:
+```bash
+nohup python wifi_notifier.py config.json &
+```
+
+または、Docker:
+```bash
+docker-compose up -d
+```
+
+## Gmailの設定（推奨）
+
+Gmailを使用する場合の手順:
+
+1. Googleアカウントで2段階認証を有効化
+   - https://myaccount.google.com/security
+
+2. アプリパスワードを生成
+   - https://myaccount.google.com/apppasswords
+   - アプリ: "その他（カスタム名）"
+   - 名前: "Aterm Notifier"
+
+3. 生成された16文字のパスワードを`config.json`の`smtp_password`に設定
+
+4. 設定例:
+```json
+{
+  "email": {
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "smtp_user": "your_email@gmail.com",
+    "smtp_password": "abcd efgh ijkl mnop",
+    "sender_email": "your_email@gmail.com",
+    "recipient_emails": ["your_email@gmail.com"],
+    "use_tls": true
+  }
+}
+```
+
+## トラブルシューティング
+
+### ルータに接続できない
+
+1. ブラウザでルータの管理画面にアクセスできるか確認
+2. IPアドレス、ユーザー名、パスワードを再確認
+3. ルータモデルによってはカスタマイズが必要 → `CUSTOMIZATION.md`参照
+
+### メール送信できない
+
+1. SMTP設定を再確認
+2. Gmailの場合、アプリパスワードを使用しているか確認
+3. ファイアウォール設定を確認
+
+### デバイスが検出されない
+
+1. ログファイル（`wifi_notifier.log`）を確認
+2. `config.json`の`log_level`を`"DEBUG"`に変更して詳細ログを取得
+3. ルータモデル固有の設定が必要な場合 → `CUSTOMIZATION.md`参照
+
+## 次のステップ
+
+- **長期運用**: systemdサービスまたはDockerで常時稼働させる（README.md参照）
+- **カスタマイズ**: 特定のデバイスのみ監視、チェック間隔の調整など
+- **トラブル対応**: `CUSTOMIZATION.md`でルータ固有の設定を確認
+
+## サポート
+
+問題が発生した場合は、GitHubのIssueで報告してください:
+https://github.com/Kento-E/aterm-wifi-client-notifier/issues
+
+以下の情報を含めてください:
+- Atermルータのモデル名
+- エラーメッセージやログ
+- 実行環境（OS、Pythonバージョン）

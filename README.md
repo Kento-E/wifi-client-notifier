@@ -8,6 +8,8 @@ Atermルータに無線接続した端末を検出し、メール通知を送信
 NECのAtermステーション通知サービスの終了（https://www.aterm.jp/product/atermstation/info/2025/info0929.html）に伴い、
 同様の機能を自前で実現するために開発されました。
 
+**📖 すぐに始めたい方は [クイックスタートガイド](QUICKSTART.md) をご覧ください。**
+
 ## 主な機能
 
 - Atermルータへの定期的なアクセスによる接続端末の監視
