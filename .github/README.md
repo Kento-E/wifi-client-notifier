@@ -66,10 +66,6 @@ Issue作成・管理を行うエージェント向けの指示書です。
    - 日本のWiFiルータユーザーがわかりやすい説明
    - 具体的な例を含める
 
-## 参考
-
-このディレクトリ構造は、[discord-ai-chatbot](https://github.com/Kento-E/discord-ai-chatbot/tree/main/.github)を参考にしています。
-
 ## 更新
 
 指示書の内容は、プロジェクトの進化に合わせて適宜更新してください。
