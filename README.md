@@ -38,7 +38,7 @@ aterm-wifi-client-notifier/
 │   └── generate_config.py    # GitHub Actions用設定生成
 └── .github/                  # GitHub設定
     ├── workflows/            # GitHub Actionsワークフロー
-    └── agents/               # AIエージェント指示書
+    └── instructions/         # AIエージェント指示書
 ```
 
 ## 主な機能
