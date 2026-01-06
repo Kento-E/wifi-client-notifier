@@ -1,6 +1,18 @@
-# デフォルト指示
+# GitHub Copilot指示書
 
 **すべての応答、コメント、ドキュメント、コードコメントは日本語で出力してください。**
+
+## 概要
+
+このリポジトリはWiFiルータユーザー向けのプロジェクトです。
+すべての出力（コード、コメント、ドキュメント、コミットメッセージなど）を**日本語で統一する**ため、
+GitHub Copilotに対する明確な指示を提供します。
+
+### 用途別指示書
+
+- [`instructions/code-review.instructions.md`](instructions/code-review.instructions.md) - コードレビュー時の指示
+- [`instructions/pull-request.instructions.md`](instructions/pull-request.instructions.md) - Pull Request作成・管理時の指示
+- [`instructions/issue.instructions.md`](instructions/issue.instructions.md) - Issue作成・管理時の指示
 
 ### 出力言語ルール
 
