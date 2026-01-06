@@ -55,12 +55,7 @@ Add WiFi monitoring feature
 
 ### ドキュメント
 
-すべてのMarkdownファイルは日本語で記述してください：
-- README.md
-- CONTRIBUTING.md
-- QUICKSTART.md
-- CUSTOMIZATION.md
-- その他すべての.mdファイル
+すべてのMarkdownファイルは日本語で記述してください。
 
 ## Pull Request とコメント
 
