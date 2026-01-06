@@ -1,4 +1,4 @@
-# Pull Requestエージェント指示
+# Pull Request指示
 
 ## 言語設定
 
