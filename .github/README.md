@@ -10,7 +10,7 @@ GitHub Copilotに対する明確な指示を提供します。
 
 ## 指示書一覧
 
-### [`instructions/default.md`](instructions/default.md)
+### [`instructions/default.instructions.md`](instructions/default.instructions.md)
 基本的な指示書です。
 
 **主な内容：**
@@ -19,7 +19,7 @@ GitHub Copilotに対する明確な指示を提供します。
 - コミットメッセージの形式
 - ドキュメントの記述方法
 
-### [`instructions/code-review.md`](instructions/code-review.md)
+### [`instructions/code-review.instructions.md`](instructions/code-review.instructions.md)
 コードレビュー時の指示書です。
 
 **主な内容：**
@@ -27,7 +27,7 @@ GitHub Copilotに対する明確な指示を提供します。
 - レビュー項目と優先度
 - コメント形式の例
 
-### [`instructions/pull-request.md`](instructions/pull-request.md)
+### [`instructions/pull-request.instructions.md`](instructions/pull-request.instructions.md)
 Pull Request作成・管理時の指示書です。
 
 **主な内容：**
@@ -35,7 +35,7 @@ Pull Request作成・管理時の指示書です。
 - 変更履歴の記述方法
 - マージ前の確認事項
 
-### [`instructions/issue.md`](instructions/issue.md)
+### [`instructions/issue.instructions.md`](instructions/issue.instructions.md)
 Issue作成・管理時の指示書です。
 
 **主な内容：**
