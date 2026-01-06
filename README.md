@@ -32,8 +32,7 @@ aterm-wifi-client-notifier/
 ├── deployment/               # デプロイ関連
 │   ├── Dockerfile            # Dockerイメージ
 │   ├── docker-compose.yml    # Docker Compose設定
-│   ├── setup.sh              # セットアップスクリプト（Linux/Mac）
-│   └── setup.bat             # セットアップスクリプト（Windows）
+│   └── setup.sh              # セットアップスクリプト
 ├── scripts/                  # ユーティリティスクリプト
 │   └── generate_config.py    # GitHub Actions用設定生成
 └── .github/                  # GitHub設定

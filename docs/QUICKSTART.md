@@ -19,14 +19,8 @@ cd aterm-wifi-client-notifier
 
 ### ステップ2: 依存パッケージをインストール
 
-**Linux/Mac:**
 ```bash
 ./deployment/setup.sh
-```
-
-**Windows:**
-```bash
-deployment\setup.bat
 ```
 
 または手動で:
