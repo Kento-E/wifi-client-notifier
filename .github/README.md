@@ -10,8 +10,8 @@ GitHub Copilotに対する明確な指示を提供します。
 
 ## 指示書一覧
 
-### [`instructions/default.instructions.md`](instructions/default.instructions.md)
-基本的な指示書です。
+### [`copilot-instructions.md`](copilot-instructions.md)
+リポジトリ全体に適用されるデフォルト指示書です。
 
 **主な内容：**
 - 言語設定（すべて日本語で出力）
