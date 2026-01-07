@@ -10,6 +10,7 @@ import requests
 import time
 import smtplib
 import json
+import yaml
 import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -238,10 +239,14 @@ class WiFiMonitor:
         self._initialize_components()
     
     def _load_config(self, config_path: str) -> Dict:
-        """JSONファイルから設定を読み込む。"""
+        """設定ファイルを読み込む（YAMLまたはJSON形式）。"""
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                # YAML形式とJSON形式の両方に対応
+                if config_path.endswith('.yaml') or config_path.endswith('.yml'):
+                    return yaml.safe_load(f)
+                else:
+                    return json.load(f)
         except Exception as e:
             # ロギングがまだ設定されていないためprintを使用
             print(f"Failed to load config: {e}")

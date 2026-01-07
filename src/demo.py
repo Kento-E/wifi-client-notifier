@@ -7,6 +7,7 @@
 
 import time
 import json
+import yaml
 import sys
 from src.wifi_notifier import EmailNotifier
 from datetime import datetime
@@ -20,14 +21,18 @@ def demo_notification():
     # 設定を読み込む
     if len(sys.argv) != 2:
         print("使用方法: python demo.py <config_file>")
-        print("例: python demo.py config.json")
+        print("例: python demo.py config.yaml")
         sys.exit(1)
     
     config_path = sys.argv[1]
     
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
-            config = json.load(f)
+            # YAML形式とJSON形式の両方に対応
+            if config_path.endswith('.yaml') or config_path.endswith('.yml'):
+                config = yaml.safe_load(f)
+            else:
+                config = json.load(f)
     except Exception as e:
         print(f"設定ファイルの読み込みに失敗: {e}")
         sys.exit(1)

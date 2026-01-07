@@ -2,11 +2,12 @@
 """
 GitHub Actions Secretsから設定ファイルを生成するスクリプト
 
-環境変数から設定値を読み取り、config.jsonファイルを生成します。
+環境変数から設定値を読み取り、config.yamlファイルを生成します。
 """
 
 import os
 import json
+import yaml
 import sys
 
 
@@ -83,11 +84,11 @@ def generate_config():
             "log_file": get_env_optional("LOG_FILE", "wifi_notifier.log")
         }
         
-        # config.jsonに書き出し
-        with open('config.json', 'w', encoding='utf-8') as f:
-            json.dump(config, f, ensure_ascii=False, indent=2)
+        # config.yamlに書き出し
+        with open('config.yaml', 'w', encoding='utf-8') as f:
+            yaml.dump(config, f, allow_unicode=True, default_flow_style=False, sort_keys=False)
         
-        print("✓ config.json を正常に生成しました")
+        print("✓ config.yaml を正常に生成しました")
         print(f"  - ルータIP: {config['router']['ip']}")
         print(f"  - SMTPサーバー: {config['email']['smtp_server']}")
         print(f"  - 受信者数: {len(config['email']['recipient_emails'])}")
