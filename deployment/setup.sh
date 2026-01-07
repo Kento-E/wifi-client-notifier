@@ -34,19 +34,19 @@ echo "✓ 依存パッケージのインストール完了"
 echo ""
 
 # 設定ファイルを作成（存在しない場合）
-if [ ! -f config.json ]; then
+if [ ! -f config.yaml ]; then
     echo "設定ファイルを作成中..."
-    cp config/config.example.json config.json
-    echo "✓ config.json を作成しました"
+    cp config/config.example.yaml config.yaml
+    echo "✓ config.yaml を作成しました"
     echo ""
     echo "次のステップ:"
-    echo "1. config.json を編集して、ルータとメールの設定を入力してください"
-    echo "2. python3 src/wifi_notifier.py config.json で実行してください"
+    echo "1. config.yaml を編集して、ルータとメールの設定を入力してください"
+    echo "2. python3 src/wifi_notifier.py config.yaml で実行してください"
 else
-    echo "config.json は既に存在します"
+    echo "config.yaml は既に存在します"
     echo ""
     echo "次のステップ:"
-    echo "python3 src/wifi_notifier.py config.json で実行してください"
+    echo "python3 src/wifi_notifier.py config.yaml で実行してください"
 fi
 
 echo ""
