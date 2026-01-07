@@ -239,14 +239,10 @@ class WiFiMonitor:
         self._initialize_components()
     
     def _load_config(self, config_path: str) -> Dict:
-        """設定ファイルを読み込む（YAMLまたはJSON形式）。"""
+        """設定ファイルを読み込む（YAML形式）。"""
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
-                # YAML形式とJSON形式の両方に対応
-                if config_path.endswith('.yaml') or config_path.endswith('.yml'):
-                    return yaml.safe_load(f)
-                else:
-                    return json.load(f)
+                return yaml.safe_load(f)
         except Exception as e:
             # ロギングがまだ設定されていないためprintを使用
             print(f"Failed to load config: {e}")

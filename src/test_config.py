@@ -6,7 +6,6 @@ WiFi接続通知ツールのテストスクリプト
 """
 
 import sys
-import json
 import yaml
 import smtplib
 import requests
@@ -18,17 +17,13 @@ def test_config_file(config_path):
     print("設定ファイルをテスト中...")
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
-            # YAML形式とJSON形式の両方に対応
-            if config_path.endswith('.yaml') or config_path.endswith('.yml'):
-                config = yaml.safe_load(f)
-            else:
-                config = json.load(f)
+            config = yaml.safe_load(f)
         print("✓ 設定ファイルの読み込み成功")
         return config
     except FileNotFoundError:
         print("✗ エラー: 設定ファイルが見つかりません")
         return None
-    except (json.JSONDecodeError, yaml.YAMLError) as e:
+    except yaml.YAMLError as e:
         print(f"✗ エラー: 設定ファイルの形式が正しくありません: {e}")
         return None
 

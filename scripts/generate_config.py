@@ -6,7 +6,6 @@ GitHub Actions Secretsから設定ファイルを生成するスクリプト
 """
 
 import os
-import json
 import yaml
 import sys
 

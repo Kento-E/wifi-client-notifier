@@ -6,7 +6,6 @@
 """
 
 import time
-import json
 import yaml
 import sys
 from src.wifi_notifier import EmailNotifier
@@ -28,11 +27,7 @@ def demo_notification():
     
     try:
         with open(config_path, 'r', encoding='utf-8') as f:
-            # YAML形式とJSON形式の両方に対応
-            if config_path.endswith('.yaml') or config_path.endswith('.yml'):
-                config = yaml.safe_load(f)
-            else:
-                config = json.load(f)
+            config = yaml.safe_load(f)
     except Exception as e:
         print(f"設定ファイルの読み込みに失敗: {e}")
         sys.exit(1)
