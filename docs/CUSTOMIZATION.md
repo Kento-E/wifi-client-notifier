@@ -172,7 +172,7 @@ def get_connected_devices(self) -> List[Dict[str, str]]:
 
 ## HTMLパース方法のカスタマイズ
 
-`aterm_scraper.py`の`parse_wireless_lan_status()`関数をカスタマイズします。
+`html_parser.py`の`parse_wireless_lan_status()`関数をカスタマイズします。
 
 ### 例: 特定のテーブル構造をパース
 

@@ -96,21 +96,17 @@ Gmailを使用する場合の手順:
    - アプリ: "その他（カスタム名）"
    - 名前: "WiFi Notifier"
 
-3. 生成された16文字のパスワードを`config.json`の`smtp_password`に設定
+3. 生成された16文字のパスワードを`config.yaml`の`password`フィールド（email配下）に設定
 
 4. 設定例:
-```json
-{
-  "email": {
-    "smtp_server": "smtp.gmail.com",
-    "smtp_port": 587,
-    "smtp_user": "your_email@gmail.com",
-    "smtp_password": "abcd efgh ijkl mnop",
-    "sender_email": "your_email@gmail.com",
-    "recipient_emails": ["your_email@gmail.com"],
-    "use_tls": true
-  }
-}
+```yaml
+email:
+  smtp_server: "smtp.gmail.com"
+  smtp_port: 587
+  username: "your_email@gmail.com"
+  password: "abcd efgh ijkl mnop"
+  from: "your_email@gmail.com"
+  to: "recipient@example.com"
 ```
 
 ## トラブルシューティング

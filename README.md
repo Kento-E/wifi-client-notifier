@@ -18,7 +18,7 @@ NECのメーカー提供の通知サービスの終了（メーカー公式サ�
 aterm-wifi-client-notifier/
 ├── src/                      # ソースコード
 │   ├── wifi_notifier.py      # メイン監視スクリプト
-│   ├── aterm_scraper.py      # HTML/JSONパーサー
+│   ├── html_parser.py        # HTML/JSONパーサー
 │   ├── test_config.py        # 設定テストツール
 │   └── demo.py               # デモスクリプト
 ├── docs/                     # ドキュメント
