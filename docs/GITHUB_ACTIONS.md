@@ -86,7 +86,7 @@ on:
    ↓
 4. Pythonと依存パッケージをインストール
    ↓
-5. Secretsから config.json を生成
+5. Secretsから config.yaml を生成
    ↓
 6. WiFi監視を1回実行（--single-run モード）
    ↓
@@ -101,10 +101,10 @@ GitHub Actions用に `--single-run` フラグが実装されています：
 
 ```bash
 # 通常モード（継続的に監視）
-python src/wifi_notifier.py config.json
+python src/wifi_notifier.py config.yaml
 
 # シングルランモード（1回だけチェック）
-python src/wifi_notifier.py config.json --single-run
+python src/wifi_notifier.py config.yaml --single-run
 ```
 
 シングルランモードでは：
@@ -152,7 +152,7 @@ python src/wifi_notifier.py config.json --single-run
 
 ### ❌ 避けるべきこと
 
-- config.jsonファイルに直接パスワードを記載してコミット
+- config.yamlファイルに直接パスワードを記載してコミット
 - Secretsの値をログに出力
 - 本番用パスワードを共有リポジトリで使用
 

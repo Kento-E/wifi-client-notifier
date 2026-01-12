@@ -1,4 +1,4 @@
-# aterm-wifi-client-notifier
+# wifi-client-notifier
 Wi-Fi接続検知ツール
 
 ## 概要
@@ -15,7 +15,7 @@ NECのメーカー提供の通知サービスの終了（メーカー公式サ�
 ## プロジェクト構成
 
 ```
-aterm-wifi-client-notifier/
+wifi-client-notifier/
 ├── src/                      # ソースコード
 │   ├── wifi_notifier.py      # メイン監視スクリプト
 │   ├── html_parser.py        # HTML/JSONパーサー
@@ -58,8 +58,8 @@ aterm-wifi-client-notifier/
 
 1. リポジトリをクローン:
 ```bash
-git clone https://github.com/Kento-E/aterm-wifi-client-notifier.git
-cd aterm-wifi-client-notifier
+git clone https://github.com/Kento-E/wifi-client-notifier.git
+cd wifi-client-notifier
 ```
 
 2. 依存パッケージをインストール:
@@ -71,10 +71,10 @@ pip install -r requirements.txt
 
 1. サンプル設定ファイルをコピー:
 ```bash
-cp config/config.example.json config.json
+cp config/config.example.json config.yaml
 ```
 
-2. `config.json`を編集して、環境に合わせて設定:
+2. `config.yaml`を編集して、環境に合わせて設定:
 
 ```json
 {
@@ -106,7 +106,7 @@ cp config/config.example.json config.json
 3. 設定をテスト:
 
 ```bash
-python src/test_config.py config.json
+python src/test_config.py config.yaml
 ```
 
 このテストスクリプトは以下を確認します：
@@ -127,18 +127,18 @@ Gmailを使用する場合：
 ### 基本的な使用
 
 ```bash
-python src/wifi_notifier.py config.json
+python src/wifi_notifier.py config.yaml
 ```
 
 ### バックグラウンドで実行（Linux/Mac）
 
 ```bash
-nohup python src/wifi_notifier.py config.json &
+nohup python src/wifi_notifier.py config.yaml &
 ```
 
 ### Dockerで実行
 
-1. config.jsonを作成して設定を入力
+1. config.yamlを作成して設定を入力
 
 2. Dockerイメージをビルド:
 ```bash
@@ -167,7 +167,7 @@ docker-compose down
 `config/wifi-notifier.service`ファイルを編集し、以下を実際のパスに置き換えます：
 - `your_user`: 実行ユーザー名
 - `your_group`: 実行グループ名
-- `/path/to/aterm-wifi-client-notifier`: このリポジトリのパス
+- `/path/to/wifi-client-notifier`: このリポジトリのパス
 
 2. サービスファイルをコピー:
 

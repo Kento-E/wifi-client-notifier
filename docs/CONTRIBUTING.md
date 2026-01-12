@@ -29,8 +29,8 @@ WiFi Client Notifierへの貢献を検討いただき、ありがとうござい
 
 ```bash
 # リポジトリをフォーク後、クローン
-git clone https://github.com/YOUR_USERNAME/aterm-wifi-client-notifier.git
-cd aterm-wifi-client-notifier
+git clone https://github.com/YOUR_USERNAME/wifi-client-notifier.git
+cd wifi-client-notifier
 
 # 依存パッケージをインストール
 pip install -r requirements.txt

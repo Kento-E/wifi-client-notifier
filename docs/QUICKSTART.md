@@ -13,8 +13,8 @@
 ### ステップ1: リポジトリをクローン
 
 ```bash
-git clone https://github.com/Kento-E/aterm-wifi-client-notifier.git
-cd aterm-wifi-client-notifier
+git clone https://github.com/Kento-E/wifi-client-notifier.git
+cd wifi-client-notifier
 ```
 
 ### ステップ2: 依存パッケージをインストール
@@ -31,10 +31,10 @@ pip install -r requirements.txt
 ### ステップ3: 設定ファイルを作成
 
 ```bash
-cp config/config.example.json config.json
+cp config/config.example.json config.yaml
 ```
 
-`config.json`を編集して以下を設定:
+`config.yaml`を編集して以下を設定:
 
 **必須項目:**
 - `router.ip`: ルータのIPアドレス（例: 192.168.10.1）
@@ -54,7 +54,7 @@ cp config/config.example.json config.json
 ### ステップ4: 設定をテスト
 
 ```bash
-python src/test_config.py config.json
+python src/test_config.py config.yaml
 ```
 
 このコマンドで以下を確認:
@@ -67,7 +67,7 @@ python src/test_config.py config.json
 
 **テスト実行（フォアグラウンド）:**
 ```bash
-python src/wifi_notifier.py config.json
+python src/wifi_notifier.py config.yaml
 ```
 
 Ctrl+Cで停止できます。
@@ -76,7 +76,7 @@ Ctrl+Cで停止できます。
 
 Linux/Mac:
 ```bash
-nohup python src/wifi_notifier.py config.json &
+nohup python src/wifi_notifier.py config.yaml &
 ```
 
 または、Docker:
@@ -126,7 +126,7 @@ email:
 ### デバイスが検出されない
 
 1. ログファイル（`wifi_notifier.log`）を確認
-2. `config.json`の`log_level`を`"DEBUG"`に変更して詳細ログを取得
+2. `config.yaml`の`log_level`を`"DEBUG"`に変更して詳細ログを取得
 3. ルータモデル固有の設定が必要な場合 → `CUSTOMIZATION.md`参照
 
 ## 次のステップ
@@ -138,7 +138,7 @@ email:
 ## サポート
 
 問題が発生した場合は、GitHubのIssueで報告してください:
-https://github.com/Kento-E/aterm-wifi-client-notifier/issues
+https://github.com/Kento-E/wifi-client-notifier/issues
 
 以下の情報を含めてください:
 - WiFiルータのモデル名
