@@ -13,4 +13,4 @@ COPY src/ src/
 VOLUME /config
 
 # アプリケーションを実行
-CMD ["python", "src/wifi_notifier.py", "/config/config.json"]
+CMD ["python", "src/wifi_notifier.py", "/config/config.yaml"]

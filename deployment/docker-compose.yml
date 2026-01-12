@@ -3,10 +3,10 @@ version: '3.8'
 services:
   wifi-notifier:
     build: .
-    container_name: aterm-wifi-notifier
+    container_name: wifi-notifier
     restart: unless-stopped
     volumes:
-      - ./config.json:/config/config.json:ro
+      - ./config.yaml:/config/config.yaml:ro
       - ./logs:/app/logs
     network_mode: bridge
     environment:

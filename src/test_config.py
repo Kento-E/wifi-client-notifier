@@ -118,7 +118,7 @@ def main():
     
     if len(sys.argv) != 2:
         print("使用方法: python test_config.py <config_file>")
-        print("例: python test_config.py config.json")
+        print("例: python test_config.py config.yaml")
         sys.exit(1)
     
     config_path = sys.argv[1]

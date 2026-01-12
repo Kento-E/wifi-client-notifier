@@ -7,8 +7,8 @@ Wants=network-online.target
 Type=simple
 User=your_user
 Group=your_group
-WorkingDirectory=/path/to/aterm-wifi-client-notifier
-ExecStart=/usr/bin/python3 /path/to/aterm-wifi-client-notifier/src/wifi_notifier.py /path/to/aterm-wifi-client-notifier/config.json
+WorkingDirectory=/path/to/wifi-client-notifier
+ExecStart=/usr/bin/python3 /path/to/wifi-client-notifier/src/wifi_notifier.py /path/to/wifi-client-notifier/config.yaml
 
 # Restart on failure
 Restart=on-failure
@@ -19,7 +19,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/path/to/aterm-wifi-client-notifier
+ReadWritePaths=/path/to/wifi-client-notifier
 
 # Logging
 StandardOutput=journal

@@ -10,7 +10,7 @@ __pycache__
 .Python
 
 # Configuration and logs
-config.json
+config.yaml
 *.log
 
 # Documentation

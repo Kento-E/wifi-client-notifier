@@ -5,7 +5,6 @@
 このスクリプトは実際のルータアクセスを必要とせずに通知システムをテストします。
 """
 
-import time
 import yaml
 import sys
 from src.wifi_notifier import EmailNotifier

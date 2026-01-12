@@ -15,8 +15,7 @@ import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
-from typing import Dict, List, Set, Optional
-import hashlib
+from typing import Dict, List, Set
 from src.html_parser import parse_wireless_lan_status, extract_devices_from_json
 
 
@@ -115,6 +114,8 @@ class WiFiRouter:
                 logging.debug(f"Parsed {len(devices)} devices from JSON")
                 return devices
         except (json.JSONDecodeError, ValueError):
+            # JSONとしての解析に失敗した場合はHTMLスクレイピングにフォールバックする
+            logging.debug("JSONとして解析できなかったため、HTMLパースにフォールバックします")
             pass
         
         # HTMLスクレイピングにフォールバック
@@ -372,8 +373,8 @@ def main():
     
     if len(sys.argv) < 2:
         print("Usage: python wifi_notifier.py <config_file> [--single-run]")
-        print("Example: python wifi_notifier.py config.json")
-        print("Example: python wifi_notifier.py config.json --single-run")
+        print("Example: python wifi_notifier.py config.yaml")
+        print("Example: python wifi_notifier.py config.yaml --single-run")
         sys.exit(1)
     
     config_file = sys.argv[1]

@@ -45,7 +45,7 @@ jobs:
       - name: WiFi監視を実行（1回のみチェック）
         run: |
           # 1回だけチェックを実行するモードで起動
-          python src/wifi_notifier.py config.json --single-run
+          python src/wifi_notifier.py config.yaml --single-run
       
       - name: ログをアップロード（エラー時）
         if: failure()
