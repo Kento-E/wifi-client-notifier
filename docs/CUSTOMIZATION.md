@@ -31,7 +31,7 @@ WiFiルータは様々なモデルがあり、それぞれ管理画面のイン�
 
 - **ログインURL**: 例 `/index.cgi/login`, `/cgi-bin/login.cgi`
 - **ログインパラメータ**: フォームに送信されるデータ
-- **認証方法**: パスワードのハッシュ化方法（MD5, SHA256など）
+- **認証方法**: Basic認証またはパスワードのハッシュ化方法（SHA256など）
 - **デバイスリストURL**: 例 `/index.cgi/wireless_client_list`, `/wlmaclist.cgi`
 - **レスポンス形式**: HTML、JSON、XMLなど
 
@@ -41,32 +41,13 @@ WiFiルータは様々なモデルがあり、それぞれ管理画面のイン�
 
 `src/wifi_notifier.py`の`WiFiRouter`クラスを修正します。
 
-#### 例1: ログイン方法の変更
+#### デフォルト実装: Basic認証
 
-```python
-def login(self) -> bool:
-    """ルータにログイン"""
-    try:
-        # あなたのルータに合わせて変更
-        login_url = f"{self.base_url}/cgi-bin/login.cgi"  # URLを変更
-        
-        # パスワードハッシュ化なしの場合
-        login_data = {
-            'username': self.username,  # パラメータ名を変更
-            'password': self.password    # パラメータ名を変更
-        }
-        
-        response = self.session.post(login_url, data=login_data, timeout=10)
-        
-        # 成功判定を変更
-        return 'success' in response.text.lower()  # レスポンス内容で判定
-        
-    except Exception as e:
-        logging.error(f"Login failed: {e}")
-        return False
-```
+デフォルトではBasic認証を使用しています。これはHTTPS環境で最も簡単で安全な方法です。
 
-#### 例2: SHA256ハッシュを使用する場合
+#### 例1: SHA256ハッシュを使用する場合
+
+一部のルータではパスワードをハッシュ化して送信する必要があります：
 
 ```python
 import hashlib
@@ -92,20 +73,25 @@ def login(self) -> bool:
         return False
 ```
 
-#### 例3: Basic認証を使用する場合
+#### 例2: カスタムログインパラメータ
+
+ルータによってパラメータ名が異なる場合：
 
 ```python
-from requests.auth import HTTPBasicAuth
-
 def login(self) -> bool:
-    """ルータにログイン (Basic認証版)"""
+    """ルータにログイン（カスタムパラメータ版）"""
     try:
-        # Basic認証を設定
-        self.session.auth = HTTPBasicAuth(self.username, self.password)
+        login_url = f"{self.base_url}/cgi-bin/login.cgi"  # URLを変更
         
-        # 認証が必要なページにアクセスして確認
-        response = self.session.get(f"{self.base_url}/index.html", timeout=10)
-        return response.status_code == 200
+        login_data = {
+            'username': self.username,  # パラメータ名を変更
+            'password': self.password    # パラメータ名を変更
+        }
+        
+        response = self.session.post(login_url, data=login_data, timeout=10)
+        
+        # 成功判定を変更
+        return 'success' in response.text.lower()  # レスポンス内容で判定
         
     except Exception as e:
         logging.error(f"Login failed: {e}")
@@ -259,7 +245,7 @@ python3
 ```python
 # ログインURL: /index.cgi/login
 # デバイスリストURL: /index.cgi/wireless_client_list
-# 認証: MD5ハッシュ
+# 認証: SHA-256ハッシュ
 ```
 
 ### WF1200シリーズ
@@ -267,7 +253,7 @@ python3
 ```python
 # ログインURL: /cgi-bin/login.cgi
 # デバイスリストURL: /cgi-bin/wireless_list.cgi
-# 認証: プレーンテキスト
+# 認証: Basic認証
 ```
 
 （注：これらは例です。実際のルータで確認してください）

@@ -40,29 +40,24 @@ class WiFiRouter:
         
     def login(self) -> bool:
         """
-        ルータにログインする。
+        ルータにログインする（Basic認証）。
         
         Returns:
             ログイン成功時はTrue、失敗時はFalse
         """
         try:
-            # 注記: これは汎用的な実装です
+            # 注記: これは汎用的なBasic認証の実装です
             # 実際のWiFiルータはモデルによって異なる認証方法が必要な場合があります
             # ユーザーは特定のルータモデルに合わせてカスタマイズする必要があります
-            login_url = f"{self.base_url}/index.cgi/login"
+            # SHA-256ハッシュなど他の認証方法についてはCUSTOMIZATION.mdを参照してください
             
-            # パスワードハッシュを作成（古いWiFiルータで一般的）
-            # 注記: MD5は古いWiFiルータモデルとの互換性のために使用しています
-            # これはセキュリティ目的ではなく、HTTP接続のため。新しいモデルについては
-            # CUSTOMIZATION.mdでSHA-256や他の方法の例を参照してください。
-            password_hash = hashlib.md5(self.password.encode()).hexdigest()
+            from requests.auth import HTTPBasicAuth
             
-            login_data = {
-                'user': self.username,
-                'passwd': password_hash
-            }
+            # Basic認証を設定
+            self.session.auth = HTTPBasicAuth(self.username, self.password)
             
-            response = self.session.post(login_url, data=login_data, timeout=10)
+            # 認証が必要なページにアクセスして確認
+            response = self.session.get(f"{self.base_url}/index.html", timeout=10)
             return response.status_code == 200
             
         except Exception as e:
