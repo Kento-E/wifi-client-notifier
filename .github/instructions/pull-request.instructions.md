@@ -67,7 +67,7 @@ NECのルータ管理サービス通知サービス終了に伴い、同等の�
 ## 主な変更点
 
 - `wifi_notifier.py`: ルータ監視とメール通知のメインスクリプト
-- `aterm_scraper.py`: HTML/JSONパーサー
+- `html_parser.py`: HTML/JSONパーサー
 - `config.example.json`: 設定ファイルのサンプル
 - `README.md`: 使用方法の説明
 - `QUICKSTART.md`: クイックスタートガイド

@@ -31,8 +31,8 @@ WG2600HP4ルータでログインに失敗します。
 
 ## 再現手順
 
-1. `config.json`に正しい認証情報を設定
-2. `python wifi_notifier.py config.json`を実行
+1. `config.yaml`に正しい認証情報を設定
+2. `python wifi_notifier.py config.yaml`を実行
 3. ログに「Login failed」エラーが出力される
 
 ## 期待される動作
@@ -80,7 +80,7 @@ LINE通知機能の追加
 
 LINE Notify APIを使用して通知を送信する機能を追加：
 
-1. `config.json`にLINEトークンの設定項目を追加
+1. `config.yaml`にLINEトークンの設定項目を追加
 2. `EmailNotifier`と同様に`LineNotifier`クラスを実装
 3. 通知方法を選択できるようにする
 
