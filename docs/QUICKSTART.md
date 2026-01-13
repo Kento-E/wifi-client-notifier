@@ -31,7 +31,7 @@ pip install -r requirements.txt
 ### ステップ3: 設定ファイルを作成
 
 ```bash
-cp config/config.example.json config.yaml
+cp config/config.example.yaml config.yaml
 ```
 
 `config.yaml`を編集して以下を設定:
