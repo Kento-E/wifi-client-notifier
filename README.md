@@ -93,8 +93,6 @@ python src/test_config.py config.yaml
 - SMTP認証
 - テストメールの送信（オプション）
 
-**注**: `config.yaml`がまだ存在しない場合、設定テストは失敗します。上記の手順1に従って設定ファイルを作成してからテストを実行してください。
-
 ### Gmail設定の注意事項
 
 Gmailを使用する場合：

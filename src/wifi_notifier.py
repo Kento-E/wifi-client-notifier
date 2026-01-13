@@ -238,6 +238,11 @@ class WiFiMonitor:
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
                 return yaml.safe_load(f)
+        except FileNotFoundError:
+            print(f"エラー: 設定ファイル '{config_path}' が見つかりません")
+            print("設定ファイルを作成してください:")
+            print("  cp config/config.example.yaml config.yaml")
+            raise
         except Exception as e:
             # ロギングがまだ設定されていないためprintを使用
             print(f"Failed to load config: {e}")
