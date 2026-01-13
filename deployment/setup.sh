@@ -9,12 +9,12 @@ echo "Pythonバージョンを確認中..."
 python_version=$(python3 --version 2>&1 | awk '{print $2}')
 echo "検出されたバージョン: Python $python_version"
 
-# Check if Python 3.7+
+# Check if Python 3.11+
 major=$(echo $python_version | cut -d. -f1)
 minor=$(echo $python_version | cut -d. -f2)
 
-if [ "$major" -lt 3 ] || ([ "$major" -eq 3 ] && [ "$minor" -lt 7 ]); then
-    echo "エラー: Python 3.7以上が必要です"
+if [ "$major" -lt 3 ] || ([ "$major" -eq 3 ] && [ "$minor" -lt 11 ]); then
+    echo "エラー: Python 3.11以上が必要です"
     exit 1
 fi
 
