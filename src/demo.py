@@ -8,7 +8,6 @@
 import yaml
 import sys
 from src.wifi_notifier import EmailNotifier
-from datetime import datetime
 
 
 def demo_notification():

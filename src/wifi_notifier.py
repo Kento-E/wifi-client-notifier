@@ -275,7 +275,7 @@ class WiFiMonitor:
         self.notifier = EmailNotifier(
             email_config['smtp_server'],
             email_config['smtp_port'],
-            email_config['username'],
+            email_config['smtp_user'],
             email_config['smtp_password'],
             email_config['sender_email'],
             email_config['recipient_emails'],

@@ -27,7 +27,7 @@ wifi-client-notifier/
 │   ├── CUSTOMIZATION.md      # カスタマイズガイド
 │   └── CONTRIBUTING.md       # 貢献ガイドライン
 ├── config/                   # 設定ファイル
-│   ├── config.example.json   # 設定例
+│   ├── config.example.yaml   # 設定例
 │   └── wifi-notifier.service # systemdサービスファイル
 ├── deployment/               # デプロイ関連
 │   ├── Dockerfile            # Dockerイメージ
@@ -71,36 +71,42 @@ pip install -r requirements.txt
 
 1. サンプル設定ファイルをコピー:
 ```bash
-cp config/config.example.json config.yaml
+cp config/config.example.yaml config.yaml
 ```
 
 2. `config.yaml`を編集して、環境に合わせて設定:
 
-```json
-{
-  "router": {
-    "ip": "192.168.10.1",           // ルータのIPアドレス
-    "username": "admin",             // 管理者ユーザー名
-    "password": "your_password"      // 管理者パスワード
-  },
-  "email": {
-    "smtp_server": "smtp.gmail.com", // SMTPサーバー
-    "smtp_port": 587,                 // SMTPポート
-    "smtp_user": "your_email@gmail.com",
-    "smtp_password": "your_app_password",  // アプリパスワード
-    "sender_email": "your_email@gmail.com",
-    "recipient_emails": [
-      "notify@example.com"            // 通知先メールアドレス
-    ],
-    "use_tls": true
-  },
-  "monitored_devices": [              // 監視対象MACアドレス（空なら全デバイス）
-    "AA:BB:CC:DD:EE:FF"
-  ],
-  "check_interval": 60,               // チェック間隔（秒）
-  "log_level": "INFO",                // ログレベル
-  "log_file": "wifi_notifier.log"    // ログファイル名
-}
+```yaml
+# ルータ設定
+router:
+  ip: "192.168.10.1"           # ルータのIPアドレス
+  username: "admin"             # 管理者ユーザー名
+  password: "your_password"     # 管理者パスワード
+
+# メール設定
+email:
+  smtp_server: "smtp.gmail.com"      # SMTPサーバー
+  smtp_port: 587                      # SMTPポート
+  smtp_user: "your_email@gmail.com"
+  smtp_password: "your_app_password"  # アプリパスワード
+  sender_email: "your_email@gmail.com"
+  recipient_emails:                   # 通知先メールアドレス
+    - "notify@example.com"
+  use_tls: true
+
+# 監視対象デバイス（MACアドレスのリスト）
+# 空の場合は全ての新規接続を通知
+monitored_devices:
+  - "AA:BB:CC:DD:EE:FF"
+
+# チェック間隔（秒）
+check_interval: 60
+
+# ログレベル（DEBUG, INFO, WARNING, ERROR, CRITICAL）
+log_level: "INFO"
+
+# ログファイル名
+log_file: "wifi_notifier.log"
 ```
 
 3. 設定をテスト:
@@ -114,6 +120,8 @@ python src/test_config.py config.yaml
 - ルータへの接続
 - SMTP認証
 - テストメールの送信（オプション）
+
+**注**: `config.yaml`がまだ存在しない場合、設定テストは失敗します。上記の手順1に従って設定ファイルを作成してからテストを実行してください。
 
 ### Gmail設定の注意事項
 

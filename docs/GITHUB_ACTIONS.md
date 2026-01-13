@@ -133,13 +133,47 @@ python src/wifi_notifier.py config.yaml --single-run
 
 プライベートネットワーク内のルータを監視する場合は、以下の選択肢があります：
 
-1. **セルフホストランナー**: 
-   - ローカルネットワーク内にGitHub Actions Self-hosted Runnerをセットアップ
-   - Workflowファイルで `runs-on: self-hosted` に変更
+#### 1. セルフホストランナーを使用する（推奨）
 
-2. **ローカル実行**:
-   - GitHub Actionsを使わず、ローカルマシンやルータ上で直接実行
-   - systemdサービスやcronで定期実行
+**セルフホストランナーとは？**
+
+セルフホストランナーは、あなたが管理する環境（ローカルマシン、サーバー、Raspberry Piなど）でGitHub Actions Workflowを実行するための仕組みです。GitHub提供のクラウドランナーではなく、自分の環境で実行できるため、プライベートネットワーク内のルータにもアクセスできます。
+
+**セットアップ方法:**
+
+1. GitHubリポジトリの `Settings` → `Actions` → `Runners` に移動
+2. `New self-hosted runner` をクリック
+3. OSを選択（Linux、macOS、Windows）
+4. 表示される手順に従ってランナーをセットアップ:
+   ```bash
+   # 例: Linux環境での手順
+   mkdir actions-runner && cd actions-runner
+   curl -o actions-runner-linux-x64-2.xxx.x.tar.gz -L https://github.com/actions/runner/releases/download/v2.xxx.x/actions-runner-linux-x64-2.xxx.x.tar.gz
+   tar xzf ./actions-runner-linux-x64-2.xxx.x.tar.gz
+   ./config.sh --url https://github.com/あなたのユーザー名/wifi-client-notifier --token あなたのトークン
+   ./run.sh
+   ```
+5. `.github/workflows/wifi-monitor.yml` を編集:
+   ```yaml
+   runs-on: self-hosted  # ubuntu-latest から変更
+   ```
+
+**メリット:**
+- プライベートネットワーク内のルータにアクセス可能
+- GitHub Actionsの自動実行機能を活用できる
+- ログや実行履歴をGitHubで管理可能
+
+**デメリット:**
+- ランナーを常時稼働させる必要がある
+- セットアップと管理が必要
+
+**注記:** セルフホストランナー自体はGitHub Actionsの機能であり、Workflowで利用できます。`.github/workflows/wifi-monitor.yml`でランナーの種類を指定するだけで使用できます。
+
+#### 2. ローカル実行（シンプルな方法）
+
+GitHub Actionsを使わず、ローカルマシンやルータ上で直接実行:
+- systemdサービスやcronで定期実行
+- 詳細はREADME.mdの「使用方法」セクションを参照
 
 ## セキュリティベストプラクティス
 
