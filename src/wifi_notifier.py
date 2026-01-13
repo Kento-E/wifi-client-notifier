@@ -116,7 +116,6 @@ class WiFiRouter:
         except (json.JSONDecodeError, ValueError):
             # JSONとしての解析に失敗した場合はHTMLスクレイピングにフォールバックする
             logging.debug("JSONとして解析できなかったため、HTMLパースにフォールバックします")
-            pass
         
         # HTMLスクレイピングにフォールバック
         devices = parse_wireless_lan_status(html_content)
