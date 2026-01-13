@@ -76,10 +76,7 @@ cp config/config.example.yaml config.yaml
 
 2. `config.yaml`を編集して、環境に合わせて設定してください。
 
-設定ファイルの詳細は `config/config.example.yaml` を参照してください。主な設定項目:
-- **ルータ設定**: IPアドレス、ユーザー名、パスワード
-- **メール設定**: SMTPサーバー、ポート、認証情報、送信先
-- **監視設定**: 監視対象デバイス（MACアドレス）、チェック間隔
+設定項目の詳細は `config/config.example.yaml` を参照してください。
 
 3. 設定をテスト:
 
