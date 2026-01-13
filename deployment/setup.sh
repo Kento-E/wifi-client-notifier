@@ -33,6 +33,18 @@ fi
 echo "✓ 依存パッケージのインストール完了"
 echo ""
 
+# pre-commitフックをインストール（開発環境用）
+if command -v pre-commit &> /dev/null; then
+    echo "pre-commitフックをインストール中..."
+    pre-commit install
+    if [ $? -eq 0 ]; then
+        echo "✓ pre-commitフックのインストール完了（コミット時に自動整形されます）"
+    else
+        echo "⚠ pre-commitフックのインストールに失敗しました（任意）"
+    fi
+    echo ""
+fi
+
 # 設定ファイルを作成（存在しない場合）
 if [ ! -f config.yaml ]; then
     echo "設定ファイルを作成中..."
