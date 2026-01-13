@@ -17,11 +17,6 @@ git clone https://github.com/Kento-E/wifi-client-notifier.git
 cd wifi-client-notifier
 ```
 
-**注記:** フォークして使用する場合は、URLを自分のリポジトリに変更してください:
-```bash
-git clone https://github.com/<あなたのユーザー名>/wifi-client-notifier.git
-```
-
 ### ステップ2: 依存パッケージをインストール
 
 ```bash

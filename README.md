@@ -62,11 +62,6 @@ git clone https://github.com/Kento-E/wifi-client-notifier.git
 cd wifi-client-notifier
 ```
 
-**注記:** フォークして使用する場合は、URLを自分のリポジトリに変更してください:
-```bash
-git clone https://github.com/<あなたのユーザー名>/wifi-client-notifier.git
-```
-
 2. 依存パッケージをインストール:
 ```bash
 pip install -r requirements.txt
@@ -79,40 +74,12 @@ pip install -r requirements.txt
 cp config/config.example.yaml config.yaml
 ```
 
-2. `config.yaml`を編集して、環境に合わせて設定:
+2. `config.yaml`を編集して、環境に合わせて設定してください。
 
-```yaml
-# ルータ設定
-router:
-  ip: "192.168.10.1"           # ルータのIPアドレス
-  username: "admin"             # 管理者ユーザー名
-  password: "your_password"     # 管理者パスワード
-
-# メール設定
-email:
-  smtp_server: "smtp.gmail.com"      # SMTPサーバー
-  smtp_port: 587                      # SMTPポート
-  smtp_user: "your_email@gmail.com"
-  smtp_password: "your_app_password"  # アプリパスワード
-  sender_email: "your_email@gmail.com"
-  recipient_emails:                   # 通知先メールアドレス
-    - "notify@example.com"
-  use_tls: true
-
-# 監視対象デバイス（MACアドレスのリスト）
-# 空の場合は全ての新規接続を通知
-monitored_devices:
-  - "AA:BB:CC:DD:EE:FF"
-
-# チェック間隔（秒）
-check_interval: 60
-
-# ログレベル（DEBUG, INFO, WARNING, ERROR, CRITICAL）
-log_level: "INFO"
-
-# ログファイル名
-log_file: "wifi_notifier.log"
-```
+設定ファイルの詳細は `config/config.example.yaml` を参照してください。主な設定項目:
+- **ルータ設定**: IPアドレス、ユーザー名、パスワード
+- **メール設定**: SMTPサーバー、ポート、認証情報、送信先
+- **監視設定**: 監視対象デバイス（MACアドレス）、チェック間隔
 
 3. 設定をテスト:
 
@@ -244,6 +211,24 @@ MIT License
 ## 貢献
 
 Issue、Pull Requestを歓迎します。
+
+### 開発環境のセットアップ
+
+コード品質を維持するため、linterとフォーマッターを使用しています：
+
+```bash
+# 開発用ツールをインストール
+pip install black flake8 pre-commit
+
+# pre-commitフックをインストール（コミット時に自動整形）
+pre-commit install
+
+# 手動でコードをフォーマット
+black src/
+
+# 手動でlintチェック
+flake8 src/
+```
 
 ## 免責事項
 
