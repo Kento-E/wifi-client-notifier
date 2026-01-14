@@ -199,10 +199,8 @@ def parse_wireless_lan_status(html_content: str) -> List[Dict[str, str]]:
 ### 1. ログレベルをDEBUGに設定
 
 `config.yaml`:
-```json
-{
-  "log_level": "DEBUG"
-}
+```yaml
+log_level: "DEBUG"
 ```
 
 ### 2. レスポンス内容をログに出力
