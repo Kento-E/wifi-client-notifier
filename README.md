@@ -50,7 +50,7 @@ wifi-client-notifier/
 
 ## 必要要件
 
-- Python 3.11以上
+- Python 3.11以上（バージョン要件は `deployment/python-version.sh` で管理）
 - WiFiルータへのアクセス権限（管理者ユーザー名とパスワード）
 - SMTPサーバーへのアクセス（Gmail、独自SMTPサーバーなど）
 

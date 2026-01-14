@@ -1,6 +1,10 @@
 #!/bin/bash
 # Setup script for WiFi Client Notifier
 
+# Load Python version requirements
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/python-version.sh"
+
 echo "=== WiFi Client Notifier セットアップ ==="
 echo ""
 
@@ -9,12 +13,12 @@ echo "Pythonバージョンを確認中..."
 python_version=$(python3 --version 2>&1 | awk '{print $2}')
 echo "検出されたバージョン: Python $python_version"
 
-# Check if Python 3.11+
+# Check if Python version meets minimum requirements
 major=$(echo $python_version | cut -d. -f1)
 minor=$(echo $python_version | cut -d. -f2)
 
-if [ "$major" -lt 3 ] || ([ "$major" -eq 3 ] && [ "$minor" -lt 11 ]); then
-    echo "エラー: Python 3.11以上が必要です"
+if [ "$major" -lt "$PYTHON_MIN_MAJOR" ] || ([ "$major" -eq "$PYTHON_MIN_MAJOR" ] && [ "$minor" -lt "$PYTHON_MIN_MINOR" ]); then
+    echo "エラー: Python ${PYTHON_VERSION_STRING}以上が必要です"
     exit 1
 fi
 

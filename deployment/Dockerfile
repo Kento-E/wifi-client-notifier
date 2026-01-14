@@ -1,4 +1,7 @@
-FROM python:3.11-slim
+# Python version is centrally managed in deployment/python-version.sh
+# Update PYTHON_VERSION when changing minimum requirements
+ARG PYTHON_VERSION=3.11
+FROM python:${PYTHON_VERSION}-slim
 
 WORKDIR /app
 
