@@ -1,0 +1,49 @@
+name: Auto Delete Branch on Merge
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+
+jobs:
+  delete-branch:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    
+    steps:
+      - name: ブランチ情報を取得
+        id: branch_info
+        run: |
+          echo "head_ref=${{ github.event.pull_request.head.ref }}" >> $GITHUB_OUTPUT
+          echo "base_ref=${{ github.event.pull_request.base.ref }}" >> $GITHUB_OUTPUT
+          echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+
+      - name: ブランチを削除
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const headRef = '${{ steps.branch_info.outputs.head_ref }}';
+            const baseRef = '${{ steps.branch_info.outputs.base_ref }}';
+            const prNumber = '${{ steps.branch_info.outputs.pr_number }}';
+            
+            console.log(`PR #${prNumber} がマージされました`);
+            console.log(`ブランチ: ${headRef} -> ${baseRef}`);
+            
+            try {
+              await github.rest.git.deleteRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: `heads/${headRef}`
+              });
+              
+              console.log(`✅ ブランチ '${headRef}' が正常に削除されました`);
+            } catch (error) {
+              if (error.status === 422) {
+                console.log(`ℹ️  ブランチ '${headRef}' は既に削除されているか、保護されています`);
+              } else {
+                console.error(`❌ ブランチ削除に失敗しました: ${error.message}`);
+                throw error;
+              }
+            }
