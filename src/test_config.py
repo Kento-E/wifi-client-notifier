@@ -21,7 +21,9 @@ def test_config_file(config_path):
         print("✓ 設定ファイルの読み込み成功")
         return config
     except FileNotFoundError:
-        print("✗ エラー: 設定ファイルが見つかりません")
+        print(f"✗ エラー: 設定ファイル '{config_path}' が見つかりません")
+        print("  設定ファイルを作成してください:")
+        print("  cp config/config.example.yaml config.yaml")
         return None
     except yaml.YAMLError as e:
         print(f"✗ エラー: 設定ファイルの形式が正しくありません: {e}")

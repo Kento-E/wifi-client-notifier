@@ -136,10 +136,12 @@ python src/wifi_notifier.py config.yaml --single-run
 1. **セルフホストランナー**: 
    - ローカルネットワーク内にGitHub Actions Self-hosted Runnerをセットアップ
    - Workflowファイルで `runs-on: self-hosted` に変更
+   - 詳細: GitHubリポジトリの `Settings` → `Actions` → `Runners`
 
 2. **ローカル実行**:
    - GitHub Actionsを使わず、ローカルマシンやルータ上で直接実行
    - systemdサービスやcronで定期実行
+   - 詳細はREADME.mdの「使用方法」セクションを参照
 
 ## セキュリティベストプラクティス
 

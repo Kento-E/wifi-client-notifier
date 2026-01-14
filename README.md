@@ -27,7 +27,7 @@ wifi-client-notifier/
 │   ├── CUSTOMIZATION.md      # カスタマイズガイド
 │   └── CONTRIBUTING.md       # 貢献ガイドライン
 ├── config/                   # 設定ファイル
-│   ├── config.example.json   # 設定例
+│   ├── config.example.yaml   # 設定例
 │   └── wifi-notifier.service # systemdサービスファイル
 ├── deployment/               # デプロイ関連
 │   ├── Dockerfile            # Dockerイメージ
@@ -50,7 +50,7 @@ wifi-client-notifier/
 
 ## 必要要件
 
-- Python 3.7以上
+- Python 3.11以上
 - WiFiルータへのアクセス権限（管理者ユーザー名とパスワード）
 - SMTPサーバーへのアクセス（Gmail、独自SMTPサーバーなど）
 
@@ -71,37 +71,12 @@ pip install -r requirements.txt
 
 1. サンプル設定ファイルをコピー:
 ```bash
-cp config/config.example.json config.yaml
+cp config/config.example.yaml config.yaml
 ```
 
-2. `config.yaml`を編集して、環境に合わせて設定:
+2. `config.yaml`を編集して、環境に合わせて設定してください。
 
-```json
-{
-  "router": {
-    "ip": "192.168.10.1",           // ルータのIPアドレス
-    "username": "admin",             // 管理者ユーザー名
-    "password": "your_password"      // 管理者パスワード
-  },
-  "email": {
-    "smtp_server": "smtp.gmail.com", // SMTPサーバー
-    "smtp_port": 587,                 // SMTPポート
-    "smtp_user": "your_email@gmail.com",
-    "smtp_password": "your_app_password",  // アプリパスワード
-    "sender_email": "your_email@gmail.com",
-    "recipient_emails": [
-      "notify@example.com"            // 通知先メールアドレス
-    ],
-    "use_tls": true
-  },
-  "monitored_devices": [              // 監視対象MACアドレス（空なら全デバイス）
-    "AA:BB:CC:DD:EE:FF"
-  ],
-  "check_interval": 60,               // チェック間隔（秒）
-  "log_level": "INFO",                // ログレベル
-  "log_file": "wifi_notifier.log"    // ログファイル名
-}
-```
+設定項目の詳細は `config/config.example.yaml` を参照してください。
 
 3. 設定をテスト:
 
@@ -231,6 +206,35 @@ MIT License
 ## 貢献
 
 Issue、Pull Requestを歓迎します。
+
+### 開発環境のセットアップ
+
+コード品質を維持するため、linterとフォーマッターを使用しています。
+
+**自動セットアップ（推奨）:**
+
+```bash
+# セットアップスクリプトで自動的にインストール・設定
+./deployment/setup.sh
+```
+
+このスクリプトは依存パッケージのインストールとpre-commitフックの設定を自動で行います。
+
+**手動セットアップ:**
+
+```bash
+# 開発用ツールをインストール
+pip install black flake8 pre-commit
+
+# pre-commitフックをインストール（コミット時に自動整形）
+pre-commit install
+
+# 手動でコードをフォーマット
+black src/
+
+# 手動でlintチェック
+flake8 src/
+```
 
 ## 免責事項
 

@@ -1,6 +1,10 @@
 #!/bin/bash
 # Setup script for WiFi Client Notifier
 
+# Python version requirements
+PYTHON_MIN_MAJOR=3
+PYTHON_MIN_MINOR=11
+
 echo "=== WiFi Client Notifier セットアップ ==="
 echo ""
 
@@ -9,12 +13,12 @@ echo "Pythonバージョンを確認中..."
 python_version=$(python3 --version 2>&1 | awk '{print $2}')
 echo "検出されたバージョン: Python $python_version"
 
-# Check if Python 3.7+
+# Check if Python version meets minimum requirements
 major=$(echo $python_version | cut -d. -f1)
 minor=$(echo $python_version | cut -d. -f2)
 
-if [ "$major" -lt 3 ] || ([ "$major" -eq 3 ] && [ "$minor" -lt 7 ]); then
-    echo "エラー: Python 3.7以上が必要です"
+if [ "$major" -lt "$PYTHON_MIN_MAJOR" ] || ([ "$major" -eq "$PYTHON_MIN_MAJOR" ] && [ "$minor" -lt "$PYTHON_MIN_MINOR" ]); then
+    echo "エラー: Python ${PYTHON_MIN_MAJOR}.${PYTHON_MIN_MINOR}以上が必要です"
     exit 1
 fi
 
@@ -32,6 +36,18 @@ fi
 
 echo "✓ 依存パッケージのインストール完了"
 echo ""
+
+# pre-commitフックをインストール（開発環境用）
+if command -v pre-commit &> /dev/null; then
+    echo "pre-commitフックをインストール中..."
+    pre-commit install
+    if [ $? -eq 0 ]; then
+        echo "✓ pre-commitフックのインストール完了（コミット時に自動整形されます）"
+    else
+        echo "⚠ pre-commitフックのインストールに失敗しました（任意）"
+    fi
+    echo ""
+fi
 
 # 設定ファイルを作成（存在しない場合）
 if [ ! -f config.yaml ]; then

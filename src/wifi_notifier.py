@@ -238,6 +238,11 @@ class WiFiMonitor:
         try:
             with open(config_path, 'r', encoding='utf-8') as f:
                 return yaml.safe_load(f)
+        except FileNotFoundError:
+            print(f"エラー: 設定ファイル '{config_path}' が見つかりません")
+            print("設定ファイルを作成してください:")
+            print("  cp config/config.example.yaml config.yaml")
+            raise
         except Exception as e:
             # ロギングがまだ設定されていないためprintを使用
             print(f"Failed to load config: {e}")
@@ -275,7 +280,7 @@ class WiFiMonitor:
         self.notifier = EmailNotifier(
             email_config['smtp_server'],
             email_config['smtp_port'],
-            email_config['username'],
+            email_config['smtp_user'],
             email_config['smtp_password'],
             email_config['sender_email'],
             email_config['recipient_emails'],
