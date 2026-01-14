@@ -1,0 +1,32 @@
+# WiFi接続通知ツール 設定ファイル
+
+# ルータ設定
+router:
+  ip: "192.168.10.1"           # ルータのIPアドレス
+  username: "admin"             # 管理者ユーザー名
+  password: "your_router_password"  # 管理者パスワード
+
+# メール設定
+email:
+  smtp_server: "smtp.gmail.com"     # SMTPサーバーアドレス
+  smtp_port: 587                     # SMTPポート番号
+  smtp_user: "your_email@gmail.com"  # SMTP認証ユーザー名
+  smtp_password: "your_app_password" # SMTP認証パスワード（Gmailの場合はアプリパスワード）
+  sender_email: "your_email@gmail.com"  # 送信元メールアドレス
+  recipient_emails:                  # 受信者メールアドレスのリスト
+    - "notify_recipient@example.com"
+  use_tls: true                      # TLS暗号化を使用するか
+
+# 監視対象デバイス（MACアドレスのリスト）
+# 空の場合は全ての新規接続を通知
+monitored_devices:
+  - "AA:BB:CC:DD:EE:FF"
+
+# チェック間隔（秒）
+check_interval: 60
+
+# ログレベル（DEBUG, INFO, WARNING, ERROR, CRITICAL）
+log_level: "INFO"
+
+# ログファイル名
+log_file: "wifi_notifier.log"

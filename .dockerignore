@@ -1,0 +1,35 @@
+# Git files
+.git
+.gitignore
+
+# Python cache
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Configuration and logs
+config.yaml
+*.log
+
+# Documentation
+README.md
+CUSTOMIZATION.md
+LICENSE
+
+# Test files
+test_config.py
+demo.py
+
+# Setup scripts
+setup.sh
+setup.bat
+
+# Service files
+wifi-notifier.service
+
+# Docker files
+Dockerfile
+docker-compose.yml
+.dockerignore

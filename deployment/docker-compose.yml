@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  wifi-notifier:
+    build: .
+    container_name: wifi-notifier
+    restart: unless-stopped
+    volumes:
+      - ./config.yaml:/config/config.yaml:ro
+      - ./logs:/app/logs
+    network_mode: bridge
+    environment:
+      - TZ=Asia/Tokyo

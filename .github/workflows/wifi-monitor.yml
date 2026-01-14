@@ -1,0 +1,56 @@
+name: WiFi接続監視
+
+on:
+  schedule:
+    # 毎時実行（必要に応じて調整してください）
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    # 手動実行を許可
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+      
+      - name: Pythonをセットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: 依存パッケージをインストール
+        run: |
+          pip install -r requirements.txt
+      
+      - name: Secretsから設定ファイルを生成
+        env:
+          ROUTER_IP: ${{ secrets.ROUTER_IP }}
+          ROUTER_USERNAME: ${{ secrets.ROUTER_USERNAME }}
+          ROUTER_PASSWORD: ${{ secrets.ROUTER_PASSWORD }}
+          SMTP_SERVER: ${{ secrets.SMTP_SERVER }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          RECIPIENT_EMAILS: ${{ secrets.RECIPIENT_EMAILS }}
+          MONITORED_DEVICES: ${{ secrets.MONITORED_DEVICES }}
+          CHECK_INTERVAL: ${{ vars.CHECK_INTERVAL || '60' }}
+          LOG_LEVEL: ${{ vars.LOG_LEVEL || 'INFO' }}
+        run: |
+          python scripts/generate_config.py
+      
+      - name: WiFi監視を実行（1回のみチェック）
+        run: |
+          # 1回だけチェックを実行するモードで起動
+          python src/wifi_notifier.py config.yaml --single-run
+      
+      - name: ログをアップロード（エラー時）
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wifi-notifier-logs
+          path: wifi_notifier.log
+          retention-days: 7
