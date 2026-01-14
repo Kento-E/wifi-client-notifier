@@ -1,9 +1,9 @@
 #!/bin/bash
 # Setup script for WiFi Client Notifier
 
-# Load Python version requirements
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/python-version.sh"
+# Python version requirements
+PYTHON_MIN_MAJOR=3
+PYTHON_MIN_MINOR=11
 
 echo "=== WiFi Client Notifier セットアップ ==="
 echo ""
@@ -18,7 +18,7 @@ major=$(echo $python_version | cut -d. -f1)
 minor=$(echo $python_version | cut -d. -f2)
 
 if [ "$major" -lt "$PYTHON_MIN_MAJOR" ] || ([ "$major" -eq "$PYTHON_MIN_MAJOR" ] && [ "$minor" -lt "$PYTHON_MIN_MINOR" ]); then
-    echo "エラー: Python ${PYTHON_VERSION_STRING}以上が必要です"
+    echo "エラー: Python ${PYTHON_MIN_MAJOR}.${PYTHON_MIN_MINOR}以上が必要です"
     exit 1
 fi
 
