@@ -83,7 +83,10 @@ git push origin feature/your-feature-name
 
 - フォークしたリポジトリからPull Requestを作成
 - 変更内容を明確に説明
-- 関連するIssueがあればリンク
+- **関連するIssueがあれば、PR説明に`Closes #番号`を含めてリンク**
+  - 例: `Closes #10` でイシュー#10をPRマージ時に自動クローズ
+  - 複数のイシューの場合: `Closes #10, #15`
+  - バグ修正の場合は `Fixes #番号` も使用可能
 
 ## 特に歓迎する貢献
 
