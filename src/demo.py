@@ -17,8 +17,8 @@ def demo_notification():
     
     # 設定を読み込む
     if len(sys.argv) != 2:
-        print("使用方法: python demo.py <config_file>")
-        print("例: python demo.py config.yaml")
+        print("使用方法: python src/demo.py <config_file>")
+        print("例: python src/demo.py config.yaml")
         sys.exit(1)
     
     config_path = sys.argv[1]
