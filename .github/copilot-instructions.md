@@ -1,0 +1,137 @@
+# GitHub Copilot指示書
+
+**すべての応答、コメント、ドキュメント、コードコメントは日本語で出力してください。**
+
+## 概要
+
+このリポジトリはWiFiルータユーザー向けのプロジェクトです。
+すべての出力（コード、コメント、ドキュメント、コミットメッセージなど）を**日本語で統一する**ため、
+GitHub Copilotに対する明確な指示を提供します。
+
+### 用途別指示書
+
+- [`instructions/code-review.instructions.md`](instructions/code-review.instructions.md) - コードレビュー時の指示
+- [`instructions/pull-request.instructions.md`](instructions/pull-request.instructions.md) - Pull Request作成・管理時の指示
+- [`instructions/issue.instructions.md`](instructions/issue.instructions.md) - Issue作成・管理時の指示
+
+### 出力言語ルール
+
+すべての出力を日本語で記述してください：
+
+1. コミットメッセージ
+2. コードコメント（インラインコメント、docstring、関数説明など全て）
+3. ドキュメント（README、ガイドなど）
+4. エラーメッセージ（可能な限り）
+5. ログ出力
+6. Pull Requestの説明
+7. Issueのコメント
+
+### コードコメントの重要性
+
+**コード内のすべてのコメントは日本語で記述してください。これには以下が含まれます：**
+
+- モジュールレベルのドキュメント
+- クラスのドキュメント
+- 関数/メソッドのドキュメント
+- インラインコメント
+- 複数行コメント
+
+**英語のコメントは使用しないでください。**
+
+### 例外
+
+以下の場合のみ英語を使用できます：
+- 変数名、関数名、クラス名（各言語の命名規則に従う）
+- 技術用語で日本語訳が不自然な場合（例: HTTP, SMTP, JSON）
+- 外部ライブラリのAPI呼び出し
+
+### コミットメッセージ
+
+良い例：
+```
+WiFi接続監視機能を追加
+
+- 新規接続デバイスの検出機能を実装
+- メール通知機能を追加
+- 設定ファイルのサンプルを作成
+```
+
+悪い例（英語）：
+```
+Add WiFi monitoring feature
+
+- Implement new device detection
+- Add email notification
+- Create config sample
+```
+
+### ドキュメント
+
+すべてのMarkdownファイルは日本語で記述してください。
+
+## Pull Request とコメント
+
+### Pull Request説明
+
+```markdown
+## 変更概要
+
+WiFiルータの接続監視とメール通知機能を実装しました。
+
+## 主な変更点
+
+- `wifi_notifier.py`: メイン監視スクリプト
+- `config.example.json`: 設定ファイルのサンプル
+- `README.md`: 使用方法の説明
+
+## テスト
+
+- 基本的な動作確認を実施
+- SMTP送信テストを実施
+```
+
+### コメント返信
+
+コメントへの返信も日本語で行ってください：
+
+```markdown
+ご指摘ありがとうございます。
+ログ出力の初期化順序を修正しました。
+
+コミット: abc1234
+```
+
+## 品質基準
+
+1. すべての出力が日本語であることを確認
+2. 技術的な正確性を維持
+3. ユーザーフレンドリーな説明を提供
+4. WiFiルータユーザーに適した内容
+
+## コード品質とフォーマット
+
+**コミット前に必ずlinter/フォーマッターを実行してください。**
+
+### 実行手順
+
+Pythonコードを変更した場合、コミット前に以下を実行：
+
+```bash
+# コードを自動整形
+black src/
+
+# lintチェック
+flake8 src/
+```
+
+両方のチェックをパスしてからコミットしてください。エラーや警告がある場合は修正が必要です。
+
+### 自動化
+
+開発環境では、pre-commitフックをインストールすることで自動実行できます：
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+このガイドラインに従って、すべての作業を日本語で実施してください。
