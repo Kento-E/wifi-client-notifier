@@ -7,7 +7,7 @@ __pycache__/
 *.so
 
 # Configuration files with credentials
-config.json
+config.yaml
 
 # Log files
 *.log
