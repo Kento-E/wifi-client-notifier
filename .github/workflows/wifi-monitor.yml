@@ -37,6 +37,7 @@ jobs:
           SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
           RECIPIENT_EMAILS: ${{ secrets.RECIPIENT_EMAILS }}
           MONITORED_DEVICES: ${{ secrets.MONITORED_DEVICES }}
+          USE_TLS: ${{ vars.USE_TLS || 'true' }}
           CHECK_INTERVAL: ${{ vars.CHECK_INTERVAL || '60' }}
           LOG_LEVEL: ${{ vars.LOG_LEVEL || 'INFO' }}
         run: |
