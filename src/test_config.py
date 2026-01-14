@@ -119,8 +119,8 @@ def main():
     print("=== WiFi Client Notifier 設定テスト ===\n")
     
     if len(sys.argv) != 2:
-        print("使用方法: python test_config.py <config_file>")
-        print("例: python test_config.py config.yaml")
+        print("使用方法: python src/test_config.py <config_file>")
+        print("例: python src/test_config.py config.yaml")
         sys.exit(1)
     
     config_path = sys.argv[1]
@@ -152,7 +152,7 @@ def main():
     if router_ok and smtp_ok:
         print("\n✓ すべてのテストが成功しました！")
         print("次のコマンドでモニタリングを開始できます:")
-        print(f"python wifi_notifier.py {config_path}")
+        print(f"python src/wifi_notifier.py {config_path}")
     else:
         print("\n✗ いくつかのテストが失敗しました。設定を確認してください。")
 

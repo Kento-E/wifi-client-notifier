@@ -376,9 +376,9 @@ def main():
     import sys
     
     if len(sys.argv) < 2:
-        print("Usage: python wifi_notifier.py <config_file> [--single-run]")
-        print("Example: python wifi_notifier.py config.yaml")
-        print("Example: python wifi_notifier.py config.yaml --single-run")
+        print("Usage: python src/wifi_notifier.py <config_file> [--single-run]")
+        print("Example: python src/wifi_notifier.py config.yaml")
+        print("Example: python src/wifi_notifier.py config.yaml --single-run")
         sys.exit(1)
     
     config_file = sys.argv[1]
