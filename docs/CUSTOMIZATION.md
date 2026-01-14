@@ -231,7 +231,7 @@ def get_connected_devices(self) -> List[Dict[str, str]]:
 
 ```python
 python3
->>> from wifi_notifier import WiFiRouter
+>>> from src.wifi_notifier import WiFiRouter
 >>> router = WiFiRouter('192.168.10.1', 'admin', 'password')
 >>> router.login()
 >>> devices = router.get_connected_devices()
