@@ -48,6 +48,7 @@ GitHub Actions Secretsを使用することで、設定ファイルに秘匿情�
 |-----------|------|------------|
 | `CHECK_INTERVAL` | チェック間隔（秒） | `60` |
 | `LOG_LEVEL` | ログレベル | `INFO` |
+| `USE_TLS` | TLSを使用するかどうか（`true` または `false`） | `true` |
 
 ### ステップ2: Workflowの実行スケジュールを調整（オプション）
 
