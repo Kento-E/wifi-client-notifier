@@ -37,7 +37,7 @@ wifi-client-notifier/
 │   └── generate_config.py    # GitHub Actions用設定生成
 └── .github/                  # GitHub設定
     ├── workflows/            # GitHub Actionsワークフロー
-    └── instructions/         # AIエージェント指示書
+    └── instructions/         # Copilot用途別指示書
 ```
 
 ## 主な機能
