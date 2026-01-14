@@ -2,7 +2,9 @@ version: '3.8'
 
 services:
   wifi-notifier:
-    build: .
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
     container_name: wifi-notifier
     restart: unless-stopped
     volumes:
