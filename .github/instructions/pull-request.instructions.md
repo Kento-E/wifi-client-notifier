@@ -71,7 +71,9 @@ PRがマージされた時にイシューを自動的にクローズするには
 
 複数のイシューをクローズする場合：
 ```markdown
-Closes #123 Closes #456 Fixes #789
+Closes #123
+Closes #456
+Fixes #789
 ```
 
 ### PRコメント
