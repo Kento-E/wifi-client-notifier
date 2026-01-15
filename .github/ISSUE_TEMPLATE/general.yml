@@ -1,0 +1,40 @@
+name: General Issue
+description: 一般的な問題や質問
+title: ""
+labels: []
+assignees: ["copilot"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ご報告ありがとうございます。
+
+        💡 **GitHub Copilotを使用する場合**: Issueのコメント欄で
+        `@copilot` とメンションすることで、GitHub Copilotに
+        質問や分析を依頼できます。Copilotに修正とPull Request作成まで
+        依頼することも可能です。
+  - type: textarea
+    id: description
+    attributes:
+      label: 説明
+      description: 問題や質問の内容を詳しく教えてください。
+      placeholder: 詳細をここに記載してください。
+    validations:
+      required: true
+  - type: textarea
+    id: additional
+    attributes:
+      label: 追加情報
+      description: 他に共有したい情報があれば記載してください。
+      placeholder: スクリーンショット、ログ、参考資料など
+    validations:
+      required: false
+  - type: textarea
+    id: copilot-request
+    attributes:
+      label: GitHub Copilotへの質問（任意）
+      description: GitHub Copilotに分析や質問をしたい場合は、以下のようにメンションしてください。
+      placeholder: "@copilot この問題を解決し、Pull Requestを作成してください"
+      value: "@copilot この問題を解決し、Pull Requestを作成してください"
+    validations:
+      required: false
