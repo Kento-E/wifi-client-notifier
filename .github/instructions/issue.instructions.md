@@ -18,7 +18,15 @@
 
 ### Issueテンプレート
 
-バグ報告や機能リクエストのテンプレートは、`.github/ISSUE_TEMPLATE/`ディレクトリに別途定義してください。
+GitHubでIssueを作成する際、以下のテンプレートが利用可能です：
+
+- **Bug Report** (`bug_report.yml`) - バグ報告用
+- **Feature Request** (`feature_request.yml`) - 新機能リクエスト用
+- **General Issue** (`general.yml`) - 一般的な問題・質問用
+- **Question** (`question.yml`) - 仕様・動作に関する質問用（調査・回答のみ）
+
+すべてのテンプレートにGitHub Copilot連携機能が含まれており、
+`@copilot`メンションで自動的に問題の調査や修正を依頼できます。
 
 ### 具体例
 
