@@ -24,8 +24,7 @@ wifi-client-notifier/
 ├── docs/                     # ドキュメント
 │   ├── QUICKSTART.md         # クイックスタート
 │   ├── GITHUB_ACTIONS.md     # GitHub Actions設定ガイド
-│   ├── CUSTOMIZATION.md      # カスタマイズガイド
-│   └── CONTRIBUTING.md       # 貢献ガイドライン
+│   └── CUSTOMIZATION.md      # カスタマイズガイド
 ├── config/                   # 設定ファイル
 │   ├── config.example.yaml   # 設定例
 │   └── wifi-notifier.service # systemdサービスファイル
@@ -206,6 +205,8 @@ MIT License
 ## 貢献
 
 Issue、Pull Requestを歓迎します。
+
+**PRを作成する際は、関連するイシューがある場合は `Closes #<番号>`（例: `Closes #10`）でリンクしてください。詳細な手順は [.github/instructions/pull-request.instructions.md](.github/instructions/pull-request.instructions.md) を参照してください。**
 
 ### 開発環境のセットアップ
 
