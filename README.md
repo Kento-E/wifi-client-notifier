@@ -206,7 +206,7 @@ MIT License
 
 Issue、Pull Requestを歓迎します。
 
-**PRを作成する際は、関連するイシューがある場合は `Closes #番号` でリンクしてください。**
+**PRを作成する際は、関連するイシューがある場合は `Closes #<番号>`（例: `Closes #10`）でリンクしてください。詳細な手順は [.github/instructions/pull-request.instructions.md](.github/instructions/pull-request.instructions.md) を参照してください。**
 
 ### 開発環境のセットアップ
 
