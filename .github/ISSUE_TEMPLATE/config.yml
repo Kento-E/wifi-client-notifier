@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 📚 ドキュメント
+    url: https://github.com/Kento-E/wifi-client-notifier/blob/main/README.md
+    about: プロジェクトのドキュメントを確認する
+  - name: 🚀 クイックスタート
+    url: https://github.com/Kento-E/wifi-client-notifier/blob/main/docs/QUICKSTART.md
+    about: クイックスタートガイドを確認する

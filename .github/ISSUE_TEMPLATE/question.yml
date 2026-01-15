@@ -1,0 +1,92 @@
+name: Question
+description: アプリケーションの仕様や動作について質問
+title: "[Question]: "
+labels: ["質問"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ご質問ありがとうございます。
+        
+        このテンプレートは、アプリケーションの現状の仕様や動作について
+        GitHub Copilotに調査・回答を依頼する際に使用します。
+        
+        💡 **GitHub Copilotの使い方**: Issue作成後、コメント欄で
+        `@copilot` とメンションすることで、GitHub Copilotに
+        質問内容の調査や回答を依頼できます。
+        
+        📝 **注意**: 調査・回答だけでなく、必要に応じてGitHub Copilotに
+        Pull Request作成を依頼することも可能です。
+
+  - type: textarea
+    id: question
+    attributes:
+      label: 質問内容
+      description: 調査してほしい内容や知りたいことを具体的に記載してください。
+      placeholder: |
+        例:
+        - このアプリケーションで使用されているAPIのエンドポイントを教えてください
+        - エラーハンドリングの仕組みはどのように実装されていますか？
+        - 設定ファイルの各パラメータの役割を説明してください
+        - WiFiルータとの通信方式について詳細を教えてください
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 質問の背景・コンテキスト
+      description: 質問の背景や、なぜその情報が必要なのかを記載してください。
+      placeholder: |
+        例:
+        - 新しい機能を追加したいため、既存の実装パターンを理解したい
+        - ドキュメントが不足している部分について詳細を知りたい
+        - トラブルシューティングのため、内部動作を把握したい
+    validations:
+      required: false
+
+  - type: textarea
+    id: related-files
+    attributes:
+      label: 関連ファイル・コード（任意）
+      description: 質問に関連するファイルパスやコードがあれば記載してください。
+      placeholder: |
+        例:
+        - src/wifi_notifier.py
+        - config.example.json
+        - src/html_parser.py の parse_device_list 関数
+    validations:
+      required: false
+
+  - type: dropdown
+    id: answer-format
+    attributes:
+      label: 期待する回答形式
+      description: どのような形式で回答してほしいですか？
+      options:
+        - 概要説明（簡潔な説明）
+        - 詳細説明（コード例や実装詳細を含む）
+        - 一覧形式（箇条書きやリスト）
+        - フローチャート・図解（テキストベース）
+      default: 0
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: 追加情報
+      description: 他に共有したい情報があれば記載してください。
+      placeholder: 参考資料、関連するIssueやPRのリンクなど
+    validations:
+      required: false
+
+  - type: textarea
+    id: copilot-request
+    attributes:
+      label: GitHub Copilotへの質問（任意）
+      description: GitHub Copilotに調査・回答を依頼してください。
+      placeholder: 例：@copilot 上記の質問について調査し、回答してください
+      value: "@copilot 上記の質問について調査し、回答してください"
+    validations:
+      required: false
