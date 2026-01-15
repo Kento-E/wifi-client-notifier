@@ -10,6 +10,9 @@ from bs4 import BeautifulSoup
 import re
 from typing import List, Dict
 
+# MACアドレスのOUI（Organizationally Unique Identifier）の長さ（文字数）
+OUI_LENGTH = 8  # "XX:XX:XX" 形式
+
 
 def parse_wireless_lan_status(html_content: str) -> List[Dict[str, str]]:
     """
@@ -261,8 +264,8 @@ def _get_vendor_from_mac(mac_address: str) -> str:
     }
 
     # MACアドレスの最初の8文字（OUI）を取得
-    if len(mac_address) >= 8:
-        oui = mac_address[:8].upper()
+    if len(mac_address) >= OUI_LENGTH:
+        oui = mac_address[:OUI_LENGTH].upper()
         return oui_vendors.get(oui, "")
 
     return ""
