@@ -24,8 +24,7 @@ wifi-client-notifier/
 ├── docs/                     # ドキュメント
 │   ├── QUICKSTART.md         # クイックスタート
 │   ├── GITHUB_ACTIONS.md     # GitHub Actions設定ガイド
-│   ├── CUSTOMIZATION.md      # カスタマイズガイド
-│   └── AUTO_CLOSE_ISSUES.md  # イシュー自動クローズガイド
+│   └── CUSTOMIZATION.md      # カスタマイズガイド
 ├── config/                   # 設定ファイル
 │   ├── config.example.yaml   # 設定例
 │   └── wifi-notifier.service # systemdサービスファイル
@@ -207,7 +206,7 @@ MIT License
 
 Issue、Pull Requestを歓迎します。
 
-**PRを作成する際は、関連するイシューがある場合は `Closes #番号` でリンクしてください。** 詳細は [イシュー自動クローズガイド](docs/AUTO_CLOSE_ISSUES.md) を参照してください。
+**PRを作成する際は、関連するイシューがある場合は `Closes #番号` でリンクしてください。**
 
 ### 開発環境のセットアップ
 
