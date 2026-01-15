@@ -1,7 +1,7 @@
 name: General Issue
 description: 一般的な問題や質問
 title: ""
-labels: []
+labels: ["一般"]
 body:
   - type: markdown
     attributes:
