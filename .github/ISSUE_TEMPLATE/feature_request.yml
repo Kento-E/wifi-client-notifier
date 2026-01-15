@@ -49,7 +49,7 @@ body:
     attributes:
       label: GitHub Copilotへの質問（任意）
       description: GitHub Copilotに分析や質問をしたい場合は、以下のようにメンションしてください。
-      placeholder: "@copilot この機能を実装し、Pull Requestを作成してください"
+      placeholder: 例：@copilot この機能を実装し、Pull Requestを作成してください
       value: "@copilot この機能を実装し、Pull Requestを作成してください"
     validations:
       required: false

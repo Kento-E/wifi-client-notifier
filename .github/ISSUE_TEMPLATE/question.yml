@@ -15,9 +15,8 @@ body:
         `@copilot` とメンションすることで、GitHub Copilotに
         質問内容の調査や回答を依頼できます。
         
-        ⚠️ **注意**: このテンプレートは調査・回答のみを目的としています。
-        Pull Requestは作成されません。改修を依頼する場合は、
-        Bug ReportやFeature Requestテンプレートを使用してください。
+        📝 **注意**: 調査・回答だけでなく、必要に応じてGitHub Copilotに
+        Pull Request作成を依頼することも可能です。
 
   - type: textarea
     id: question
@@ -87,7 +86,7 @@ body:
     attributes:
       label: GitHub Copilotへの質問（任意）
       description: GitHub Copilotに調査・回答を依頼してください。
-      placeholder: "@copilot 上記の質問について調査し、回答してください"
+      placeholder: 例：@copilot 上記の質問について調査し、回答してください
       value: "@copilot 上記の質問について調査し、回答してください"
     validations:
       required: false
