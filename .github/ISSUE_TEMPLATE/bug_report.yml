@@ -2,7 +2,6 @@ name: Bug Report
 description: バグレポートを作成
 title: "[Bug]: "
 labels: ["バグ"]
-assignees: ["copilot"]
 body:
   - type: markdown
     attributes:

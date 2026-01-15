@@ -2,7 +2,6 @@ name: Question
 description: アプリケーションの仕様や動作について質問
 title: "[Question]: "
 labels: ["質問"]
-assignees: ["copilot"]
 body:
   - type: markdown
     attributes:

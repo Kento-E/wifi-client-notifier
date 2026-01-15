@@ -2,7 +2,6 @@ name: Feature Request
 description: 新機能のリクエスト
 title: "[Feature]: "
 labels: ["機能追加"]
-assignees: ["copilot"]
 body:
   - type: markdown
     attributes:

@@ -2,7 +2,6 @@ name: General Issue
 description: 一般的な問題や質問
 title: ""
 labels: []
-assignees: ["copilot"]
 body:
   - type: markdown
     attributes:
