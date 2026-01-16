@@ -16,12 +16,12 @@
 
 ## 関連Issue
 
-<!-- ⚠️ 重要: PR番号ではなく、必ずイシュー(Issue)番号を記入してください -->
-<!-- ❌ 間違い: Closes #15 (PR番号) → イシューは自動クローズされません -->
-<!-- ✅ 正しい: Closes #18 (Issue番号) → イシューが自動クローズされます -->
+<!-- ⚠️ 重要: PR番号ではなく、必ずIssue番号を記入してください -->
+<!-- ❌ 間違い: Closes #15 (PR番号) → Issueは自動クローズされません -->
+<!-- ✅ 正しい: Closes #18 (Issue番号) → Issueが自動クローズされます -->
 <!-- 詳細な手順: .github/instructions/pull-request.instructions.md を参照 -->
 
-<!-- Closes #イシュー番号 -->
+<!-- Closes #Issue番号 -->
 
 ## 動作確認
 
