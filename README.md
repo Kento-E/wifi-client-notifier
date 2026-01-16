@@ -66,6 +66,8 @@ cd wifi-client-notifier
 pip install -r requirements.txt
 ```
 
+**開発環境のセットアップ**: コードの修正や機能追加を行う場合は、[deployment/README.md](deployment/README.md) を参照してください。
+
 ## 設定
 
 1. サンプル設定ファイルをコピー:
