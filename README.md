@@ -198,10 +198,6 @@ sudo journalctl -u wifi-notifier -f
 - ログレベルを`DEBUG`に変更して詳細情報を取得
 - ルータモデルに応じて`get_connected_devices()`メソッドのカスタマイズが必要な場合があります
 
-## ライセンス
-
-MIT License
-
 ## 貢献
 
 Issue、Pull Requestを歓迎します。
