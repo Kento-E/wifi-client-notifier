@@ -66,6 +66,8 @@ cd wifi-client-notifier
 pip install -r requirements.txt
 ```
 
+**開発環境のセットアップ**: コードの修正や機能追加を行う場合は、[deployment/README.md](deployment/README.md) を参照してください。
+
 ## 設定
 
 1. サンプル設定ファイルをコピー:
@@ -197,45 +199,6 @@ sudo journalctl -u wifi-notifier -f
 - ログファイルを確認
 - ログレベルを`DEBUG`に変更して詳細情報を取得
 - ルータモデルに応じて`get_connected_devices()`メソッドのカスタマイズが必要な場合があります
-
-## ライセンス
-
-MIT License
-
-## 貢献
-
-Issue、Pull Requestを歓迎します。
-
-**PRを作成する際は、関連するイシューがある場合は `Closes #<番号>`（例: `Closes #10`）でリンクしてください。詳細な手順は [.github/instructions/pull-request.instructions.md](.github/instructions/pull-request.instructions.md) を参照してください。**
-
-### 開発環境のセットアップ
-
-コード品質を維持するため、linterとフォーマッターを使用しています。
-
-**自動セットアップ（推奨）:**
-
-```bash
-# セットアップスクリプトで自動的にインストール・設定
-./deployment/setup.sh
-```
-
-このスクリプトは依存パッケージのインストールとpre-commitフックの設定を自動で行います。
-
-**手動セットアップ:**
-
-```bash
-# 開発用ツールをインストール
-pip install black flake8 pre-commit
-
-# pre-commitフックをインストール（コミット時に自動整形）
-pre-commit install
-
-# 手動でコードをフォーマット
-black src/
-
-# 手動でlintチェック
-flake8 src/
-```
 
 ## 免責事項
 
