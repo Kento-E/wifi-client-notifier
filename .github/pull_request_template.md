@@ -16,13 +16,12 @@
 
 ## 関連Issue
 
-<!-- 関連するイシューがある場合は、以下のようにリンクしてください -->
-<!-- Closes #番号 でPRマージ時にイシューを自動クローズできます -->
-<!-- 例: Closes #10 -->
-<!-- 他のキーワード: Fixes #10, Resolves #10 -->
-<!-- 複数のイシュー: 改行して Closes #10 Closes #15 のように記述 -->
+<!-- ⚠️ 重要: PR番号ではなく、必ずIssue番号を記入してください -->
+<!-- ❌ 間違い: Closes #15 (PR番号) → Issueは自動クローズされません -->
+<!-- ✅ 正しい: Closes #18 (Issue番号) → Issueが自動クローズされます -->
+<!-- 詳細な手順: .github/instructions/pull-request.instructions.md を参照 -->
 
-<!-- Closes # -->
+<!-- Closes #Issue番号 -->
 
 ## 動作確認
 
