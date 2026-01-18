@@ -12,6 +12,8 @@ WiFiルータに無線接続した端末を検出し、メール通知を送信�
 
 **☁️ GitHub Actionsで自動実行したい方は [GitHub Actions設定ガイド](docs/GITHUB_ACTIONS.md) をご覧ください。**
 
+**🔒 VPN経由でGitHub Actionsを実行したい方は [VPNデプロイメントガイド](docs/VPN_DEPLOYMENT.md) をご覧ください。**
+
 ## プロジェクト構成
 
 ```
@@ -24,6 +26,7 @@ wifi-client-notifier/
 ├── docs/                     # ドキュメント
 │   ├── QUICKSTART.md         # クイックスタート
 │   ├── GITHUB_ACTIONS.md     # GitHub Actions設定ガイド
+│   ├── VPN_DEPLOYMENT.md     # VPNデプロイメントガイド
 │   └── CUSTOMIZATION.md      # カスタマイズガイド
 ├── config/                   # 設定ファイル
 │   ├── config.example.yaml   # 設定例
