@@ -130,6 +130,8 @@ python src/wifi_notifier.py config.yaml --single-run
 
 **重要**: このWorkflowは、ルータがパブリックIPを持つか、VPN経由でアクセス可能な場合のみ機能します。
 
+**VPN経由でのアクセス方法の詳細は [VPNデプロイメントガイド](VPN_DEPLOYMENT.md) を参照してください。**
+
 ### プライベートネットワークで使用する場合
 
 プライベートネットワーク内のルータを監視する場合は、以下の選択肢があります：
@@ -139,7 +141,12 @@ python src/wifi_notifier.py config.yaml --single-run
    - Workflowファイルで `runs-on: self-hosted` に変更
    - 詳細: GitHubリポジトリの `Settings` → `Actions` → `Runners`
 
-2. **ローカル実行**:
+2. **VPN経由でアクセス**:
+   - GitHub Actionsワークフロー内でVPN接続を確立
+   - VPN経由でプライベートネットワークのルータにアクセス
+   - 詳細: [VPNデプロイメントガイド](VPN_DEPLOYMENT.md)
+
+3. **ローカル実行**:
    - GitHub Actionsを使わず、ローカルマシンやルータ上で直接実行
    - systemdサービスやcronで定期実行
    - 詳細はREADME.mdの「使用方法」セクションを参照
