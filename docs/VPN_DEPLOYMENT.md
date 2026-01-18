@@ -74,13 +74,21 @@ jobs:
           sudo openvpn --config vpn-config.ovpn --daemon
           
           # 接続確立を待機（最大30秒）
+          VPN_CONNECTED=false
           for i in {1..30}; do
             if ip addr show tun0 2>/dev/null; then
               echo "VPN接続が確立されました"
+              VPN_CONNECTED=true
               break
             fi
             sleep 1
           done
+          
+          # VPN接続が確立されなかった場合はエラー終了
+          if [ "$VPN_CONNECTED" = "false" ]; then
+            echo "エラー: VPN接続が確立できませんでした"
+            exit 1
+          fi
       
       - name: VPN接続を確認
         run: |
@@ -216,7 +224,7 @@ curl -o actions-runner-linux-x64-2.311.0.tar.gz -L \
 tar xzf ./actions-runner-linux-x64-2.311.0.tar.gz
 
 # 設定（GitHubから表示されるトークンを使用）
-./config.sh --url https://github.com/YOUR_USERNAME/wifi-client-notifier --token YOUR_TOKEN
+./config.sh --url https://github.com/<YOUR_USERNAME>/wifi-client-notifier --token <YOUR_TOKEN>
 
 # サービスとして起動
 sudo ./svc.sh install
