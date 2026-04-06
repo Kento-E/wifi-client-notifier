@@ -55,23 +55,61 @@ class ARPScanner:
         """
         現在のホストのIPアドレスからサブネットを自動検出する。
 
+        外部への接続は行わず、ルーティングテーブルを参照してローカルIPを取得します。
+        /24サブネットを仮定します（家庭用ネットワークの一般的な設定）。
+        正確なサブネットが必要な場合は設定ファイルで明示的に指定してください。
+
         Returns:
             検出されたサブネット（CIDR表記、例: "192.168.1.0/24"）
         """
-        try:
-            # ソケットを開いてローカルIPアドレスを取得する（実際には接続しない）
-            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-                s.connect(("8.8.8.8", 80))
-                local_ip = s.getsockname()[0]
+        local_ip = self._get_local_ip()
+        # /24サブネットを仮定（家庭用ネットワークの一般的な設定）
+        # /16や/23などを使用している場合は config.yaml の arp.subnet で明示的に設定してください
+        parts = local_ip.rsplit(".", 1)
+        subnet = f"{parts[0]}.0/24"
+        logging.info(f"サブネットを自動検出しました（/24を仮定）: {subnet}")
+        logging.warning(
+            "サブネットを /24 と仮定しています。"
+            " /16 や /23 など異なるサブネットマスクを使用している場合は"
+            " config.yaml の arp.subnet に明示的に設定してください。"
+        )
+        return subnet
 
-            # /24サブネットを仮定（家庭用ネットワークの一般的な設定）
-            parts = local_ip.rsplit(".", 1)
-            subnet = f"{parts[0]}.0/24"
-            logging.info(f"サブネットを自動検出しました: {subnet}")
-            return subnet
-        except Exception as e:
-            logging.warning(f"サブネット自動検出に失敗しました。デフォルト値を使用します: {e}")
-            return "192.168.1.0/24"
+    @staticmethod
+    def _get_local_ip() -> str:
+        """
+        ルーティングテーブルを参照してローカルIPアドレスを取得する。
+
+        外部への実際の接続は行いません。ブロードキャストアドレスへの
+        UDPソケットのルーティングを利用してローカルIPを特定します。
+
+        Returns:
+            ローカルIPアドレス（取得できない場合は "192.168.1.1"）
+        """
+        # 各プライベートアドレス空間（RFC 1918）の代表的なゲートウェイアドレスを試行する
+        # これらへの UDPソケット接続（実際には送信しない）でルーティングテーブルを参照し、
+        # 対応するネットワークインターフェースのローカルIPを取得する。
+        # 192.168.x.x → 一般的な家庭用ネットワーク
+        # 10.x.x.x    → 企業ネットワークや一部のルータ
+        # 172.16.x.x  → 中規模ネットワーク（RFC 1918の172.16.0.0/12範囲）
+        for dummy_target in ("192.168.1.1", "10.0.0.1", "172.16.0.1"):
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                    s.connect((dummy_target, 1))
+                    local_ip = s.getsockname()[0]
+                if not local_ip.startswith("127."):
+                    return local_ip
+            except OSError:
+                continue
+        # フォールバック: hostnameからIPを解決
+        try:
+            local_ip = socket.gethostbyname(socket.gethostname())
+            if not local_ip.startswith("127."):
+                return local_ip
+        except (socket.gaierror, OSError):
+            pass
+        logging.warning("ローカルIPアドレスの取得に失敗しました。デフォルト値を使用します")
+        return "192.168.1.1"
 
     def scan(self, timeout: int = 2) -> List[Dict[str, str]]:
         """

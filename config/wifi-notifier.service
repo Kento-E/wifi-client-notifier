@@ -5,8 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-# ARPスキャンモードではroot権限が必要です
-# ルータAPIモードを使用する場合は適切なユーザーに変更できます
+# ARPスキャンモードでは CAP_NET_RAW ケーパビリティが必要です
+# root権限の代わりにケーパビリティを使用することでセキュリティを向上させています
 User=root
 Group=root
 WorkingDirectory=/path/to/wifi-client-notifier
@@ -17,9 +17,11 @@ Restart=on-failure
 RestartSec=30
 
 # セキュリティ設定
-# 注意: ARPスキャンモード（root実行）の場合はProtectSystem/ProtectHomeを外してください
-NoNewPrivileges=false
+# NoNewPrivileges=true を維持しつつ、ARPスキャンに必要なケーパビリティのみを付与
+NoNewPrivileges=true
 PrivateTmp=true
+AmbientCapabilities=CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_RAW
 ReadWritePaths=/path/to/wifi-client-notifier
 
 # ログ設定
