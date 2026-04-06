@@ -5,23 +5,24 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=your_user
-Group=your_group
+# ARPスキャンモードではroot権限が必要です
+# ルータAPIモードを使用する場合は適切なユーザーに変更できます
+User=root
+Group=root
 WorkingDirectory=/path/to/wifi-client-notifier
 ExecStart=/usr/bin/python3 /path/to/wifi-client-notifier/src/wifi_notifier.py /path/to/wifi-client-notifier/config.yaml
 
-# Restart on failure
+# 失敗時に再起動
 Restart=on-failure
 RestartSec=30
 
-# Security settings
-NoNewPrivileges=true
+# セキュリティ設定
+# 注意: ARPスキャンモード（root実行）の場合はProtectSystem/ProtectHomeを外してください
+NoNewPrivileges=false
 PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=true
 ReadWritePaths=/path/to/wifi-client-notifier
 
-# Logging
+# ログ設定
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=wifi-notifier
