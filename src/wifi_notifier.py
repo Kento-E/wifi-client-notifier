@@ -20,7 +20,12 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 from typing import Dict, List, Optional, Set
-from src.html_parser import parse_wireless_lan_status, extract_devices_from_json
+
+# 直接実行（python src/wifi_notifier.py）とモジュール実行（python -m src.wifi_notifier）の両方に対応
+try:
+    from src.html_parser import parse_wireless_lan_status, extract_devices_from_json
+except ModuleNotFoundError:
+    from html_parser import parse_wireless_lan_status, extract_devices_from_json
 
 
 class WiFiRouter:
