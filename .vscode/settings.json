@@ -6,6 +6,7 @@
     "gh": true,
     "flake8": true,
     "python": true,
-    ".venv/bin/python": true
+    ".venv/bin/python": true,
+    "printf": true
   }
 }
