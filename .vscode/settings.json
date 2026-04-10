@@ -3,6 +3,9 @@
     "env": true,
     "true": true,
     "command": true,
-    "gh": true
+    "gh": true,
+    "flake8": true,
+    "python": true,
+    ".venv/bin/python": true
   }
 }
