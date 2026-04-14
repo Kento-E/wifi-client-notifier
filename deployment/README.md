@@ -20,6 +20,7 @@
 ```
 
 このスクリプトは以下を自動で行います：
+
 - 依存パッケージのインストール
 - pre-commitフックの設定（コミット時に自動整形）
 
@@ -49,27 +50,32 @@ flake8 src/
 ### 手順
 
 1. 設定ファイルを作成:
+
 ```bash
 cp config/config.example.yaml config.yaml
 # config.yamlを編集して設定を入力
 ```
 
 2. Dockerイメージをビルド:
+
 ```bash
 docker-compose build
 ```
 
 3. コンテナを起動:
+
 ```bash
 docker-compose up -d
 ```
 
 4. ログを確認:
+
 ```bash
 docker-compose logs -f
 ```
 
 5. コンテナを停止:
+
 ```bash
 docker-compose down
 ```
@@ -77,6 +83,7 @@ docker-compose down
 ## その他のデプロイ方法
 
 詳細は [メインREADME](../README.md) を参照してください：
+
 - systemdサービスとして実行（Linux）
 - バックグラウンドで実行
 - GitHub Actionsで自動実行
