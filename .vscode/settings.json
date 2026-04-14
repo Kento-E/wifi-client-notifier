@@ -12,5 +12,6 @@
     ".venv/bin/flake8": true,
     "git rev-parse": true,
     "ssh": true
-  }
+  },
+  "cSpell.words": ["raspberrypi"]
 }
