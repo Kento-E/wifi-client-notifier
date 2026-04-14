@@ -8,6 +8,7 @@ scapyライブラリを使用し、root権限が必要です。
 """
 
 import logging
+import os
 import socket
 from typing import Dict, List, Optional
 
@@ -25,6 +26,16 @@ def _require_scapy() -> None:
         raise ImportError(
             "scapyがインストールされていません。"
             " 'pip install scapy' を実行してインストールしてください。"
+        )
+
+
+def _require_root_privileges() -> None:
+    """ARPスキャンに必要なroot権限を確認する。"""
+    geteuid = getattr(os, "geteuid", None)
+    if geteuid is not None and geteuid() != 0:
+        raise PermissionError(
+            "ARPスキャンにはroot権限が必要です。"
+            " 'sudo python src/wifi_notifier.py <config_file>' で実行してください。"
         )
 
 
@@ -122,6 +133,7 @@ class ARPScanner:
             デバイス情報を含む辞書のリスト。
             各辞書には 'mac', 'ip', 'hostname' キーが含まれます。
         """
+        _require_root_privileges()
         subnet = self.subnet or self._detect_subnet()
         logging.debug(f"ARPスキャンを実行します: subnet={subnet}, timeout={timeout}s")
 
@@ -154,12 +166,6 @@ class ARPScanner:
             logging.info(f"ARPスキャン完了: {len(devices)}台のデバイスを検出しました")
             return devices
 
-        except PermissionError:
-            logging.error(
-                "ARPスキャンにroot権限が必要です。"
-                " 'sudo python' または systemdサービスをroot権限で実行してください。"
-            )
-            return []
         except Exception as e:
             logging.error(f"ARPスキャン中にエラーが発生しました: {e}")
             return []

@@ -37,7 +37,10 @@ def test_arp_scanner(config):
     """ARPスキャナーの動作をテストする。"""
     print("\nARPスキャナーをテスト中...")
     try:
-        from src.arp_scanner import ARPScanner, SCAPY_AVAILABLE
+        try:
+            from src.arp_scanner import ARPScanner, SCAPY_AVAILABLE
+        except ModuleNotFoundError:
+            from arp_scanner import ARPScanner, SCAPY_AVAILABLE
 
         if not SCAPY_AVAILABLE:
             print("✗ エラー: scapyがインストールされていません")

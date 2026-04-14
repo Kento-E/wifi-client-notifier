@@ -287,7 +287,10 @@ class WiFiMonitor:
 
         if detection_method == "arp":
             # ARPスキャンモード（Raspberry Pi向け）
-            from src.arp_scanner import ARPScanner
+            try:
+                from src.arp_scanner import ARPScanner
+            except ModuleNotFoundError:
+                from arp_scanner import ARPScanner
 
             arp_config = self.config.get("arp", {})
             self.arp_scanner = ARPScanner(
