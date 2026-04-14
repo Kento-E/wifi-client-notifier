@@ -126,11 +126,11 @@ Raspberry Pi Zero 2 WでWi-Fi接続監視を常時稼働させる手順です。
 
 ### systemdサービスとして登録
 
-1. `config/wifi-notifier.service`を編集（`your_user`、`your_group`、パスを実際の値に置き換え）:
+1. `config/wifi-notifier.service`を編集（`<YOUR_USER>`、`<YOUR_GROUP>`、パスを実際の値に置き換え）:
 ```ini
 [Service]
-User=your_user
-Group=your_group
+User=<YOUR_USER>
+Group=<YOUR_GROUP>
 WorkingDirectory=/path/to/wifi-client-notifier
 ExecStart=/usr/bin/python3 /path/to/wifi-client-notifier/src/wifi_notifier.py /path/to/config.yaml
 # ARPスキャン用ケーパビリティ（root不要）

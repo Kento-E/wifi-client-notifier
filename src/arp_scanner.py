@@ -43,8 +43,10 @@ def _has_cap_net_raw() -> bool:
                     cap_eff = int(line.split()[1], 16)
                     # CAP_NET_RAW のビット番号は 13
                     return bool(cap_eff & (1 << 13))
-    except (OSError, ValueError):
-        pass
+    except OSError as e:
+        logging.debug(f"CAP_NET_RAWチェックに失敗しました（Linux以外の環境では無視可）: {e}")
+    except ValueError as e:
+        logging.debug(f"CAP_NET_RAWの解析に失敗しました: {e}")
     return False
 
 
@@ -212,6 +214,11 @@ class ARPScanner:
 
         DNS逆引きが設定されていない環境での遅延を防ぐため、
         タイムアウトを設定してベストエフォートで名前解決を試みます。
+
+        注意: `socket.setdefaulttimeout()` はプロセスグローバルな設定です。
+        マルチスレッド環境では他スレッドのソケット操作に影響する可能性がありますが、
+        `finally` で元の値に戻すことで影響を最小化しています。
+        `gethostbyaddr()` は個別タイムアウト設定に対応していないため、この実装を採用しています。
 
         Args:
             ip: 解決するIPアドレス

@@ -161,8 +161,8 @@ docker-compose down
 1. サービスファイルをカスタマイズ:
 
 `config/wifi-notifier.service`ファイルを編集し、以下を実際の値に置き換えます：
-- `your_user`: 実行ユーザー名（専用の非rootユーザーを推奨）
-- `your_group`: 実行グループ名
+- `<YOUR_USER>`: 実行ユーザー名（専用の非rootユーザーを推奨）
+- `<YOUR_GROUP>`: 実行グループ名
 - `/path/to/wifi-client-notifier`: このリポジトリのパス
 
 ARPスキャンモードでは `AmbientCapabilities=CAP_NET_RAW` が設定済みのため、rootユーザーは不要です。
