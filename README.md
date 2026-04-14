@@ -55,7 +55,7 @@ wifi-client-notifier/
 
 | 方式 | 説明 | 必要なもの |
 |------|------|----------|
-| `arp`（推奨） | ARPスキャンによるローカルネットワーク監視 | root権限のみ（Raspberry Pi向け） |
+| `arp`（推奨） | ARPスキャンによるローカルネットワーク監視 | root権限（直接実行時）またはCAP_NET_RAWケーパビリティ（systemd）|
 | `router` | ルータ管理APIを使用した接続監視 | ルータの管理者パスワード |
 
 `config.yaml` の `detection_method` で切り替えられます。
@@ -64,7 +64,7 @@ wifi-client-notifier/
 
 - Python 3.11以上
 - SMTPサーバーへのアクセス（Gmail、独自SMTPサーバーなど）
-- **ARPスキャンモード**: root権限（`sudo`）、scapy（`pip install scapy`）
+- **ARPスキャンモード**: root権限（直接実行時は`sudo`）またはCAP_NET_RAWケーパビリティ（systemd）、scapy（`pip install scapy`）
 - **ルータAPIモード**: WiFiルータへのアクセス権限（管理者ユーザー名とパスワード）
 
 ## インストール
@@ -117,11 +117,14 @@ Gmailを使用する場合：
 
 ### Raspberry Pi Zero 2 Wでの実行（推奨）
 
-ARPスキャンモードではroot権限が必要です:
+ARPスキャンモードではroot権限またはCAP_NET_RAWケーパビリティが必要です。
+直接実行する場合は`sudo`を使用してください:
 
 ```bash
 sudo python src/wifi_notifier.py config.yaml
 ```
+
+常時稼働させる場合はsystemdサービスの利用を推奨します（rootユーザー不要、詳細は後述）。
 
 ### バックグラウンドで実行（Linux/Mac）
 
@@ -157,10 +160,12 @@ docker-compose down
 
 1. サービスファイルをカスタマイズ:
 
-`config/wifi-notifier.service`ファイルを編集し、以下を実際のパスに置き換えます：
-- `your_user`: 実行ユーザー名（ARPスキャンモードでは`root`を推奨）
+`config/wifi-notifier.service`ファイルを編集し、以下を実際の値に置き換えます：
+- `your_user`: 実行ユーザー名（専用の非rootユーザーを推奨）
 - `your_group`: 実行グループ名
 - `/path/to/wifi-client-notifier`: このリポジトリのパス
+
+ARPスキャンモードでは `AmbientCapabilities=CAP_NET_RAW` が設定済みのため、rootユーザーは不要です。
 
 2. サービスファイルをコピー:
 
@@ -203,7 +208,8 @@ sudo journalctl -u wifi-notifier -f
 
 ### ARPスキャンができない
 
-- root権限で実行しているか確認（`sudo python ...`）
+- 直接実行の場合: root権限で実行しているか確認（`sudo python ...`）
+- systemdサービスの場合: `AmbientCapabilities=CAP_NET_RAW` が設定されているか確認
 - scapyがインストールされているか確認（`pip install scapy`）
 - ネットワークインターフェース名を確認（`ip addr`コマンドで確認）
 - `config.yaml` の `arp.interface` に正しいインターフェース名（例: `wlan0`）を設定

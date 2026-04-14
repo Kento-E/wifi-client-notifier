@@ -284,6 +284,13 @@ class WiFiMonitor:
     def _initialize_components(self):
         """検出方式に応じたコンポーネントを初期化する。"""
         detection_method = self.config.get("detection_method", "router")
+        valid_methods = ("arp", "router")
+        if detection_method not in valid_methods:
+            raise ValueError(
+                f"detection_method の値 '{detection_method}' は無効です。"
+                f" 有効な値: {valid_methods}。"
+                " config.yaml の detection_method を確認してください。"
+            )
 
         if detection_method == "arp":
             # ARPスキャンモード（Raspberry Pi向け）

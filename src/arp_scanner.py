@@ -4,7 +4,7 @@ ARPスキャナーモジュール
 
 Raspberry Pi Zero 2 Wなどのローカルネットワーク上のホストから
 ARPスキャンを使用して接続中のデバイスを検出します。
-scapyライブラリを使用し、root権限が必要です。
+scapyライブラリを使用し、root権限またはCAP_NET_RAWケーパビリティが必要です。
 """
 
 import logging
@@ -29,14 +29,43 @@ def _require_scapy() -> None:
         )
 
 
-def _require_root_privileges() -> None:
-    """ARPスキャンに必要なroot権限を確認する。"""
+def _has_cap_net_raw() -> bool:
+    """
+    現在のプロセスがCAP_NET_RAWケーパビリティを持っているか確認する。
+
+    Linuxの /proc/self/status から実効ケーパビリティを読み取ります。
+    Linux以外では常にFalseを返します。
+    """
+    try:
+        with open("/proc/self/status") as f:
+            for line in f:
+                if line.startswith("CapEff:"):
+                    cap_eff = int(line.split()[1], 16)
+                    # CAP_NET_RAW のビット番号は 13
+                    return bool(cap_eff & (1 << 13))
+    except (OSError, ValueError):
+        pass
+    return False
+
+
+def _require_network_raw_capability() -> None:
+    """
+    ARPスキャンに必要な権限（root権限またはCAP_NET_RAWケーパビリティ）を確認する。
+
+    以下のいずれかの条件を満たさない場合は PermissionError を送出する:
+    - 実効UID = 0（root）
+    - CAP_NET_RAW ケーパビリティを保有（systemd の AmbientCapabilities=CAP_NET_RAW 等）
+    """
     geteuid = getattr(os, "geteuid", None)
-    if geteuid is not None and geteuid() != 0:
-        raise PermissionError(
-            "ARPスキャンにはroot権限が必要です。"
-            " 'sudo python src/wifi_notifier.py <config_file>' で実行してください。"
-        )
+    if geteuid is not None and geteuid() == 0:
+        return  # root権限あり
+    if _has_cap_net_raw():
+        return  # CAP_NET_RAWケーパビリティあり
+    raise PermissionError(
+        "ARPスキャンにはroot権限またはCAP_NET_RAWケーパビリティが必要です。"
+        " 'sudo python src/wifi_notifier.py <config_file>' で実行するか、"
+        " systemdサービスで AmbientCapabilities=CAP_NET_RAW を設定してください。"
+    )
 
 
 class ARPScanner:
@@ -132,8 +161,11 @@ class ARPScanner:
         Returns:
             デバイス情報を含む辞書のリスト。
             各辞書には 'mac', 'ip', 'hostname' キーが含まれます。
+
+        Raises:
+            PermissionError: root権限またはCAP_NET_RAWケーパビリティがない場合
         """
-        _require_root_privileges()
+        _require_network_raw_capability()
         subnet = self.subnet or self._detect_subnet()
         logging.debug(f"ARPスキャンを実行します: subnet={subnet}, timeout={timeout}s")
 
@@ -166,23 +198,34 @@ class ARPScanner:
             logging.info(f"ARPスキャン完了: {len(devices)}台のデバイスを検出しました")
             return devices
 
+        except PermissionError:
+            # scapyが投げたPermissionErrorは呼び出し元まで伝播させる
+            raise
         except Exception as e:
             logging.error(f"ARPスキャン中にエラーが発生しました: {e}")
             return []
 
     @staticmethod
-    def _resolve_hostname(ip: str) -> str:
+    def _resolve_hostname(ip: str, timeout: float = 1.0) -> str:
         """
-        IPアドレスからホスト名を逆引きする。
+        IPアドレスからホスト名をタイムアウト付きで逆引きする。
+
+        DNS逆引きが設定されていない環境での遅延を防ぐため、
+        タイムアウトを設定してベストエフォートで名前解決を試みます。
 
         Args:
             ip: 解決するIPアドレス
+            timeout: 名前解決のタイムアウト秒数（デフォルト: 1秒）
 
         Returns:
             ホスト名、解決できない場合はIPアドレスをそのまま返す
         """
+        old_timeout = socket.getdefaulttimeout()
+        socket.setdefaulttimeout(timeout)
         try:
             hostname = socket.gethostbyaddr(ip)[0]
             return hostname
-        except (socket.herror, socket.gaierror, OSError):
+        except (socket.herror, socket.gaierror, socket.timeout, OSError):
             return ip
+        finally:
+            socket.setdefaulttimeout(old_timeout)

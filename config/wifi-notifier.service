@@ -5,10 +5,10 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-# ARPスキャンモードでは CAP_NET_RAW ケーパビリティが必要です
-# root権限の代わりにケーパビリティを使用することでセキュリティを向上させています
-User=root
-Group=root
+# 専用の非rootユーザーで実行し、必要なケーパビリティのみを付与します
+# your_user / your_group を実際のユーザー名・グループ名に置き換えてください
+User=your_user
+Group=your_group
 WorkingDirectory=/path/to/wifi-client-notifier
 ExecStart=/usr/bin/python3 /path/to/wifi-client-notifier/src/wifi_notifier.py /path/to/wifi-client-notifier/config.yaml
 
@@ -17,12 +17,14 @@ Restart=on-failure
 RestartSec=30
 
 # セキュリティ設定
-# NoNewPrivileges=true を維持しつつ、ARPスキャンに必要なケーパビリティのみを付与
+# ARPスキャン（scapy）に必要な CAP_NET_RAW のみを付与し、それ以外の権限は制限します
 NoNewPrivileges=true
 PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/path/to/wifi-client-notifier
 AmbientCapabilities=CAP_NET_RAW
 CapabilityBoundingSet=CAP_NET_RAW
-ReadWritePaths=/path/to/wifi-client-notifier
 
 # ログ設定
 StandardOutput=journal

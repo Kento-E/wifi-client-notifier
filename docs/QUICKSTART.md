@@ -6,7 +6,7 @@
 
 - Python 3.11以上がインストールされている
 - メール送信用のSMTPサーバーアクセス（Gmailなど）
-- **ARPスキャンモード（推奨）**: root権限（`sudo`）
+- **ARPスキャンモード（推奨）**: root権限（直接実行時は`sudo`）、またはsystemdの`CAP_NET_RAW`設定
 - **ルータAPIモード**: WiFiルータの管理者権限（ユーザー名とパスワード）
 
 ## セットアップ手順
@@ -126,12 +126,16 @@ Raspberry Pi Zero 2 WでWi-Fi接続監視を常時稼働させる手順です。
 
 ### systemdサービスとして登録
 
-1. `config/wifi-notifier.service`を編集:
+1. `config/wifi-notifier.service`を編集（`your_user`、`your_group`、パスを実際の値に置き換え）:
 ```ini
 [Service]
-User=root
+User=your_user
+Group=your_group
 WorkingDirectory=/path/to/wifi-client-notifier
 ExecStart=/usr/bin/python3 /path/to/wifi-client-notifier/src/wifi_notifier.py /path/to/config.yaml
+# ARPスキャン用ケーパビリティ（root不要）
+AmbientCapabilities=CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_RAW
 ```
 
 2. サービスを有効化:
@@ -166,10 +170,11 @@ Gmailを使用する場合の手順:
 
 ### ARPスキャンが失敗する
 
-1. root権限で実行しているか確認（`sudo python ...`）
-2. scapyがインストールされているか確認（`pip install scapy`）
-3. ネットワークインターフェース名を確認（`ip addr` または `ifconfig`）
-4. `config.yaml`の`arp.interface`にインターフェース名を明示的に設定
+1. 直接実行の場合: root権限で実行しているか確認（`sudo python ...`）
+2. systemdサービスの場合: `AmbientCapabilities=CAP_NET_RAW` が設定されているか確認
+3. scapyがインストールされているか確認（`pip install scapy`）
+4. ネットワークインターフェース名を確認（`ip addr` または `ifconfig`）
+5. `config.yaml`の`arp.interface`にインターフェース名を明示的に設定
 
 ### ルータに接続できない（ルータAPIモード）
 

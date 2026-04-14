@@ -63,6 +63,12 @@ def generate_config():
     """環境変数から設定ファイルを生成する。"""
     try:
         detection_method = get_env_optional("DETECTION_METHOD", "router")
+        valid_methods = ("arp", "router")
+        if detection_method not in valid_methods:
+            raise ValueError(
+                f"DETECTION_METHOD の値 '{detection_method}' は無効です。"
+                f" 有効な値: {valid_methods}"
+            )
 
         config = {
             "detection_method": detection_method,
