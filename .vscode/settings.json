@@ -7,6 +7,10 @@
     "flake8": true,
     "python": true,
     ".venv/bin/python": true,
-    "printf": true
+    "printf": true,
+    ".venv/bin/black": true,
+    ".venv/bin/flake8": true,
+    "git rev-parse": true,
+    "ssh": true
   }
 }
