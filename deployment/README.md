@@ -154,8 +154,8 @@ ssh "$PI_HOST" '
 set -e
 cd ~/work/wifi-client-notifier
 git fetch origin
-git checkout copilot/feature-monitor-local-network-connection
-git pull --ff-only origin copilot/feature-monitor-local-network-connection
+git checkout main
+git pull --ff-only origin main
 '
 ```
 
