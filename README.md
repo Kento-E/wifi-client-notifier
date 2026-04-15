@@ -1,4 +1,5 @@
 # wifi-client-notifier
+
 Wi-Fi接続検知ツール
 
 ## 概要
@@ -53,10 +54,10 @@ wifi-client-notifier/
 
 ## 検出方式
 
-| 方式 | 説明 | 必要なもの |
-|------|------|----------|
-| `arp`（推奨） | ARPスキャンによるローカルネットワーク監視 | root権限（直接実行時）またはCAP_NET_RAWケーパビリティ（systemd）|
-| `router` | ルータ管理APIを使用した接続監視 | ルータの管理者パスワード |
+| 方式          | 説明                                      | 必要なもの                                                       |
+| ------------- | ----------------------------------------- | ---------------------------------------------------------------- |
+| `arp`（推奨） | ARPスキャンによるローカルネットワーク監視 | root権限（直接実行時）またはCAP_NET_RAWケーパビリティ（systemd） |
+| `router`      | ルータ管理APIを使用した接続監視           | ルータの管理者パスワード                                         |
 
 `config.yaml` の `detection_method` で切り替えられます。
 
@@ -70,12 +71,14 @@ wifi-client-notifier/
 ## インストール
 
 1. リポジトリをクローン:
+
 ```bash
 git clone https://github.com/Kento-E/wifi-client-notifier.git
 cd wifi-client-notifier
 ```
 
-2. 依存パッケージをインストール:
+1. 依存パッケージをインストール:
+
 ```bash
 pip install -r requirements.txt
 ```
@@ -85,15 +88,16 @@ pip install -r requirements.txt
 ## 設定
 
 1. サンプル設定ファイルをコピー:
+
 ```bash
 cp config/config.example.yaml config.yaml
 ```
 
-2. `config.yaml`を編集して、環境に合わせて設定してください。
+1. `config.yaml`を編集して、環境に合わせて設定してください。
 
 設定項目の詳細は `config/config.example.yaml` を参照してください。
 
-3. 設定をテスト:
+1. 設定をテスト:
 
 ```bash
 # ARPスキャンモードの場合はsudoが必要
@@ -101,6 +105,7 @@ sudo python src/test_config.py config.yaml
 ```
 
 このテストスクリプトは以下を確認します：
+
 - 設定ファイルの読み込み
 - ARPスキャンまたはルータへの接続
 - SMTP認証
@@ -109,8 +114,9 @@ sudo python src/test_config.py config.yaml
 ### Gmail設定の注意事項
 
 Gmailを使用する場合：
+
 1. Googleアカウントで2段階認証を有効化
-2. アプリパスワードを生成（https://myaccount.google.com/apppasswords）
+2. アプリパスワードを生成（<https://myaccount.google.com/apppasswords）>
 3. 生成したアプリパスワードを`smtp_password`に設定
 
 ## 使用方法
@@ -137,21 +143,25 @@ sudo nohup python src/wifi_notifier.py config.yaml &
 1. config.yamlを作成して設定を入力
 
 2. Dockerイメージをビルド:
+
 ```bash
 docker-compose build
 ```
 
-3. コンテナを起動:
+1. コンテナを起動:
+
 ```bash
 docker-compose up -d
 ```
 
-4. ログを確認:
+1. ログを確認:
+
 ```bash
 docker-compose logs -f
 ```
 
-5. コンテナを停止:
+1. コンテナを停止:
+
 ```bash
 docker-compose down
 ```
@@ -161,6 +171,7 @@ docker-compose down
 1. サービスファイルをカスタマイズ:
 
 `config/wifi-notifier.service`ファイルを編集し、以下を実際の値に置き換えます：
+
 - `<YOUR_USER>`: 実行ユーザー名（専用の非rootユーザーを推奨）
 - `<YOUR_GROUP>`: 実行グループ名
 - `/path/to/wifi-client-notifier`: このリポジトリのパス
@@ -169,13 +180,13 @@ ARPスキャンモードでは `AmbientCapabilities=CAP_NET_RAW` が設定済み
 
 `ExecStart` は仮想環境の Python と `config/config.yaml` を指すように設定してください。
 
-2. サービスファイルをコピー:
+1. サービスファイルをコピー:
 
 ```bash
 sudo cp config/wifi-notifier.service /etc/systemd/system/
 ```
 
-3. サービスを有効化して起動:
+1. サービスを有効化して起動:
 
 ```bash
 sudo systemctl daemon-reload
@@ -184,7 +195,7 @@ sudo systemctl start wifi-notifier
 sudo systemctl status wifi-notifier
 ```
 
-4. ログを確認:
+1. ログを確認:
 
 ```bash
 sudo journalctl -u wifi-notifier -f
@@ -200,6 +211,7 @@ sudo journalctl -u wifi-notifier -f
 詳細は [カスタマイズガイド](docs/CUSTOMIZATION.md) をご覧ください。
 
 特に以下のメソッドを確認してください：
+
 - `login()`: 認証方法がモデルにより異なる場合があります
 - `get_connected_devices()`: デバイスリスト取得のエンドポイントやパース方法
 

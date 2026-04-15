@@ -57,25 +57,25 @@ cp config/config.example.yaml config.yaml
 # config.yamlを編集して設定を入力
 ```
 
-2. Dockerイメージをビルド:
+1. Dockerイメージをビルド:
 
 ```bash
 docker-compose build
 ```
 
-3. コンテナを起動:
+1. コンテナを起動:
 
 ```bash
 docker-compose up -d
 ```
 
-4. ログを確認:
+1. ログを確認:
 
 ```bash
 docker-compose logs -f
 ```
 
-5. コンテナを停止:
+1. コンテナを停止:
 
 ```bash
 docker-compose down
@@ -112,6 +112,7 @@ PI_HOST=user@hostname.local ./deployment/setup_raspberrypi.sh
 - ARPモード設定補完（`detection_method: arp`, `interface: wlan0`）
 - `test_config.py` 実行
 - `wifi_notifier.py --single-run` 実行
+- `systemd` サービスのインストール、有効化、起動確認
 
 主なオプション:
 
@@ -119,6 +120,7 @@ PI_HOST=user@hostname.local ./deployment/setup_raspberrypi.sh
 export PI_HOST=user@hostname.local
 ./deployment/setup_raspberrypi.sh --host pi@192.168.10.50 --branch main
 ./deployment/setup_raspberrypi.sh --no-config-copy --skip-test --skip-single-run
+./deployment/setup_raspberrypi.sh --skip-service-install
 ```
 
 手動で1ステップずつ実行したい場合は、以下の手順を使用してください。
@@ -210,12 +212,71 @@ sudo .venv/bin/python src/wifi_notifier.py config/config.yaml --single-run
 '
 ```
 
-### 7. 常時実行する場合
+### 7. systemdサービスとして常駐実行
+
+`setup_raspberrypi.sh` は `--skip-service-install` を指定しない限り自動で実行します。
+手動で行う場合の手順は以下のとおりです。
+
+```bash
+ssh "$PI_HOST" '
+set -e
+cd ~/work/wifi-client-notifier
+REMOTE_PROJECT_PATH="$(pwd)"
+SERVICE_USER="$(id -un)"
+SERVICE_GROUP="$(id -gn)"
+# .venv/bin/python3 は 1 段リンクのため systemd でも解決できる（python は 2 段でNG）
+PYTHON_BIN="${REMOTE_PROJECT_PATH}/.venv/bin/python3"
+# sudo で直接実行したことがある場合は root 所有になったログを修正
+if [ -f "${REMOTE_PROJECT_PATH}/wifi_notifier.log" ]; then
+  sudo chown "${SERVICE_USER}:${SERVICE_GROUP}" "${REMOTE_PROJECT_PATH}/wifi_notifier.log"
+fi
+sudo tee /etc/systemd/system/wifi-notifier.service >/dev/null <<EOF
+[Unit]
+Description=WiFi Client Notifier
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=${SERVICE_USER}
+Group=${SERVICE_GROUP}
+WorkingDirectory=${REMOTE_PROJECT_PATH}
+ExecStart=${PYTHON_BIN} ${REMOTE_PROJECT_PATH}/src/wifi_notifier.py ${REMOTE_PROJECT_PATH}/config/config.yaml
+Restart=on-failure
+RestartSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=${REMOTE_PROJECT_PATH}
+AmbientCapabilities=CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_RAW
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=wifi-notifier
+
+[Install]
+WantedBy=multi-user.target
+EOF
+sudo systemctl daemon-reload
+sudo systemctl enable wifi-notifier
+sudo systemctl start wifi-notifier
+sudo systemctl status wifi-notifier
+'
+```
+
+ログ確認:
+
+```bash
+sudo journalctl -u wifi-notifier -f
+```
+
+### 8. foreground で直接実行する場合
 
 ```bash
 ssh "$PI_HOST"
 cd ~/work/wifi-client-notifier
-sudo .venv/bin/python src/wifi_notifier.py config/config.yaml
+.venv/bin/python3 src/wifi_notifier.py config/config.yaml
 ```
 
 ### 補足
