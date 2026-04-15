@@ -345,7 +345,11 @@ class WiFiMonitor:
         if self.arp_scanner is not None:
             arp_config = self.config.get("arp", {})
             timeout = arp_config.get("timeout", 2)
-            return self.arp_scanner.scan(timeout=timeout)
+            try:
+                return self.arp_scanner.scan(timeout=timeout)
+            except Exception as e:
+                logging.error(f"ARPスキャンに失敗しました: {e}")
+                return []
         elif self.router is not None:
             return self.router.get_connected_devices()
         else:

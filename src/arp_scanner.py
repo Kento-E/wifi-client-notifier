@@ -205,7 +205,8 @@ class ARPScanner:
             raise
         except Exception as e:
             logging.error(f"ARPスキャン中にエラーが発生しました: {e}")
-            return []
+            # 例外を再スローして呼び出し元で失敗を正確に検知できるようにする
+            raise
 
     @staticmethod
     def _resolve_hostname(ip: str, timeout: float = 1.0) -> str:
