@@ -3,7 +3,7 @@
 GitHub Actions Secretsから設定ファイルを生成するスクリプト
 
 環境変数から設定値を読み取り、config.yamlファイルを生成します。
-DETECTION_METHOD 環境変数で検出方式を切り替えられます（デフォルト: "router"）。
+DETECTION_METHOD 環境変数で検出方式を切り替えられます（必須: "arp" または "router"）。
 """
 
 import os
@@ -62,7 +62,7 @@ def parse_list(value: str) -> list:
 def generate_config():
     """環境変数から設定ファイルを生成する。"""
     try:
-        detection_method = get_env_optional("DETECTION_METHOD", "router")
+        detection_method = get_env_required("DETECTION_METHOD")
         valid_methods = ("arp", "router")
         if detection_method not in valid_methods:
             raise ValueError(
@@ -85,7 +85,7 @@ def generate_config():
                 arp_config["interface"] = interface
             config["arp"] = arp_config
         else:
-            # ルータAPIモード（デフォルト、GitHub Actions向け）
+            # ルータAPIモード（GitHub Actions向け）
             config["router"] = {
                 "ip": get_env_required("ROUTER_IP"),
                 "username": get_env_required("ROUTER_USERNAME"),

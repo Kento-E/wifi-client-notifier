@@ -283,8 +283,13 @@ class WiFiMonitor:
 
     def _initialize_components(self):
         """検出方式に応じたコンポーネントを初期化する。"""
-        detection_method = self.config.get("detection_method", "router")
+        detection_method = self.config.get("detection_method")
         valid_methods = ("arp", "router")
+        if detection_method is None:
+            raise ValueError(
+                "detection_method が設定されていません。"
+                f" config.yaml に detection_method を指定してください。有効な値: {valid_methods}。"
+            )
         if detection_method not in valid_methods:
             raise ValueError(
                 f"detection_method の値 '{detection_method}' は無効です。"
@@ -306,7 +311,7 @@ class WiFiMonitor:
             )
             logging.info("検出方式: ARPスキャン（ローカルネットワーク）")
         else:
-            # ルータAPIモード（デフォルト）
+            # ルータAPIモード
             router_config = self.config.get("router")
             if not router_config:
                 raise ValueError(
