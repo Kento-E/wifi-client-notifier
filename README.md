@@ -167,6 +167,8 @@ docker-compose down
 
 ARPスキャンモードでは `AmbientCapabilities=CAP_NET_RAW` が設定済みのため、rootユーザーは不要です。
 
+`ExecStart` は仮想環境の Python と `config/config.yaml` を指すように設定してください。
+
 2. サービスファイルをコピー:
 
 ```bash
