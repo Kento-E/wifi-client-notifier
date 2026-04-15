@@ -15,6 +15,10 @@
     "/^bash -n deployment/setup_raspberrypi\\.sh$/": {
       "approve": true,
       "matchCommandLine": true
+    },
+    "/^bash -n deployment/setup_raspberrypi\\.sh && echo \"syntax_ok\"$/": {
+      "approve": true,
+      "matchCommandLine": true
     }
   },
   "cSpell.words": ["raspberrypi"]
