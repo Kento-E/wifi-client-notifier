@@ -6,7 +6,7 @@ set -euo pipefail
 # ローカルPCから実行し、SSH経由で Raspberry Pi のセットアップを行う。
 
 PI_HOST="${PI_HOST:-}"
-WORK_DIR="~/work"
+WORK_DIR="${HOME}/work"
 REPO_URL="https://github.com/Kento-E/wifi-client-notifier.git"
 LOCAL_CONFIG="config/config.yaml"
 COPY_CONFIG=1
