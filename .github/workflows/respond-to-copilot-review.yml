@@ -1,0 +1,74 @@
+name: Copilotレビュー指摘への自動対応指示
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  respond-to-copilot-review:
+    runs-on: ubuntu-latest
+    # Copilotボットのレビューのみ処理する
+    if: contains(github.event.review.user.login, 'copilot')
+
+    steps:
+      - name: レビュー情報を表示
+        env:
+          REVIEWER: ${{ github.event.review.user.login }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REVIEW_ID: ${{ github.event.review.id }}
+        run: |
+          echo "PR #${PR_NUMBER} のCopilotレビューを検出しました"
+          echo "レビュアー: ${REVIEWER}"
+          echo "レビューID: ${REVIEW_ID}"
+
+      - name: 各指摘スレッドに対応指示コメントを投稿
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const reviewId = context.payload.review.id;
+            const prNumber = context.payload.pull_request.number;
+
+            // このPRの全レビューコメントを取得
+            const { data: allComments } = await github.rest.pulls.listReviewComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+            });
+
+            // 対象レビューに属するスレッドの親コメントのみ抽出
+            // （in_reply_to_id がないものがスレッドの起点）
+            const threadRoots = allComments.filter(c =>
+              c.pull_request_review_id === reviewId && !c.in_reply_to_id
+            );
+
+            console.log(`対象スレッド数: ${threadRoots.length}`);
+
+            if (threadRoots.length === 0) {
+              console.log('指摘コメントはありませんでした。処理を終了します。');
+              return;
+            }
+
+            const instructionBody = [
+              '@copilot この指摘に対して、以下の通り対応しろ。',
+              '',
+              '- 内容の妥当性を評価する',
+              '- 妥当で要修正と判断された場合は、修正対応する',
+              '- 不当と判断された場合は、判断結果と根拠を返信する',
+            ].join('\n');
+
+            // 各スレッドに返信コメントを投稿
+            for (const comment of threadRoots) {
+              await github.rest.pulls.createReplyForReviewComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: prNumber,
+                comment_id: comment.id,
+                body: instructionBody,
+              });
+              console.log(`コメントID ${comment.id} (行: ${comment.path}:${comment.line}) に返信しました`);
+            }
+
+            console.log(`合計 ${threadRoots.length} 件のスレッドに対応指示を送信しました`);
