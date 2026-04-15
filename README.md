@@ -33,9 +33,8 @@ wifi-client-notifier/
 │   ├── config.example.yaml   # 設定例
 │   └── wifi-notifier.service # systemdサービスファイル
 ├── deployment/               # デプロイ関連
-│   ├── Dockerfile            # Dockerイメージ
-│   ├── docker-compose.yml    # Docker Compose設定
-│   └── setup.sh              # セットアップスクリプト
+│   ├── setup.sh              # セットアップスクリプト
+│   └── setup_raspberrypi.sh  # Raspberry Pi用セットアップスクリプト
 ├── scripts/                  # ユーティリティスクリプト
 │   └── generate_config.py    # GitHub Actions用設定生成
 └── .github/                  # GitHub設定
@@ -130,30 +129,6 @@ sudo python src/wifi_notifier.py config.yaml
 
 ```bash
 sudo nohup python src/wifi_notifier.py config.yaml &
-```
-
-### Dockerで実行
-
-1. config.yamlを作成して設定を入力
-
-2. Dockerイメージをビルド:
-```bash
-docker-compose build
-```
-
-3. コンテナを起動:
-```bash
-docker-compose up -d
-```
-
-4. ログを確認:
-```bash
-docker-compose logs -f
-```
-
-5. コンテナを停止:
-```bash
-docker-compose down
 ```
 
 ### systemdサービスとして実行（Linux / Raspberry Pi）

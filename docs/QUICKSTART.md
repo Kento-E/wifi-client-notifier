@@ -115,11 +115,6 @@ Linux / Raspberry Pi:
 sudo nohup python src/wifi_notifier.py config.yaml &
 ```
 
-または、Docker:
-```bash
-docker-compose up -d
-```
-
 ## Raspberry Pi Zero 2 Wでの常時稼働セットアップ
 
 Raspberry Pi Zero 2 WでWi-Fi接続監視を常時稼働させる手順です。
@@ -196,7 +191,7 @@ Gmailを使用する場合の手順:
 
 ## 次のステップ
 
-- **長期運用**: systemdサービスまたはDockerで常時稼働させる（README.md参照）
+- **長期運用**: systemdサービスで常時稼働させる（README.md参照）
 - **カスタマイズ**: 特定のデバイスのみ監視、チェック間隔の調整など
 - **ルータAPIモードのカスタマイズ**: `CUSTOMIZATION.md`でルータ固有の設定を確認
 
