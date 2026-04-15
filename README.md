@@ -77,7 +77,7 @@ git clone https://github.com/Kento-E/wifi-client-notifier.git
 cd wifi-client-notifier
 ```
 
-1. 依存パッケージをインストール:
+2. 依存パッケージをインストール:
 
 ```bash
 pip install -r requirements.txt
@@ -93,11 +93,11 @@ pip install -r requirements.txt
 cp config/config.example.yaml config.yaml
 ```
 
-1. `config.yaml`を編集して、環境に合わせて設定してください。
+2. `config.yaml`を編集して、環境に合わせて設定してください。
 
 設定項目の詳細は `config/config.example.yaml` を参照してください。
 
-1. 設定をテスト:
+3. 設定をテスト:
 
 ```bash
 # ARPスキャンモードの場合はsudoが必要
@@ -148,19 +148,19 @@ sudo nohup python src/wifi_notifier.py config.yaml &
 docker-compose build
 ```
 
-1. コンテナを起動:
+3. コンテナを起動:
 
 ```bash
 docker-compose up -d
 ```
 
-1. ログを確認:
+4. ログを確認:
 
 ```bash
 docker-compose logs -f
 ```
 
-1. コンテナを停止:
+5. コンテナを停止:
 
 ```bash
 docker-compose down
@@ -180,13 +180,13 @@ ARPスキャンモードでは `AmbientCapabilities=CAP_NET_RAW` が設定済み
 
 `ExecStart` は仮想環境の Python と `config/config.yaml` を指すように設定してください。
 
-1. サービスファイルをコピー:
+2. サービスファイルをコピー:
 
 ```bash
 sudo cp config/wifi-notifier.service /etc/systemd/system/
 ```
 
-1. サービスを有効化して起動:
+3. サービスを有効化して起動:
 
 ```bash
 sudo systemctl daemon-reload
@@ -195,7 +195,7 @@ sudo systemctl start wifi-notifier
 sudo systemctl status wifi-notifier
 ```
 
-1. ログを確認:
+4. ログを確認:
 
 ```bash
 sudo journalctl -u wifi-notifier -f

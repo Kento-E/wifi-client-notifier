@@ -57,25 +57,25 @@ cp config/config.example.yaml config.yaml
 # config.yamlを編集して設定を入力
 ```
 
-1. Dockerイメージをビルド:
+2. Dockerイメージをビルド:
 
 ```bash
 docker-compose build
 ```
 
-1. コンテナを起動:
+3. コンテナを起動:
 
 ```bash
 docker-compose up -d
 ```
 
-1. ログを確認:
+4. ログを確認:
 
 ```bash
 docker-compose logs -f
 ```
 
-1. コンテナを停止:
+5. コンテナを停止:
 
 ```bash
 docker-compose down
