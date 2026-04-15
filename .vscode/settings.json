@@ -1,0 +1,17 @@
+{
+  "chat.tools.terminal.autoApprove": {
+    "env": true,
+    "true": true,
+    "command": true,
+    "gh": true,
+    "flake8": true,
+    "python": true,
+    ".venv/bin/python": true,
+    "printf": true,
+    ".venv/bin/black": true,
+    ".venv/bin/flake8": true,
+    "git rev-parse": true,
+    "ssh": true
+  },
+  "cSpell.words": ["raspberrypi"]
+}

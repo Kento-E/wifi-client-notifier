@@ -1,7 +1,7 @@
 name: Feature Request
 description: 新機能のリクエスト
 title: "[Feature]: "
-labels: ["機能追加"]
+labels: ["enhancement"]
 body:
   - type: markdown
     attributes:

@@ -5,23 +5,30 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=your_user
-Group=your_group
+# 専用の非rootユーザーで実行し、必要なケーパビリティのみを付与します
+# 以下の <YOUR_USER> と <YOUR_GROUP> を実際のユーザー名・グループ名に置き換えてください
+User=<YOUR_USER>
+Group=<YOUR_GROUP>
 WorkingDirectory=/path/to/wifi-client-notifier
 ExecStart=/usr/bin/python3 /path/to/wifi-client-notifier/src/wifi_notifier.py /path/to/wifi-client-notifier/config.yaml
 
-# Restart on failure
+# 失敗時に再起動
 Restart=on-failure
 RestartSec=30
 
-# Security settings
+# セキュリティ設定
+# ARPスキャン（scapy）に必要な CAP_NET_RAW のみを付与し、それ以外の権限は制限します
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
+# ログファイルや設定ファイルを書き込むパスを列挙してください
+# /var/log 等に書き込む場合はそのパスも追加が必要です
 ReadWritePaths=/path/to/wifi-client-notifier
+AmbientCapabilities=CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_RAW
 
-# Logging
+# ログ設定
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=wifi-notifier

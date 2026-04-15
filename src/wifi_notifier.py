@@ -2,8 +2,12 @@
 """
 WiFi接続通知ツール
 
-WiFiルータのWiFi新規接続を監視し、特定のデバイスが接続された際に
+ローカルネットワーク上の新規デバイス接続を監視し、接続を検出した際に
 メール通知を送信するスクリプトです。
+
+検出方式:
+  - "arp"    : ARPスキャンによるローカルネットワーク監視（Raspberry Pi向け、ルータ不要）
+  - "router" : ルータ管理画面のAPIを使用した接続監視（GitHub Actions向け）
 """
 
 import requests
@@ -15,8 +19,13 @@ import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
-from typing import Dict, List, Set
-from src.html_parser import parse_wireless_lan_status, extract_devices_from_json
+from typing import Dict, List, Optional, Set
+
+# 直接実行（python src/wifi_notifier.py）とモジュール実行（python -m src.wifi_notifier）の両方に対応
+try:
+    from src.html_parser import parse_wireless_lan_status, extract_devices_from_json
+except ModuleNotFoundError:
+    from html_parser import parse_wireless_lan_status, extract_devices_from_json
 
 
 class WiFiRouter:
@@ -283,8 +292,9 @@ class WiFiMonitor:
         """
         self.config = self._load_config(config_path)
         self._setup_logging()  # 他の処理の前にロギングを設定
-        self.router = None
-        self.notifier = None
+        self.router: Optional[WiFiRouter] = None
+        self.arp_scanner = None
+        self.notifier: Optional[EmailNotifier] = None
         self.known_devices: Set[str] = set()
         self.monitored_macs: Set[str] = set()
         self._initialize_components()
@@ -301,7 +311,7 @@ class WiFiMonitor:
             raise
         except Exception as e:
             # ロギングがまだ設定されていないためprintを使用
-            print(f"Failed to load config: {e}")
+            print(f"設定ファイルの読み込みに失敗しました: {e}")
             raise
 
     def _setup_logging(self):
@@ -319,12 +329,45 @@ class WiFiMonitor:
         )
 
     def _initialize_components(self):
-        """ルータとメール通知のコンポーネントを初期化する。"""
-        # ルータ接続を初期化
-        router_config = self.config["router"]
-        self.router = WiFiRouter(
-            router_config["ip"], router_config["username"], router_config["password"]
-        )
+        """検出方式に応じたコンポーネントを初期化する。"""
+        detection_method = self.config.get("detection_method")
+        valid_methods = ("arp", "router")
+        if detection_method is None:
+            raise ValueError(
+                "detection_method が設定されていません。"
+                f" config.yaml に detection_method を指定してください。有効な値: {valid_methods}。"
+            )
+        if detection_method not in valid_methods:
+            raise ValueError(
+                f"detection_method の値 '{detection_method}' は無効です。"
+                f" 有効な値: {valid_methods}。"
+                " config.yaml の detection_method を確認してください。"
+            )
+
+        if detection_method == "arp":
+            # ARPスキャンモード（Raspberry Pi向け）
+            try:
+                from src.arp_scanner import ARPScanner
+            except ModuleNotFoundError:
+                from arp_scanner import ARPScanner
+
+            arp_config = self.config.get("arp", {})
+            self.arp_scanner = ARPScanner(
+                subnet=arp_config.get("subnet"),
+                interface=arp_config.get("interface"),
+            )
+            logging.info("検出方式: ARPスキャン（ローカルネットワーク）")
+        else:
+            # ルータAPIモード
+            router_config = self.config.get("router")
+            if not router_config:
+                raise ValueError(
+                    "detection_method が 'router' の場合は 'router' セクションの設定が必要です。"
+                )
+            self.router = WiFiRouter(
+                router_config["ip"], router_config["username"], router_config["password"]
+            )
+            logging.info("検出方式: ルータAPI")
 
         # メール通知を初期化
         email_config = self.config["email"]
@@ -342,7 +385,26 @@ class WiFiMonitor:
         monitored_devices = self.config.get("monitored_devices", [])
         self.monitored_macs = {mac.lower() for mac in monitored_devices}
 
-        logging.info("Components initialized successfully")
+        logging.info("コンポーネントの初期化が完了しました")
+
+    def _get_current_devices(self) -> List[Dict[str, str]]:
+        """
+        現在のデバイスリストを検出方式に応じて取得する。
+
+        Returns:
+            デバイス情報を含む辞書のリスト
+        """
+        if self.arp_scanner:
+            # ARPスキャンモード
+            arp_config = self.config.get("arp", {})
+            timeout = arp_config.get("timeout", 2)
+            return self.arp_scanner.scan(timeout=timeout)
+        elif self.router:
+            # ルータAPIモード
+            return self.router.get_connected_devices()
+        else:
+            logging.error("検出方式が設定されていません")
+            return []
 
     def start(self, single_run: bool = False):
         """
@@ -353,15 +415,15 @@ class WiFiMonitor:
         """
         logging.info("Starting WiFi monitor")
 
-        # ルータにログイン
-        if not self.router.login():
-            logging.error("Failed to login to router")
-            return
-
-        logging.info("Successfully logged in to router")
+        # ルータAPIモードの場合はログイン
+        if self.router:
+            if not self.router.login():
+                logging.error("Failed to login to router")
+                return
+            logging.info("Successfully logged in to router")
 
         # 初期デバイスリストを取得
-        initial_devices = self.router.get_connected_devices()
+        initial_devices = self._get_current_devices()
         self.known_devices = {dev["mac"].lower() for dev in initial_devices}
         logging.info(f"Initial devices: {len(self.known_devices)}")
 
@@ -387,7 +449,7 @@ class WiFiMonitor:
     def _check_for_new_devices(self):
         """新しいデバイス接続をチェックする。"""
         try:
-            current_devices = self.router.get_connected_devices()
+            current_devices = self._get_current_devices()
             current_macs = {dev["mac"].lower() for dev in current_devices}
 
             # 新しいデバイスを検出

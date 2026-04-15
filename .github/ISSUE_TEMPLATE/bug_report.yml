@@ -1,7 +1,7 @@
 name: Bug Report
 description: バグレポートを作成
 title: "[Bug]: "
-labels: ["バグ"]
+labels: ["bug"]
 body:
   - type: markdown
     attributes:

@@ -3,6 +3,7 @@
 WiFi接続通知ツールのテストスクリプト
 
 このスクリプトは設定と接続性のテストを支援します。
+ARPスキャンモードとルータAPIモードの両方をテストできます。
 """
 
 import sys
@@ -19,6 +20,8 @@ def test_config_file(config_path):
         with open(config_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
         print("✓ 設定ファイルの読み込み成功")
+        detection_method = config.get("detection_method", "router")
+        print(f"  - 検出方式: {detection_method}")
         return config
     except FileNotFoundError:
         print(f"✗ エラー: 設定ファイル '{config_path}' が見つかりません")
@@ -28,6 +31,42 @@ def test_config_file(config_path):
     except yaml.YAMLError as e:
         print(f"✗ エラー: 設定ファイルの形式が正しくありません: {e}")
         return None
+
+
+def test_arp_scanner(config):
+    """ARPスキャナーの動作をテストする。"""
+    print("\nARPスキャナーをテスト中...")
+    try:
+        try:
+            from src.arp_scanner import ARPScanner, SCAPY_AVAILABLE
+        except ModuleNotFoundError:
+            from arp_scanner import ARPScanner, SCAPY_AVAILABLE
+
+        if not SCAPY_AVAILABLE:
+            print("✗ エラー: scapyがインストールされていません")
+            print("  'pip install scapy' を実行してインストールしてください")
+            return False
+
+        arp_config = config.get("arp", {})
+        scanner = ARPScanner(
+            subnet=arp_config.get("subnet"),
+            interface=arp_config.get("interface"),
+        )
+        timeout = arp_config.get("timeout", 2)
+        devices = scanner.scan(timeout=timeout)
+        print(f"✓ ARPスキャン成功: {len(devices)}台のデバイスを検出しました")
+        for dev in devices[:5]:  # 最大5件を表示
+            print(f"  - IP: {dev['ip']}, MAC: {dev['mac']}, hostname: {dev['hostname']}")
+        if len(devices) > 5:
+            print(f"  ... 他 {len(devices) - 5} 台")
+        return True
+    except PermissionError:
+        print("✗ エラー: ARPスキャンにはroot権限が必要です")
+        print("  'sudo python src/test_config.py config.yaml' で実行してください")
+        return False
+    except Exception as e:
+        print(f"✗ エラー: {e}")
+        return False
 
 
 def test_router_connection(config):
@@ -130,8 +169,13 @@ def main():
     if not config:
         sys.exit(1)
 
-    # ルータ接続をテスト
-    router_ok = test_router_connection(config)
+    detection_method = config.get("detection_method", "router")
+
+    # 検出方式に応じたテストを実施
+    if detection_method == "arp":
+        detection_ok = test_arp_scanner(config)
+    else:
+        detection_ok = test_router_connection(config)
 
     # SMTP接続をテスト
     smtp_ok = test_smtp_connection(config)
@@ -144,12 +188,13 @@ def main():
             send_test_email(config)
 
     # サマリー
+    detection_label = "ARPスキャン" if detection_method == "arp" else "ルータ接続"
     print("\n=== テスト結果 ===")
     print("設定ファイル: ✓")
-    print(f"ルータ接続: {'✓' if router_ok else '✗'}")
+    print(f"{detection_label}: {'✓' if detection_ok else '✗'}")
     print(f"SMTP接続: {'✓' if smtp_ok else '✗'}")
 
-    if router_ok and smtp_ok:
+    if detection_ok and smtp_ok:
         print("\n✓ すべてのテストが成功しました！")
         print("次のコマンドでモニタリングを開始できます:")
         print(f"python src/wifi_notifier.py {config_path}")
