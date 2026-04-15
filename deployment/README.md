@@ -138,7 +138,7 @@ set -e
 sudo apt-get update
 sudo apt-get install -y git python3-venv
 cd ~/work
-git clone --branch copilot/feature-monitor-local-network-connection https://github.com/Kento-E/wifi-client-notifier.git
+git clone --branch main https://github.com/Kento-E/wifi-client-notifier.git
 cd wifi-client-notifier
 python3 -m venv .venv
 . .venv/bin/activate
