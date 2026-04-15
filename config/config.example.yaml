@@ -52,6 +52,10 @@ monitored_devices:
 # チェック間隔（秒）
 check_interval: 60
 
+# 切断判定の猶予回数（連続して見失った回数）
+# ARP検出の一時的な揺らぎで再通知が増える場合は 3〜5 程度に調整してください
+disconnect_grace_scans: 3
+
 # ログレベル（DEBUG, INFO, WARNING, ERROR, CRITICAL）
 log_level: "INFO"
 

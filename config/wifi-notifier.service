@@ -10,7 +10,7 @@ Type=simple
 User=<YOUR_USER>
 Group=<YOUR_GROUP>
 WorkingDirectory=/path/to/wifi-client-notifier
-ExecStart=/usr/bin/python3 /path/to/wifi-client-notifier/src/wifi_notifier.py /path/to/wifi-client-notifier/config.yaml
+ExecStart=/path/to/wifi-client-notifier/.venv/bin/python /path/to/wifi-client-notifier/src/wifi_notifier.py /path/to/wifi-client-notifier/config/config.yaml
 
 # 失敗時に再起動
 Restart=on-failure

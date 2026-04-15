@@ -297,6 +297,8 @@ class WiFiMonitor:
         self.notifier: Optional[EmailNotifier] = None
         self.known_devices: Set[str] = set()
         self.monitored_macs: Set[str] = set()
+        self.missing_counts: Dict[str, int] = {}
+        self.disconnect_grace_scans: int = 3
         self._initialize_components()
 
     def _load_config(self, config_path: str) -> Dict:
@@ -385,25 +387,41 @@ class WiFiMonitor:
         monitored_devices = self.config.get("monitored_devices", [])
         self.monitored_macs = {mac.lower() for mac in monitored_devices}
 
+        # 切断判定の猶予回数（ARP検出の一時的な揺らぎ対策）
+        raw_grace_scans = self.config.get("disconnect_grace_scans", 3)
+        try:
+            self.disconnect_grace_scans = max(1, int(raw_grace_scans))
+        except (TypeError, ValueError):
+            self.disconnect_grace_scans = 3
+            logging.warning(
+                "disconnect_grace_scans の値が不正のため 3 を使用します: %s",
+                raw_grace_scans,
+            )
+        logging.info(
+            f"切断判定の猶予回数: {self.disconnect_grace_scans}回（連続で見失った場合に切断扱い）"
+        )
+
         logging.info("コンポーネントの初期化が完了しました")
 
     def _get_current_devices(self) -> List[Dict[str, str]]:
         """
-        現在のデバイスリストを検出方式に応じて取得する。
+        現在の検出方式を使用して接続中デバイスのリストを取得する。
 
         Returns:
             デバイス情報を含む辞書のリスト
         """
-        if self.arp_scanner:
-            # ARPスキャンモード
+        if self.arp_scanner is not None:
             arp_config = self.config.get("arp", {})
             timeout = arp_config.get("timeout", 2)
-            return self.arp_scanner.scan(timeout=timeout)
-        elif self.router:
-            # ルータAPIモード
+            try:
+                return self.arp_scanner.scan(timeout=timeout)
+            except Exception as e:
+                logging.error(f"ARPスキャンに失敗しました: {e}")
+                return []
+        elif self.router is not None:
             return self.router.get_connected_devices()
         else:
-            logging.error("検出方式が設定されていません")
+            logging.error("有効な検出コンポーネントが設定されていません")
             return []
 
     def start(self, single_run: bool = False):
@@ -413,25 +431,26 @@ class WiFiMonitor:
         Args:
             single_run: Trueの場合、1回だけチェックして終了（GitHub Actions用）
         """
-        logging.info("Starting WiFi monitor")
+        logging.info("WiFiモニターを起動しています")
 
-        # ルータAPIモードの場合はログイン
-        if self.router:
+        # ルータAPIモードの場合はログインが必要
+        if self.router is not None:
             if not self.router.login():
-                logging.error("Failed to login to router")
+                logging.error("ルータへのログインに失敗しました")
                 return
-            logging.info("Successfully logged in to router")
+            logging.info("ルータへのログインに成功しました")
 
         # 初期デバイスリストを取得
         initial_devices = self._get_current_devices()
         self.known_devices = {dev["mac"].lower() for dev in initial_devices}
-        logging.info(f"Initial devices: {len(self.known_devices)}")
+        self.missing_counts = {mac: 0 for mac in self.known_devices}
+        logging.info(f"起動時の接続デバイス数: {len(self.known_devices)}")
 
         if single_run:
             # 1回だけチェックして終了（GitHub Actions用）
-            logging.info("Single run mode - checking once and exiting")
+            logging.info("シングルランモード: 1回チェックして終了します")
             self._check_for_new_devices()
-            logging.info("Single run completed")
+            logging.info("シングルランが完了しました")
             return
 
         # 監視ループを開始
@@ -442,9 +461,9 @@ class WiFiMonitor:
                 self._check_for_new_devices()
                 time.sleep(check_interval)
         except KeyboardInterrupt:
-            logging.info("Stopping WiFi monitor")
+            logging.info("WiFiモニターを停止しています")
         except Exception as e:
-            logging.error(f"Monitor error: {e}")
+            logging.error(f"モニターでエラーが発生しました: {e}")
 
     def _check_for_new_devices(self):
         """新しいデバイス接続をチェックする。"""
@@ -478,21 +497,39 @@ class WiFiMonitor:
                         if device_info.get("device_type"):
                             device_details += f" [{device_info['device_type']}]"
 
-                        logging.info(f"New device detected: {device_details}")
+                        logging.info(f"新しいデバイスを検出しました: {device_details}")
                         self.notifier.send_notification(device_info)
                     else:
-                        logging.debug(f"New device detected but not monitored: {mac}")
+                        logging.debug(f"新しいデバイスを検出しましたが、監視対象外です: {mac}")
 
                     self.known_devices.add(mac)
+                    self.missing_counts[mac] = 0
 
-            # 既知セットから切断されたデバイスを削除
-            disconnected = self.known_devices - current_macs
+            # 見えているデバイスは見失いカウントをリセット
+            for mac in current_macs:
+                if mac in self.known_devices:
+                    self.missing_counts[mac] = 0
+
+            # 既知セットから見えなくなったデバイスを猶予付きで切断判定
+            disconnected_candidates = self.known_devices - current_macs
+            disconnected: Set[str] = set()
+            for mac in disconnected_candidates:
+                miss_count = self.missing_counts.get(mac, 0) + 1
+                self.missing_counts[mac] = miss_count
+                if miss_count >= self.disconnect_grace_scans:
+                    disconnected.add(mac)
+
             if disconnected:
-                logging.info(f"Devices disconnected: {len(disconnected)}")
-                self.known_devices = current_macs
+                logging.info(
+                    f"切断されたデバイス数: {len(disconnected)}"
+                    f"（連続{self.disconnect_grace_scans}回見失いで判定）"
+                )
+                for mac in disconnected:
+                    self.known_devices.discard(mac)
+                    self.missing_counts.pop(mac, None)
 
         except Exception as e:
-            logging.error(f"Error checking for new devices: {e}")
+            logging.error(f"新しいデバイスのチェック中にエラーが発生しました: {e}")
 
 
 def main():

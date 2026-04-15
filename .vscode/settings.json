@@ -11,7 +11,16 @@
     ".venv/bin/black": true,
     ".venv/bin/flake8": true,
     "git rev-parse": true,
-    "ssh": true
+    "ssh": true,
+    "/^bash -n deployment/setup_raspberrypi\\.sh$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^bash -n deployment/setup_raspberrypi\\.sh && echo \"syntax_ok\"$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "scp": true
   },
   "cSpell.words": ["raspberrypi"]
 }

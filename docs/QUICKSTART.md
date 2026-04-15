@@ -147,6 +147,38 @@ sudo systemctl status wifi-notifier
 sudo journalctl -u wifi-notifier -f
 ```
 
+## Raspberry Pi Zero 2 Wでの常時稼働セットアップ
+
+Raspberry Pi Zero 2 WでWi-Fi接続監視を常時稼働させる手順です。
+
+### systemdサービスとして登録
+
+1. `config/wifi-notifier.service`を編集（`<YOUR_USER>`、`<YOUR_GROUP>`、パスを実際の値に置き換え）:
+```ini
+[Service]
+User=<YOUR_USER>
+Group=<YOUR_GROUP>
+WorkingDirectory=/path/to/wifi-client-notifier
+ExecStart=/usr/bin/python3 /path/to/wifi-client-notifier/src/wifi_notifier.py /path/to/config.yaml
+# ARPスキャン用ケーパビリティ（root不要）
+AmbientCapabilities=CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_RAW
+```
+
+2. サービスを有効化:
+```bash
+sudo cp config/wifi-notifier.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable wifi-notifier
+sudo systemctl start wifi-notifier
+```
+
+3. 動作確認:
+```bash
+sudo systemctl status wifi-notifier
+sudo journalctl -u wifi-notifier -f
+```
+
 ## Gmailの設定（推奨）
 
 Gmailを使用する場合の手順:
