@@ -3,6 +3,7 @@
 WiFi接続通知ツールのテストスクリプト
 
 このスクリプトは設定と接続性のテストを支援します。
+ARPスキャンモードとルータAPIモードの両方をテストできます。
 """
 
 import sys
@@ -16,9 +17,11 @@ def test_config_file(config_path):
     """設定ファイルが読み込み可能かテストする。"""
     print("設定ファイルをテスト中...")
     try:
-        with open(config_path, 'r', encoding='utf-8') as f:
+        with open(config_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
         print("✓ 設定ファイルの読み込み成功")
+        detection_method = config.get("detection_method", "router")
+        print(f"  - 検出方式: {detection_method}")
         return config
     except FileNotFoundError:
         print(f"✗ エラー: 設定ファイル '{config_path}' が見つかりません")
@@ -30,11 +33,47 @@ def test_config_file(config_path):
         return None
 
 
+def test_arp_scanner(config):
+    """ARPスキャナーの動作をテストする。"""
+    print("\nARPスキャナーをテスト中...")
+    try:
+        try:
+            from src.arp_scanner import ARPScanner, SCAPY_AVAILABLE
+        except ModuleNotFoundError:
+            from arp_scanner import ARPScanner, SCAPY_AVAILABLE
+
+        if not SCAPY_AVAILABLE:
+            print("✗ エラー: scapyがインストールされていません")
+            print("  'pip install scapy' を実行してインストールしてください")
+            return False
+
+        arp_config = config.get("arp", {})
+        scanner = ARPScanner(
+            subnet=arp_config.get("subnet"),
+            interface=arp_config.get("interface"),
+        )
+        timeout = arp_config.get("timeout", 2)
+        devices = scanner.scan(timeout=timeout)
+        print(f"✓ ARPスキャン成功: {len(devices)}台のデバイスを検出しました")
+        for dev in devices[:5]:  # 最大5件を表示
+            print(f"  - IP: {dev['ip']}, MAC: {dev['mac']}, hostname: {dev['hostname']}")
+        if len(devices) > 5:
+            print(f"  ... 他 {len(devices) - 5} 台")
+        return True
+    except PermissionError:
+        print("✗ エラー: ARPスキャンにはroot権限が必要です")
+        print("  'sudo python src/test_config.py config.yaml' で実行してください")
+        return False
+    except Exception as e:
+        print(f"✗ エラー: {e}")
+        return False
+
+
 def test_router_connection(config):
     """ルータへの接続をテストする。"""
     print("\nルータへの接続をテスト中...")
     try:
-        router_ip = config['router']['ip']
+        router_ip = config["router"]["ip"]
         url = f"http://{router_ip}"
         response = requests.get(url, timeout=5)
         if response.status_code == 200:
@@ -44,10 +83,10 @@ def test_router_connection(config):
             print(f"✗ ルータからの応答コード: {response.status_code}")
             return False
     except requests.exceptions.Timeout:
-        print(f"✗ エラー: ルータへの接続がタイムアウトしました")
+        print("✗ エラー: ルータへの接続がタイムアウトしました")
         return False
     except requests.exceptions.ConnectionError:
-        print(f"✗ エラー: ルータに接続できません。IPアドレスを確認してください")
+        print("✗ エラー: ルータに接続できません。IPアドレスを確認してください")
         return False
     except Exception as e:
         print(f"✗ エラー: {e}")
@@ -58,22 +97,22 @@ def test_smtp_connection(config):
     """SMTP接続と認証をテストする。"""
     print("\nSMTP接続をテスト中...")
     try:
-        email_config = config['email']
-        
-        if email_config.get('use_tls', True):
-            server = smtplib.SMTP(email_config['smtp_server'], email_config['smtp_port'])
+        email_config = config["email"]
+
+        if email_config.get("use_tls", True):
+            server = smtplib.SMTP(email_config["smtp_server"], email_config["smtp_port"])
             server.starttls()
         else:
-            server = smtplib.SMTP(email_config['smtp_server'], email_config['smtp_port'])
-        
+            server = smtplib.SMTP(email_config["smtp_server"], email_config["smtp_port"])
+
         print(f"✓ SMTPサーバー ({email_config['smtp_server']}) への接続成功")
-        
-        server.login(email_config['smtp_user'], email_config['smtp_password'])
+
+        server.login(email_config["smtp_user"], email_config["smtp_password"])
         print("✓ SMTP認証成功")
-        
+
         server.quit()
         return True
-        
+
     except smtplib.SMTPAuthenticationError:
         print("✗ エラー: SMTP認証に失敗しました。ユーザー名とパスワードを確認してください")
         return False
@@ -89,26 +128,26 @@ def send_test_email(config):
     """テストメールを送信する。"""
     print("\nテストメールを送信中...")
     try:
-        email_config = config['email']
-        
-        msg = MIMEText("これはWiFi Client Notifierからのテストメールです。", 'plain', 'utf-8')
-        msg['Subject'] = "テストメール - WiFi Client Notifier"
-        msg['From'] = email_config['sender_email']
-        msg['To'] = ', '.join(email_config['recipient_emails'])
-        
-        if email_config.get('use_tls', True):
-            server = smtplib.SMTP(email_config['smtp_server'], email_config['smtp_port'])
+        email_config = config["email"]
+
+        msg = MIMEText("これはWiFi Client Notifierからのテストメールです。", "plain", "utf-8")
+        msg["Subject"] = "テストメール - WiFi Client Notifier"
+        msg["From"] = email_config["sender_email"]
+        msg["To"] = ", ".join(email_config["recipient_emails"])
+
+        if email_config.get("use_tls", True):
+            server = smtplib.SMTP(email_config["smtp_server"], email_config["smtp_port"])
             server.starttls()
         else:
-            server = smtplib.SMTP(email_config['smtp_server'], email_config['smtp_port'])
-        
-        server.login(email_config['smtp_user'], email_config['smtp_password'])
+            server = smtplib.SMTP(email_config["smtp_server"], email_config["smtp_port"])
+
+        server.login(email_config["smtp_user"], email_config["smtp_password"])
         server.send_message(msg)
         server.quit()
-        
+
         print(f"✓ テストメールを送信しました: {email_config['recipient_emails']}")
         return True
-        
+
     except Exception as e:
         print(f"✗ テストメール送信失敗: {e}")
         return False
@@ -117,39 +156,45 @@ def send_test_email(config):
 def main():
     """メインテスト関数。"""
     print("=== WiFi Client Notifier 設定テスト ===\n")
-    
+
     if len(sys.argv) != 2:
         print("使用方法: python src/test_config.py <config_file>")
         print("例: python src/test_config.py config.yaml")
         sys.exit(1)
-    
+
     config_path = sys.argv[1]
-    
+
     # 設定ファイルをテスト
     config = test_config_file(config_path)
     if not config:
         sys.exit(1)
-    
-    # ルータ接続をテスト
-    router_ok = test_router_connection(config)
-    
+
+    detection_method = config.get("detection_method", "router")
+
+    # 検出方式に応じたテストを実施
+    if detection_method == "arp":
+        detection_ok = test_arp_scanner(config)
+    else:
+        detection_ok = test_router_connection(config)
+
     # SMTP接続をテスト
     smtp_ok = test_smtp_connection(config)
-    
+
     # テストメール送信を提案
     if smtp_ok:
-        print("\nテストメールを送信しますか? (y/n): ", end='')
+        print("\nテストメールを送信しますか? (y/n): ", end="")
         response = input().lower()
-        if response == 'y':
+        if response == "y":
             send_test_email(config)
-    
+
     # サマリー
+    detection_label = "ARPスキャン" if detection_method == "arp" else "ルータ接続"
     print("\n=== テスト結果 ===")
-    print(f"設定ファイル: ✓")
-    print(f"ルータ接続: {'✓' if router_ok else '✗'}")
+    print("設定ファイル: ✓")
+    print(f"{detection_label}: {'✓' if detection_ok else '✗'}")
     print(f"SMTP接続: {'✓' if smtp_ok else '✗'}")
-    
-    if router_ok and smtp_ok:
+
+    if detection_ok and smtp_ok:
         print("\n✓ すべてのテストが成功しました！")
         print("次のコマンドでモニタリングを開始できます:")
         print(f"python src/wifi_notifier.py {config_path}")

@@ -3,7 +3,10 @@ Wi-Fi接続検知ツール
 
 ## 概要
 
-WiFiルータに無線接続した端末を検出し、メール通知を送信するPythonスクリプトです。
+ローカルネットワークに接続した端末を検出し、メール通知を送信するPythonスクリプトです。
+
+**Raspberry Pi Zero 2 W** などのローカルネットワーク上のホストで常時稼働させることを想定しており、
+同じWi-Fi環境に新しい端末が接続してきたときに自動でSMTPメール通知を送ります。
 
 メーカー提供のルータ管理通知サービスの終了に伴い、
 同様の機能を自前で実現するために開発されたツールです。
@@ -18,6 +21,7 @@ WiFiルータに無線接続した端末を検出し、メール通知を送信�
 wifi-client-notifier/
 ├── src/                      # ソースコード
 │   ├── wifi_notifier.py      # メイン監視スクリプト
+│   ├── arp_scanner.py        # ARPスキャナー（Raspberry Pi向け）
 │   ├── html_parser.py        # HTML/JSONパーサー
 │   ├── test_config.py        # 設定テストツール
 │   └── demo.py               # デモスクリプト
@@ -41,17 +45,27 @@ wifi-client-notifier/
 
 ## 主な機能
 
-- WiFiルータへの定期的なアクセスによる接続端末の監視
-- 新規WiFi接続の検出
-- SMTPによるメール通知
+- **ARPスキャン**によるローカルネットワーク上の接続端末の監視（Raspberry Pi向け）
+- ルータ管理APIを使用した接続端末の監視（GitHub Actions向け）
+- 新規WiFi接続の検出とSMTPメール通知
 - 特定MACアドレスのフィルタリング（オプション）
-- ログ出力
+- ログ出力（ファイル＋コンソール）
+
+## 検出方式
+
+| 方式 | 説明 | 必要なもの |
+|------|------|----------|
+| `arp`（推奨） | ARPスキャンによるローカルネットワーク監視 | root権限（直接実行時）またはCAP_NET_RAWケーパビリティ（systemd）|
+| `router` | ルータ管理APIを使用した接続監視 | ルータの管理者パスワード |
+
+`config.yaml` の `detection_method` で切り替えられます。
 
 ## 必要要件
 
 - Python 3.11以上
-- WiFiルータへのアクセス権限（管理者ユーザー名とパスワード）
 - SMTPサーバーへのアクセス（Gmail、独自SMTPサーバーなど）
+- **ARPスキャンモード**: root権限（直接実行時は`sudo`）またはCAP_NET_RAWケーパビリティ（systemd）、scapy（`pip install scapy`）
+- **ルータAPIモード**: WiFiルータへのアクセス権限（管理者ユーザー名とパスワード）
 
 ## インストール
 
@@ -82,12 +96,13 @@ cp config/config.example.yaml config.yaml
 3. 設定をテスト:
 
 ```bash
-python src/test_config.py config.yaml
+# ARPスキャンモードの場合はsudoが必要
+sudo python src/test_config.py config.yaml
 ```
 
 このテストスクリプトは以下を確認します：
 - 設定ファイルの読み込み
-- ルータへの接続
+- ARPスキャンまたはルータへの接続
 - SMTP認証
 - テストメールの送信（オプション）
 
@@ -100,16 +115,21 @@ Gmailを使用する場合：
 
 ## 使用方法
 
-### 基本的な使用
+### Raspberry Pi Zero 2 Wでの実行（推奨）
+
+ARPスキャンモードではroot権限またはCAP_NET_RAWケーパビリティが必要です。
+直接実行する場合は`sudo`を使用してください:
 
 ```bash
-python src/wifi_notifier.py config.yaml
+sudo python src/wifi_notifier.py config.yaml
 ```
+
+常時稼働させる場合はsystemdサービスの利用を推奨します（rootユーザー不要、詳細は後述）。
 
 ### バックグラウンドで実行（Linux/Mac）
 
 ```bash
-nohup python src/wifi_notifier.py config.yaml &
+sudo nohup python src/wifi_notifier.py config.yaml &
 ```
 
 ### Dockerで実行
@@ -136,14 +156,16 @@ docker-compose logs -f
 docker-compose down
 ```
 
-### systemdサービスとして実行（Linux）
+### systemdサービスとして実行（Linux / Raspberry Pi）
 
 1. サービスファイルをカスタマイズ:
 
-`config/wifi-notifier.service`ファイルを編集し、以下を実際のパスに置き換えます：
-- `your_user`: 実行ユーザー名
-- `your_group`: 実行グループ名
+`config/wifi-notifier.service`ファイルを編集し、以下を実際の値に置き換えます：
+- `<YOUR_USER>`: 実行ユーザー名（専用の非rootユーザーを推奨）
+- `<YOUR_GROUP>`: 実行グループ名
 - `/path/to/wifi-client-notifier`: このリポジトリのパス
+
+ARPスキャンモードでは `AmbientCapabilities=CAP_NET_RAW` が設定済みのため、rootユーザーは不要です。
 
 2. サービスファイルをコピー:
 
@@ -166,9 +188,11 @@ sudo systemctl status wifi-notifier
 sudo journalctl -u wifi-notifier -f
 ```
 
-## ルータモデルごとのカスタマイズ
+## ルータモデルごとのカスタマイズ（ルータAPIモード使用時）
 
-このスクリプトは汎用的な実装となっています。ご使用のWiFiルータモデルによっては、
+`detection_method: "router"` を使用する場合のみ必要です。
+
+ご使用のWiFiルータモデルによっては、
 `src/wifi_notifier.py`の`WiFiRouter`クラスをカスタマイズする必要がある場合があります。
 
 詳細は [カスタマイズガイド](docs/CUSTOMIZATION.md) をご覧ください。
@@ -182,7 +206,15 @@ sudo journalctl -u wifi-notifier -f
 
 ## トラブルシューティング
 
-### ルータにログインできない
+### ARPスキャンができない
+
+- 直接実行の場合: root権限で実行しているか確認（`sudo python ...`）
+- systemdサービスの場合: `AmbientCapabilities=CAP_NET_RAW` が設定されているか確認
+- scapyがインストールされているか確認（`pip install scapy`）
+- ネットワークインターフェース名を確認（`ip addr`コマンドで確認）
+- `config.yaml` の `arp.interface` に正しいインターフェース名（例: `wlan0`）を設定
+
+### ルータにログインできない（ルータAPIモード）
 
 - ルータのIPアドレス、ユーザー名、パスワードを確認
 - ルータの管理画面にブラウザでアクセスできるか確認
@@ -198,7 +230,8 @@ sudo journalctl -u wifi-notifier -f
 
 - ログファイルを確認
 - ログレベルを`DEBUG`に変更して詳細情報を取得
-- ルータモデルに応じて`get_connected_devices()`メソッドのカスタマイズが必要な場合があります
+- ARPスキャンモードの場合: サブネットが正しいか確認（自動検出または手動設定）
+- ルータAPIモードの場合: `get_connected_devices()`メソッドのカスタマイズが必要な場合があります
 
 ## 免責事項
 
