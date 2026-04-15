@@ -250,6 +250,8 @@ class WiFiMonitor:
         self.notifier: Optional[EmailNotifier] = None
         self.known_devices: Set[str] = set()
         self.monitored_macs: Set[str] = set()
+        self.missing_counts: Dict[str, int] = {}
+        self.disconnect_grace_scans: int = 3
         self._initialize_components()
 
     def _load_config(self, config_path: str) -> Dict:
@@ -338,6 +340,20 @@ class WiFiMonitor:
         monitored_devices = self.config.get("monitored_devices", [])
         self.monitored_macs = {mac.lower() for mac in monitored_devices}
 
+        # 切断判定の猶予回数（ARP検出の一時的な揺らぎ対策）
+        raw_grace_scans = self.config.get("disconnect_grace_scans", 3)
+        try:
+            self.disconnect_grace_scans = max(1, int(raw_grace_scans))
+        except (TypeError, ValueError):
+            self.disconnect_grace_scans = 3
+            logging.warning(
+                "disconnect_grace_scans の値が不正のため 3 を使用します: %s",
+                raw_grace_scans,
+            )
+        logging.info(
+            f"切断判定の猶予回数: {self.disconnect_grace_scans}回（連続で見失った場合に切断扱い）"
+        )
+
         logging.info("コンポーネントの初期化が完了しました")
 
     def _get_current_devices(self) -> List[Dict[str, str]]:
@@ -380,6 +396,7 @@ class WiFiMonitor:
         # 初期デバイスリストを取得
         initial_devices = self._get_current_devices()
         self.known_devices = {dev["mac"].lower() for dev in initial_devices}
+        self.missing_counts = {mac: 0 for mac in self.known_devices}
         logging.info(f"起動時の接続デバイス数: {len(self.known_devices)}")
 
         if single_run:
@@ -430,12 +447,30 @@ class WiFiMonitor:
                         logging.debug(f"新しいデバイスを検出しましたが、監視対象外です: {mac}")
 
                     self.known_devices.add(mac)
+                    self.missing_counts[mac] = 0
 
-            # 既知セットから切断されたデバイスを削除
-            disconnected = self.known_devices - current_macs
+            # 見えているデバイスは見失いカウントをリセット
+            for mac in current_macs:
+                if mac in self.known_devices:
+                    self.missing_counts[mac] = 0
+
+            # 既知セットから見えなくなったデバイスを猶予付きで切断判定
+            disconnected_candidates = self.known_devices - current_macs
+            disconnected: Set[str] = set()
+            for mac in disconnected_candidates:
+                miss_count = self.missing_counts.get(mac, 0) + 1
+                self.missing_counts[mac] = miss_count
+                if miss_count >= self.disconnect_grace_scans:
+                    disconnected.add(mac)
+
             if disconnected:
-                logging.info(f"切断されたデバイス数: {len(disconnected)}")
-                self.known_devices = current_macs
+                logging.info(
+                    f"切断されたデバイス数: {len(disconnected)}"
+                    f"（連続{self.disconnect_grace_scans}回見失いで判定）"
+                )
+                for mac in disconnected:
+                    self.known_devices.discard(mac)
+                    self.missing_counts.pop(mac, None)
 
         except Exception as e:
             logging.error(f"新しいデバイスのチェック中にエラーが発生しました: {e}")

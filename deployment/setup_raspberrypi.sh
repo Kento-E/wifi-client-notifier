@@ -163,6 +163,7 @@ cfg[\"detection_method\"] = \"arp\"
 cfg.setdefault(\"arp\", {})
 cfg[\"arp\"].setdefault(\"interface\", \"wlan0\")
 cfg[\"arp\"].setdefault(\"timeout\", 2)
+cfg.setdefault(\"disconnect_grace_scans\", 3)
 p.write_text(yaml.dump(cfg, allow_unicode=True, sort_keys=False), encoding=\"utf-8\")
 print(\"設定更新完了\")
 PY
