@@ -28,6 +28,8 @@ try:
 except ModuleNotFoundError:
     from html_parser import parse_wireless_lan_status, extract_devices_from_json
 
+DEFAULT_STATE_FILE = "wifi_notifier_state.json"
+
 
 class WiFiRouter:
     """WiFiルータと通信するためのインターフェース。"""
@@ -253,7 +255,7 @@ class WiFiMonitor:
         self.monitored_macs: Set[str] = set()
         self.missing_counts: Dict[str, int] = {}
         self.disconnect_grace_scans: int = 3
-        self.state_file: str = self.config.get("state_file", "wifi_notifier_state.json")
+        self.state_file: str = self.config.get("state_file", DEFAULT_STATE_FILE)
         self.state_loaded: bool = False
         self._initialize_components()
 
@@ -439,12 +441,14 @@ class WiFiMonitor:
             with open(self.state_file, "r", encoding="utf-8") as f:
                 state = json.load(f)
 
-            known_devices = state.get("known_devices", [])
-            if not isinstance(known_devices, list):
+            known_devices_list = state.get("known_devices", [])
+            if not isinstance(known_devices_list, list):
                 raise ValueError("known_devices は配列である必要があります")
 
             self.known_devices = {
-                mac.lower() for mac in known_devices if isinstance(mac, str) and mac.strip()
+                mac.strip().lower()
+                for mac in known_devices_list
+                if isinstance(mac, str) and mac.strip()
             }
 
             raw_missing_counts = state.get("missing_counts", {})
@@ -454,7 +458,14 @@ class WiFiMonitor:
                     if not isinstance(mac, str):
                         continue
                     try:
-                        self.missing_counts[mac.lower()] = max(0, int(count))
+                        parsed_count = int(count)
+                        if parsed_count < 0:
+                            logging.warning(
+                                "状態ファイルに負の missing_counts を検出したため 0 に補正します: "
+                                f"{mac}={parsed_count}"
+                            )
+                            parsed_count = 0
+                        self.missing_counts[mac.lower()] = parsed_count
                     except (TypeError, ValueError):
                         continue
 
@@ -480,7 +491,9 @@ class WiFiMonitor:
         try:
             state = {
                 "known_devices": sorted(self.known_devices),
-                "missing_counts": {mac: self.missing_counts.get(mac, 0) for mac in self.known_devices},
+                "missing_counts": {
+                    mac: self.missing_counts.get(mac, 0) for mac in self.known_devices
+                },
             }
             with open(self.state_file, "w", encoding="utf-8") as f:
                 json.dump(state, f, ensure_ascii=False, indent=2)

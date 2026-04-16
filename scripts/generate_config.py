@@ -107,6 +107,7 @@ def generate_config():
         config["check_interval"] = int(get_env_optional("CHECK_INTERVAL", "60"))
         config["log_level"] = get_env_optional("LOG_LEVEL", "INFO")
         config["log_file"] = get_env_optional("LOG_FILE", "wifi_notifier.log")
+        config["state_file"] = get_env_optional("STATE_FILE", "wifi_notifier_state.json")
 
         # config.yamlに書き出し
         with open("config.yaml", "w", encoding="utf-8") as f:
