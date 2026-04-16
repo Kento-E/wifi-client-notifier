@@ -12,6 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      STATE_FILE: ${{ vars.STATE_FILE || 'wifi_notifier_state.json' }}
     
     steps:
       - name: リポジトリをチェックアウト
@@ -30,7 +32,7 @@ jobs:
       - name: 前回の検知状態を復元
         uses: actions/cache/restore@v4
         with:
-          path: wifi_notifier_state.json
+          path: ${{ env.STATE_FILE }}
           key: wifi-notifier-state-${{ github.ref_name }}-${{ github.run_number }}
           restore-keys: |
             wifi-notifier-state-${{ github.ref_name }}-
@@ -50,7 +52,7 @@ jobs:
           USE_TLS: ${{ vars.USE_TLS || 'true' }}
           CHECK_INTERVAL: ${{ vars.CHECK_INTERVAL || '60' }}
           LOG_LEVEL: ${{ vars.LOG_LEVEL || 'INFO' }}
-          STATE_FILE: wifi_notifier_state.json
+          STATE_FILE: ${{ env.STATE_FILE }}
         run: |
           python scripts/generate_config.py
       
@@ -71,5 +73,5 @@ jobs:
         if: always()
         uses: actions/cache/save@v4
         with:
-          path: wifi_notifier_state.json
+          path: ${{ env.STATE_FILE }}
           key: wifi-notifier-state-${{ github.ref_name }}-${{ github.run_number }}
