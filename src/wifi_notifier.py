@@ -14,6 +14,7 @@ import requests
 import time
 import smtplib
 import json
+import os
 import yaml
 import logging
 from email.mime.text import MIMEText
@@ -252,6 +253,8 @@ class WiFiMonitor:
         self.monitored_macs: Set[str] = set()
         self.missing_counts: Dict[str, int] = {}
         self.disconnect_grace_scans: int = 3
+        self.state_file: str = self.config.get("state_file", "wifi_notifier_state.json")
+        self.state_loaded: bool = False
         self._initialize_components()
 
     def _load_config(self, config_path: str) -> Dict:
@@ -393,16 +396,16 @@ class WiFiMonitor:
                 return
             logging.info("ルータへのログインに成功しました")
 
-        # 初期デバイスリストを取得
-        initial_devices = self._get_current_devices()
-        self.known_devices = {dev["mac"].lower() for dev in initial_devices}
-        self.missing_counts = {mac: 0 for mac in self.known_devices}
-        logging.info(f"起動時の接続デバイス数: {len(self.known_devices)}")
+        # 前回の状態を読み込む（初回は空状態）
+        self._load_state()
+        if not self.state_loaded:
+            logging.info("初回実行として空状態から監視を開始します")
 
         if single_run:
             # 1回だけチェックして終了（GitHub Actions用）
             logging.info("シングルランモード: 1回チェックして終了します")
             self._check_for_new_devices()
+            self._save_state()
             logging.info("シングルランが完了しました")
             return
 
@@ -412,11 +415,77 @@ class WiFiMonitor:
         try:
             while True:
                 self._check_for_new_devices()
+                self._save_state()
                 time.sleep(check_interval)
         except KeyboardInterrupt:
             logging.info("WiFiモニターを停止しています")
         except Exception as e:
             logging.error(f"モニターでエラーが発生しました: {e}")
+
+    def _load_state(self) -> bool:
+        """
+        状態ファイルから既知デバイス情報を読み込む。
+
+        Returns:
+            読み込みに成功した場合はTrue、状態ファイルがない/不正の場合はFalse
+        """
+        if not os.path.exists(self.state_file):
+            self.state_loaded = False
+            self.known_devices = set()
+            self.missing_counts = {}
+            return False
+
+        try:
+            with open(self.state_file, "r", encoding="utf-8") as f:
+                state = json.load(f)
+
+            known_devices = state.get("known_devices", [])
+            if not isinstance(known_devices, list):
+                raise ValueError("known_devices は配列である必要があります")
+
+            self.known_devices = {
+                mac.lower() for mac in known_devices if isinstance(mac, str) and mac.strip()
+            }
+
+            raw_missing_counts = state.get("missing_counts", {})
+            self.missing_counts = {}
+            if isinstance(raw_missing_counts, dict):
+                for mac, count in raw_missing_counts.items():
+                    if not isinstance(mac, str):
+                        continue
+                    try:
+                        self.missing_counts[mac.lower()] = max(0, int(count))
+                    except (TypeError, ValueError):
+                        continue
+
+            for mac in self.known_devices:
+                self.missing_counts.setdefault(mac, 0)
+
+            self.state_loaded = True
+            logging.info(
+                f"状態ファイルを読み込みました: known={len(self.known_devices)} "
+                f"({self.state_file})"
+            )
+            return True
+
+        except Exception as e:
+            logging.warning(f"状態ファイルの読み込みに失敗したため空状態で開始します: {e}")
+            self.state_loaded = False
+            self.known_devices = set()
+            self.missing_counts = {}
+            return False
+
+    def _save_state(self):
+        """既知デバイス情報を状態ファイルに保存する。"""
+        try:
+            state = {
+                "known_devices": sorted(self.known_devices),
+                "missing_counts": {mac: self.missing_counts.get(mac, 0) for mac in self.known_devices},
+            }
+            with open(self.state_file, "w", encoding="utf-8") as f:
+                json.dump(state, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logging.error(f"状態ファイルの保存に失敗しました: {e}")
 
     def _check_for_new_devices(self):
         """新しいデバイス接続をチェックする。"""

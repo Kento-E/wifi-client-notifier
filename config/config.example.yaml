@@ -61,3 +61,7 @@ log_level: "INFO"
 
 # ログファイル名
 log_file: "wifi_notifier.log"
+
+# 既知デバイス状態を保存するファイル
+# cronやGitHub Actionsのsingle-run運用時に同一MACの重複通知を抑止するために使用します
+state_file: "wifi_notifier_state.json"
