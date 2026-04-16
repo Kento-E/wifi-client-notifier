@@ -15,6 +15,7 @@ import time
 import smtplib
 import json
 import os
+import tempfile
 import yaml
 import logging
 from email.mime.text import MIMEText
@@ -25,10 +26,10 @@ from typing import Dict, List, Optional, Set
 # 直接実行（python src/wifi_notifier.py）とモジュール実行（python -m src.wifi_notifier）の両方に対応
 try:
     from src.html_parser import parse_wireless_lan_status, extract_devices_from_json
+    from src.constants import DEFAULT_STATE_FILE
 except ModuleNotFoundError:
     from html_parser import parse_wireless_lan_status, extract_devices_from_json
-
-DEFAULT_STATE_FILE = "wifi_notifier_state.json"
+    from constants import DEFAULT_STATE_FILE
 
 
 class WiFiRouter:
@@ -401,7 +402,14 @@ class WiFiMonitor:
         # 前回の状態を読み込む（初回は空状態）
         self._load_state()
         if not self.state_loaded:
-            logging.info("初回実行として空状態から監視を開始します")
+            # 初回は現在接続中デバイスをベースラインとして登録し、通知スパイクを防ぐ
+            initial_devices = self._get_current_devices()
+            self.known_devices = {dev["mac"].lower() for dev in initial_devices}
+            self.missing_counts = {mac: 0 for mac in self.known_devices}
+            logging.info(
+                "初回実行のため現在接続中デバイスをベースライン登録します: %s台",
+                len(self.known_devices),
+            )
 
         if single_run:
             # 1回だけチェックして終了（GitHub Actions用）
@@ -488,6 +496,7 @@ class WiFiMonitor:
 
     def _save_state(self):
         """既知デバイス情報を状態ファイルに保存する。"""
+        tmp_path = None
         try:
             state = {
                 "known_devices": sorted(self.known_devices),
@@ -495,10 +504,25 @@ class WiFiMonitor:
                     mac: self.missing_counts.get(mac, 0) for mac in self.known_devices
                 },
             }
-            with open(self.state_file, "w", encoding="utf-8") as f:
+            state_dir = os.path.dirname(self.state_file)
+            if state_dir:
+                os.makedirs(state_dir, exist_ok=True)
+
+            fd, tmp_path = tempfile.mkstemp(
+                prefix=".wifi_notifier_state_",
+                suffix=".tmp",
+                dir=state_dir or ".",
+                text=True,
+            )
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
                 json.dump(state, f, ensure_ascii=False, indent=2)
+            os.replace(tmp_path, self.state_file)
+            tmp_path = None
         except Exception as e:
             logging.error(f"状態ファイルの保存に失敗しました: {e}")
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                os.remove(tmp_path)
 
     def _check_for_new_devices(self):
         """新しいデバイス接続をチェックする。"""

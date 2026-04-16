@@ -20,7 +20,12 @@
       "approve": true,
       "matchCommandLine": true
     },
-    "scp": true
+    "scp": true,
+    "black": true,
+    "/^source \\.venv/bin/activate && flake8 src/ scripts/$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
   },
   "cSpell.words": ["raspberrypi"]
 }

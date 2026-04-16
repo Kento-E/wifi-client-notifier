@@ -83,6 +83,20 @@ cd wifi-client-notifier
 pip install -r requirements.txt
 ```
 
+3. （開発者向け）コード品質チェックを有効化:
+
+```bash
+# コミット時に自動で black / flake8 を実行
+pre-commit install
+
+# 手動チェック
+black src/ scripts/
+flake8 src/ scripts/
+```
+
+本リポジトリでは、Pythonコードの整形を `black`、静的チェックを `flake8` で統一しています。
+Pull RequestではGitHub Actionsで同チェックを必須として実行します。
+
 **開発環境のセットアップ**: コードの修正や機能追加を行う場合は、[deployment/README.md](deployment/README.md) を参照してください。
 
 ## 設定

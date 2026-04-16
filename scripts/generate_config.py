@@ -10,6 +10,8 @@ import os
 import yaml
 import sys
 
+from src.constants import DEFAULT_STATE_FILE
+
 
 def get_env_required(key: str) -> str:
     """
@@ -107,7 +109,7 @@ def generate_config():
         config["check_interval"] = int(get_env_optional("CHECK_INTERVAL", "60"))
         config["log_level"] = get_env_optional("LOG_LEVEL", "INFO")
         config["log_file"] = get_env_optional("LOG_FILE", "wifi_notifier.log")
-        config["state_file"] = get_env_optional("STATE_FILE", "wifi_notifier_state.json")
+        config["state_file"] = get_env_optional("STATE_FILE", DEFAULT_STATE_FILE)
 
         # config.yamlに書き出し
         with open("config.yaml", "w", encoding="utf-8") as f:
