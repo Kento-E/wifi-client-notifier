@@ -34,7 +34,6 @@ wifi-client-notifier/
 │   ├── Dockerfile            # Dockerイメージ
 │   ├── docker-compose.yml    # Docker Compose設定
 │   └── setup.sh              # セットアップスクリプト
-├── scripts/                  # ユーティリティスクリプト
 └── .github/                  # GitHub設定
     ├── workflows/            # CI/自動化ワークフロー
     └── instructions/         # Copilot用途別指示書
