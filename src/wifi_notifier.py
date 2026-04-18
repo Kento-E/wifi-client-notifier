@@ -7,7 +7,7 @@ WiFi接続通知ツール
 
 検出方式:
   - "arp"    : ARPスキャンによるローカルネットワーク監視（Raspberry Pi向け、ルータ不要）
-  - "router" : ルータ管理画面のAPIを使用した接続監視（GitHub Actions向け）
+  - "router" : ルータ管理画面のAPIを使用した接続監視
 """
 
 import requests
@@ -388,7 +388,7 @@ class WiFiMonitor:
         WiFi接続の監視を開始する。
 
         Args:
-            single_run: Trueの場合、1回だけチェックして終了（GitHub Actions用）
+            single_run: Trueの場合、1回だけチェックして終了
         """
         logging.info("WiFiモニターを起動しています")
 
@@ -412,7 +412,7 @@ class WiFiMonitor:
             )
 
         if single_run:
-            # 1回だけチェックして終了（GitHub Actions用）
+            # 1回だけチェックして終了
             logging.info("シングルランモード: 1回チェックして終了します")
             self._check_for_new_devices()
             self._save_state()

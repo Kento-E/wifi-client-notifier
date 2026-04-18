@@ -5,7 +5,7 @@
 # =====================================================================
 # "arp"    : ARPスキャンによるローカルネットワーク監視（Raspberry Pi向け）
 #            ルータへの管理者アクセスが不要です。root権限が必要です。
-# "router" : ルータ管理画面のAPIを使用した接続監視（GitHub Actions向け）
+# "router" : ルータ管理画面のAPIを使用した接続監視
 #            ルータの管理者パスワードが必要です。
 detection_method: "arp"
 
@@ -63,5 +63,5 @@ log_level: "INFO"
 log_file: "wifi_notifier.log"
 
 # 既知デバイス状態を保存するファイル
-# cronやGitHub Actionsのsingle-run運用時に同一MACの重複通知を抑止するために使用します
+# cron等のsingle-run運用時に同一MACの重複通知を抑止するために使用します
 state_file: "wifi_notifier_state.json"

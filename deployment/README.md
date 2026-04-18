@@ -87,7 +87,6 @@ docker-compose down
 
 - systemdサービスとして実行（Linux）
 - バックグラウンドで実行
-- GitHub Actionsで自動実行
 
 ## Raspberry Piセットアップ手順
 
