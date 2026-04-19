@@ -14,8 +14,6 @@ Wi-Fi接続検知ツール
 
 **📖 すぐに始めたい方は [クイックスタートガイド](docs/QUICKSTART.md) をご覧ください。**
 
-**☁️ GitHub Actionsで自動実行したい方は [GitHub Actions設定ガイド](docs/GITHUB_ACTIONS.md) をご覧ください。**
-
 ## プロジェクト構成
 
 ```
@@ -28,7 +26,6 @@ wifi-client-notifier/
 │   └── demo.py               # デモスクリプト
 ├── docs/                     # ドキュメント
 │   ├── QUICKSTART.md         # クイックスタート
-│   ├── GITHUB_ACTIONS.md     # GitHub Actions設定ガイド
 │   └── CUSTOMIZATION.md      # カスタマイズガイド
 ├── config/                   # 設定ファイル
 │   ├── config.example.yaml   # 設定例
@@ -37,17 +34,15 @@ wifi-client-notifier/
 │   ├── Dockerfile            # Dockerイメージ
 │   ├── docker-compose.yml    # Docker Compose設定
 │   └── setup.sh              # セットアップスクリプト
-├── scripts/                  # ユーティリティスクリプト
-│   └── generate_config.py    # GitHub Actions用設定生成
 └── .github/                  # GitHub設定
-    ├── workflows/            # GitHub Actionsワークフロー
+    ├── workflows/            # CI/自動化ワークフロー
     └── instructions/         # Copilot用途別指示書
 ```
 
 ## 主な機能
 
 - **ARPスキャン**によるローカルネットワーク上の接続端末の監視（Raspberry Pi向け）
-- ルータ管理APIを使用した接続端末の監視（GitHub Actions向け）
+- ルータ管理APIを使用した接続端末の監視
 - 新規WiFi接続の検出とSMTPメール通知
 - 特定MACアドレスのフィルタリング（オプション）
 - ログ出力（ファイル＋コンソール）
@@ -82,6 +77,20 @@ cd wifi-client-notifier
 ```bash
 pip install -r requirements.txt
 ```
+
+3. （開発者向け）コード品質チェックを有効化:
+
+```bash
+# コミット時に自動で black / flake8 を実行
+pre-commit install
+
+# 手動チェック
+black src/ scripts/
+flake8 src/ scripts/
+```
+
+本リポジトリでは、Pythonコードの整形を `black`、静的チェックを `flake8` で統一しています。
+Pull RequestではCIで同チェックを必須として実行します。
 
 **開発環境のセットアップ**: コードの修正や機能追加を行う場合は、[deployment/README.md](deployment/README.md) を参照してください。
 

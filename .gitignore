@@ -8,6 +8,7 @@ __pycache__/
 
 # Configuration files with credentials
 config.yaml
+wifi_notifier_state.json
 
 # Log files
 *.log

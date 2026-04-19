@@ -60,7 +60,7 @@ email:
   use_tls: true
 ```
 
-#### ルータAPIモード（GitHub Actions向け）
+#### ルータAPIモード（ルータ管理画面へアクセス可能な環境向け）
 
 ```yaml
 detection_method: "router"

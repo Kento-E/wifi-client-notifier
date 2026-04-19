@@ -7,13 +7,15 @@ WiFi接続通知ツール
 
 検出方式:
   - "arp"    : ARPスキャンによるローカルネットワーク監視（Raspberry Pi向け、ルータ不要）
-  - "router" : ルータ管理画面のAPIを使用した接続監視（GitHub Actions向け）
+  - "router" : ルータ管理画面のAPIを使用した接続監視
 """
 
 import requests
 import time
 import smtplib
 import json
+import os
+import tempfile
 import yaml
 import logging
 from email.mime.text import MIMEText
@@ -24,8 +26,10 @@ from typing import Dict, List, Optional, Set
 # 直接実行（python src/wifi_notifier.py）とモジュール実行（python -m src.wifi_notifier）の両方に対応
 try:
     from src.html_parser import parse_wireless_lan_status, extract_devices_from_json
+    from src.constants import DEFAULT_STATE_FILE
 except ModuleNotFoundError:
     from html_parser import parse_wireless_lan_status, extract_devices_from_json
+    from constants import DEFAULT_STATE_FILE
 
 
 class WiFiRouter:
@@ -252,6 +256,8 @@ class WiFiMonitor:
         self.monitored_macs: Set[str] = set()
         self.missing_counts: Dict[str, int] = {}
         self.disconnect_grace_scans: int = 3
+        self.state_file: str = self.config.get("state_file", DEFAULT_STATE_FILE)
+        self.state_loaded: bool = False
         self._initialize_components()
 
     def _load_config(self, config_path: str) -> Dict:
@@ -382,7 +388,7 @@ class WiFiMonitor:
         WiFi接続の監視を開始する。
 
         Args:
-            single_run: Trueの場合、1回だけチェックして終了（GitHub Actions用）
+            single_run: Trueの場合、1回だけチェックして終了
         """
         logging.info("WiFiモニターを起動しています")
 
@@ -393,16 +399,23 @@ class WiFiMonitor:
                 return
             logging.info("ルータへのログインに成功しました")
 
-        # 初期デバイスリストを取得
-        initial_devices = self._get_current_devices()
-        self.known_devices = {dev["mac"].lower() for dev in initial_devices}
-        self.missing_counts = {mac: 0 for mac in self.known_devices}
-        logging.info(f"起動時の接続デバイス数: {len(self.known_devices)}")
+        # 前回の状態を読み込む（初回は空状態）
+        self._load_state()
+        if not self.state_loaded:
+            # 初回は現在接続中デバイスをベースラインとして登録し、通知スパイクを防ぐ
+            initial_devices = self._get_current_devices()
+            self.known_devices = {dev["mac"].lower() for dev in initial_devices}
+            self.missing_counts = {mac: 0 for mac in self.known_devices}
+            logging.info(
+                "初回実行のため現在接続中デバイスをベースライン登録します: %s台",
+                len(self.known_devices),
+            )
 
         if single_run:
-            # 1回だけチェックして終了（GitHub Actions用）
+            # 1回だけチェックして終了
             logging.info("シングルランモード: 1回チェックして終了します")
             self._check_for_new_devices()
+            self._save_state()
             logging.info("シングルランが完了しました")
             return
 
@@ -412,11 +425,104 @@ class WiFiMonitor:
         try:
             while True:
                 self._check_for_new_devices()
+                self._save_state()
                 time.sleep(check_interval)
         except KeyboardInterrupt:
             logging.info("WiFiモニターを停止しています")
         except Exception as e:
             logging.error(f"モニターでエラーが発生しました: {e}")
+
+    def _load_state(self) -> bool:
+        """
+        状態ファイルから既知デバイス情報を読み込む。
+
+        Returns:
+            読み込みに成功した場合はTrue、状態ファイルがない/不正の場合はFalse
+        """
+        if not os.path.exists(self.state_file):
+            self.state_loaded = False
+            self.known_devices = set()
+            self.missing_counts = {}
+            return False
+
+        try:
+            with open(self.state_file, "r", encoding="utf-8") as f:
+                state = json.load(f)
+
+            known_devices_list = state.get("known_devices", [])
+            if not isinstance(known_devices_list, list):
+                raise ValueError("known_devices は配列である必要があります")
+
+            self.known_devices = {
+                mac.strip().lower()
+                for mac in known_devices_list
+                if isinstance(mac, str) and mac.strip()
+            }
+
+            raw_missing_counts = state.get("missing_counts", {})
+            self.missing_counts = {}
+            if isinstance(raw_missing_counts, dict):
+                for mac, count in raw_missing_counts.items():
+                    if not isinstance(mac, str):
+                        continue
+                    try:
+                        parsed_count = int(count)
+                        if parsed_count < 0:
+                            logging.warning(
+                                "状態ファイルに負の missing_counts を検出したため 0 に補正します: "
+                                f"{mac}={parsed_count}"
+                            )
+                            parsed_count = 0
+                        self.missing_counts[mac.lower()] = parsed_count
+                    except (TypeError, ValueError):
+                        continue
+
+            for mac in self.known_devices:
+                self.missing_counts.setdefault(mac, 0)
+
+            self.state_loaded = True
+            logging.info(
+                f"状態ファイルを読み込みました: known={len(self.known_devices)} "
+                f"({self.state_file})"
+            )
+            return True
+
+        except Exception as e:
+            logging.warning(f"状態ファイルの読み込みに失敗したため空状態で開始します: {e}")
+            self.state_loaded = False
+            self.known_devices = set()
+            self.missing_counts = {}
+            return False
+
+    def _save_state(self):
+        """既知デバイス情報を状態ファイルに保存する。"""
+        tmp_path = None
+        try:
+            state = {
+                "known_devices": sorted(self.known_devices),
+                "missing_counts": {
+                    mac: self.missing_counts.get(mac, 0) for mac in self.known_devices
+                },
+            }
+            state_dir = os.path.dirname(self.state_file)
+            if state_dir:
+                os.makedirs(state_dir, exist_ok=True)
+
+            fd, tmp_path = tempfile.mkstemp(
+                prefix=".wifi_notifier_state_",
+                suffix=".tmp",
+                dir=state_dir or ".",
+                text=True,
+            )
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(state, f, ensure_ascii=False, indent=2)
+            os.replace(tmp_path, self.state_file)
+            tmp_path = None
+        except Exception as e:
+            logging.error(f"状態ファイルの保存に失敗しました: {e}")
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                os.remove(tmp_path)
 
     def _check_for_new_devices(self):
         """新しいデバイス接続をチェックする。"""

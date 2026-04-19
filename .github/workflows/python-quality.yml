@@ -1,0 +1,33 @@
+name: Python品質チェック
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  lint-and-format-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Pythonをセットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: 依存パッケージをインストール
+        run: |
+          pip install -r requirements.txt
+
+      - name: black整形チェック
+        run: |
+          black --check src/
+
+      - name: flake8チェック
+        run: |
+          flake8 src/
