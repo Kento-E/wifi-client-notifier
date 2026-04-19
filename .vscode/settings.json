@@ -25,6 +25,20 @@
     "/^source \\.venv/bin/activate && flake8 src/ scripts/$/": {
       "approve": true,
       "matchCommandLine": true
+    },
+    "pre-commit": true,
+    "/^sh -c 'if ! command -v pre-commit &> /dev/null; then pip install pre-commit; fi && pre-commit validate-config && pre-commit run black --all-files'$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^python3 -m pre_commit validate-config && python3 -m pre_commit run black --all-files$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "pip": true,
+    "/^python3 -c \"import ssl; print\\(ssl\\.OPENSSL_VERSION\\)\"$/": {
+      "approve": true,
+      "matchCommandLine": true
     }
   },
   "cSpell.words": ["raspberrypi"]

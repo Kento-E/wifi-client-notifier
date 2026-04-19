@@ -185,9 +185,7 @@ class EmailNotifier:
             msg = MIMEMultipart()
             msg["From"] = self.sender_email
             msg["To"] = ", ".join(self.recipient_emails)
-            msg["Subject"] = (
-                f"新しいWiFi接続を検出 - {device_info.get('mac', 'Unknown Device')}"
-            )
+            msg["Subject"] = f"新しいWiFi接続を検出 - {device_info.get('mac', 'Unknown Device')}"
 
             # メール本文を作成
             body = self._create_email_body(device_info)
@@ -255,7 +253,9 @@ class WiFiMonitor:
         self.known_devices: Set[str] = set()
         self.monitored_macs: Set[str] = set()
         self.missing_counts: Dict[str, int] = {}
+        self.last_notified_at: Dict[str, float] = {}
         self.disconnect_grace_scans: int = 3
+        self.notification_cooldown_seconds: int = 0
         self.state_file: str = self.config.get("state_file", DEFAULT_STATE_FILE)
         self.state_loaded: bool = False
         self._initialize_components()
@@ -360,6 +360,24 @@ class WiFiMonitor:
             f"切断判定の猶予回数: {self.disconnect_grace_scans}回（連続で見失った場合に切断扱い）"
         )
 
+        # 同一端末の短時間な再通知を抑止するためのクールダウン
+        raw_cooldown_minutes = self.config.get("notification_cooldown_minutes", 0)
+        try:
+            self.notification_cooldown_seconds = max(0, int(raw_cooldown_minutes) * 60)
+        except (TypeError, ValueError):
+            self.notification_cooldown_seconds = 0
+            logging.warning(
+                "notification_cooldown_minutes の値が不正のため 0 を使用します: %s",
+                raw_cooldown_minutes,
+            )
+        if self.notification_cooldown_seconds > 0:
+            logging.info(
+                "通知クールダウン: %s分（同一MACの再通知を抑止）",
+                self.notification_cooldown_seconds // 60,
+            )
+        else:
+            logging.info("通知クールダウン: 無効")
+
         logging.info("コンポーネントの初期化が完了しました")
 
     def _get_current_devices(self) -> List[Dict[str, str]]:
@@ -388,7 +406,7 @@ class WiFiMonitor:
         WiFi接続の監視を開始する。
 
         Args:
-            single_run: Trueの場合、1回だけチェックして終了
+            single_run: Trueの場合、1回だけチェックして終了（GitHub Actions用）
         """
         logging.info("WiFiモニターを起動しています")
 
@@ -412,7 +430,7 @@ class WiFiMonitor:
             )
 
         if single_run:
-            # 1回だけチェックして終了
+            # 1回だけチェックして終了（GitHub Actions用）
             logging.info("シングルランモード: 1回チェックして終了します")
             self._check_for_new_devices()
             self._save_state()
@@ -443,6 +461,7 @@ class WiFiMonitor:
             self.state_loaded = False
             self.known_devices = set()
             self.missing_counts = {}
+            self.last_notified_at = {}
             return False
 
         try:
@@ -480,6 +499,20 @@ class WiFiMonitor:
             for mac in self.known_devices:
                 self.missing_counts.setdefault(mac, 0)
 
+            raw_last_notified_at = state.get("last_notified_at", {})
+            self.last_notified_at = {}
+            if isinstance(raw_last_notified_at, dict):
+                for mac, timestamp in raw_last_notified_at.items():
+                    if not isinstance(mac, str):
+                        continue
+                    try:
+                        parsed_timestamp = float(timestamp)
+                        if parsed_timestamp < 0:
+                            continue
+                        self.last_notified_at[mac.lower()] = parsed_timestamp
+                    except (TypeError, ValueError):
+                        continue
+
             self.state_loaded = True
             logging.info(
                 f"状態ファイルを読み込みました: known={len(self.known_devices)} "
@@ -492,6 +525,7 @@ class WiFiMonitor:
             self.state_loaded = False
             self.known_devices = set()
             self.missing_counts = {}
+            self.last_notified_at = {}
             return False
 
     def _save_state(self):
@@ -502,6 +536,9 @@ class WiFiMonitor:
                 "known_devices": sorted(self.known_devices),
                 "missing_counts": {
                     mac: self.missing_counts.get(mac, 0) for mac in self.known_devices
+                },
+                "last_notified_at": {
+                    mac: self.last_notified_at[mac] for mac in sorted(self.last_notified_at)
                 },
             }
             state_dir = os.path.dirname(self.state_file)
@@ -547,8 +584,18 @@ class WiFiMonitor:
                     )
 
                     if should_notify:
-                        logging.info(f"新しいデバイスを検出しました: {mac}")
-                        self.notifier.send_notification(device_info)
+                        cooldown_remaining = self._get_notification_cooldown_remaining(mac)
+                        if cooldown_remaining > 0:
+                            logging.info(
+                                "同一端末の再通知を抑止しました: %s（クールダウン残り約%s秒）",
+                                mac,
+                                cooldown_remaining,
+                            )
+                        else:
+                            logging.info(f"新しいデバイスを検出しました: {mac}")
+                            sent = self.notifier.send_notification(device_info)
+                            if sent:
+                                self.last_notified_at[mac] = time.time()
                     else:
                         logging.debug(f"新しいデバイスを検出しましたが、監視対象外です: {mac}")
 
@@ -580,6 +627,19 @@ class WiFiMonitor:
 
         except Exception as e:
             logging.error(f"新しいデバイスのチェック中にエラーが発生しました: {e}")
+
+    def _get_notification_cooldown_remaining(self, mac: str) -> int:
+        """同一MACへの再通知クールダウン残秒数を返す。"""
+        if self.notification_cooldown_seconds <= 0:
+            return 0
+
+        last_sent = self.last_notified_at.get(mac)
+        if last_sent is None:
+            return 0
+
+        elapsed = int(time.time() - last_sent)
+        remaining = self.notification_cooldown_seconds - elapsed
+        return max(0, remaining)
 
 
 def main():
