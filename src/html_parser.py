@@ -47,7 +47,12 @@ def parse_wireless_lan_status(html_content: str) -> List[Dict[str, str]]:
                         mac_match = re.search(mac_pattern, text)
 
                         if mac_match:
-                            device = {"mac": mac_match.group(0).upper(), "ip": "", "hostname": ""}
+                            device = {
+                                "mac": mac_match.group(0).upper(),
+                                "ip": "",
+                                "hostname": "",
+                                "vendor": "",
+                            }
 
                             # 近くのセルからIPアドレスを取得を試みる
                             if i + 1 < len(cells):
@@ -112,6 +117,7 @@ def extract_devices_from_json(json_data: Dict) -> List[Dict[str, str]]:
                     "mac": client.get("mac", client.get("macaddr", "")).upper(),
                     "ip": client.get("ip", client.get("ipaddr", "")),
                     "hostname": client.get("hostname", client.get("name", "")),
+                    "vendor": "",
                 }
 
                 if device["mac"]:

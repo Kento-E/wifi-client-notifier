@@ -39,6 +39,10 @@
     "/^python3 -c \"import ssl; print\\(ssl\\.OPENSSL_VERSION\\)\"$/": {
       "approve": true,
       "matchCommandLine": true
+    },
+    "/^source \\.venv/bin/activate && which python && python -m pip install mac-vendor-lookup$/": {
+      "approve": true,
+      "matchCommandLine": true
     }
   },
   "cSpell.words": ["raspberrypi"]

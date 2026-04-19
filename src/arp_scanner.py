@@ -19,6 +19,13 @@ try:
 except ImportError:
     SCAPY_AVAILABLE = False
 
+try:
+    from mac_vendor_lookup import MacLookup  # type: ignore
+
+    MAC_VENDOR_AVAILABLE = True
+except ImportError:
+    MAC_VENDOR_AVAILABLE = False
+
 
 def _require_scapy() -> None:
     """scapyが利用可能か確認し、利用できない場合は例外を送出する。"""
@@ -92,6 +99,13 @@ class ARPScanner:
         _require_scapy()
         self.subnet = subnet
         self.interface = interface
+        # MACアドレスからベンダー名を取得するためのルックアップテーブルを初期化
+        self._mac_lookup: Optional[MacLookup] = None
+        if MAC_VENDOR_AVAILABLE:
+            try:
+                self._mac_lookup = MacLookup()
+            except Exception as e:
+                logging.warning(f"MACベンダールックアップの初期化に失敗しました: {e}")
 
     def _detect_subnet(self) -> str:
         """
@@ -188,14 +202,16 @@ class ARPScanner:
                 mac = received.hwsrc.upper()
                 ip = received.psrc
                 hostname = self._resolve_hostname(ip)
+                vendor = self._lookup_vendor(mac)
                 devices.append(
                     {
                         "mac": mac,
                         "ip": ip,
                         "hostname": hostname,
+                        "vendor": vendor,
                     }
                 )
-                logging.debug(f"デバイス検出: MAC={mac}, IP={ip}, hostname={hostname}")
+                logging.debug(f"デバイス検出: MAC={mac}, IP={ip}, hostname={hostname}, vendor={vendor}")
 
             logging.info(f"ARPスキャン完了: {len(devices)}台のデバイスを検出しました")
             return devices
@@ -237,3 +253,23 @@ class ARPScanner:
             return ip
         finally:
             socket.setdefaulttimeout(old_timeout)
+
+    def _lookup_vendor(self, mac: str) -> str:
+        """
+        MACアドレスのOUI部分からデバイスメーカー名を取得する。
+
+        mac-vendor-lookupライブラリを使用してオフラインでベンダー名を解決します。
+        ライブラリが未インストールの場合や未知のOUIの場合は空文字を返します。
+
+        Args:
+            mac: MACアドレス（例: "AC:DE:48:00:11:22"）
+
+        Returns:
+            ベンダー名（例: "Apple, Inc."）、取得できない場合は空文字
+        """
+        if self._mac_lookup is None:
+            return ""
+        try:
+            return self._mac_lookup.lookup(mac)
+        except Exception:
+            return ""
