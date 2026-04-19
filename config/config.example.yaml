@@ -35,14 +35,14 @@ arp:
 
 # メール設定
 email:
-  smtp_server: "smtp.gmail.com"     # SMTPサーバーアドレス
-  smtp_port: 587                     # SMTPポート番号
-  smtp_user: "your_email@gmail.com"  # SMTP認証ユーザー名
+  smtp_server: "smtp.gmail.com" # SMTPサーバーアドレス
+  smtp_port: 587 # SMTPポート番号
+  smtp_user: "your_email@gmail.com" # SMTP認証ユーザー名
   smtp_password: "your_app_password" # SMTP認証パスワード（Gmailの場合はアプリパスワード）
-  sender_email: "your_email@gmail.com"  # 送信元メールアドレス
-  recipient_emails:                  # 受信者メールアドレスのリスト
+  sender_email: "your_email@gmail.com" # 送信元メールアドレス
+  recipient_emails: # 受信者メールアドレスのリスト
     - "notify_recipient@example.com"
-  use_tls: true                      # TLS暗号化を使用するか
+  use_tls: true # TLS暗号化を使用するか
 
 # 監視対象デバイス（MACアドレスのリスト）
 # 空の場合は全ての新規接続を通知
@@ -55,6 +55,10 @@ check_interval: 60
 # 切断判定の猶予回数（連続して見失った回数）
 # ARP検出の一時的な揺らぎで再通知が増える場合は 3〜5 程度に調整してください
 disconnect_grace_scans: 3
+
+# 同一端末の再通知を抑止する時間（分）
+# 0 の場合は無効です。ARP環境で誤再通知が多い場合は 60〜1440 を推奨します
+notification_cooldown_minutes: 60
 
 # ログレベル（DEBUG, INFO, WARNING, ERROR, CRITICAL）
 log_level: "INFO"
