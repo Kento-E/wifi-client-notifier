@@ -186,7 +186,7 @@ class EmailNotifier:
             msg["From"] = self.sender_email
             msg["To"] = ", ".join(self.recipient_emails)
             msg["Subject"] = (
-                f"新しいWiFi接続を検出 - {device_info.get('hostname', 'Unknown Device')}"
+                f"新しいWiFi接続を検出 - {device_info.get('mac', 'Unknown Device')}"
             )
 
             # メール本文を作成
