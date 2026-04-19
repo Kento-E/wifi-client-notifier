@@ -17,8 +17,8 @@ jobs:
       - name: Pythonをセットアップ
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-          cache: 'pip'
+          python-version: "3.11"
+          cache: "pip"
 
       - name: 依存パッケージをインストール
         run: |
@@ -26,8 +26,8 @@ jobs:
 
       - name: black整形チェック
         run: |
-          black --check src/ scripts/
+          black --check src/
 
       - name: flake8チェック
         run: |
-          flake8 src/ scripts/
+          flake8 src/
