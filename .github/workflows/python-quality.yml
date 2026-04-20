@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: リポジトリをチェックアウト
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Pythonをセットアップ
         uses: actions/setup-python@v5
@@ -24,10 +26,35 @@ jobs:
         run: |
           pip install -r requirements.txt
 
-      - name: black整形チェック
+      - name: 比較対象コミットを決定
+        id: changed_refs
         run: |
-          black --check src/
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            FROM_REF="${{ github.event.pull_request.base.sha }}"
+            TO_REF="${{ github.event.pull_request.head.sha }}"
+          else
+            BEFORE_REF="${{ github.event.before }}"
+            TO_REF="${{ github.sha }}"
+            ZERO_SHA="0000000000000000000000000000000000000000"
 
-      - name: flake8チェック
+            if [ -z "${BEFORE_REF}" ] || [ "${BEFORE_REF}" = "${ZERO_SHA}" ]; then
+              if git rev-parse "${TO_REF}^" >/dev/null 2>&1; then
+                FROM_REF="$(git rev-parse "${TO_REF}^")"
+              else
+                FROM_REF="${TO_REF}"
+              fi
+            else
+              FROM_REF="${BEFORE_REF}"
+            fi
+          fi
+
+          echo "from_ref=${FROM_REF}" >> "${GITHUB_OUTPUT}"
+          echo "to_ref=${TO_REF}" >> "${GITHUB_OUTPUT}"
+          echo "比較範囲: ${FROM_REF}..${TO_REF}"
+
+      - name: pre-commitチェック
         run: |
-          flake8 src/
+          pre-commit run \
+            --from-ref "${{ steps.changed_refs.outputs.from_ref }}" \
+            --to-ref "${{ steps.changed_refs.outputs.to_ref }}" \
+            --show-diff-on-failure
