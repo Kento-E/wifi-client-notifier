@@ -47,6 +47,14 @@
     "/^source \\.venv/bin/activate && black src/$/": {
       "approve": true,
       "matchCommandLine": true
+    },
+    "/^source \\.venv/bin/activate && flake8 src/$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^source \\.venv/bin/activate && pre-commit run --all-files$/": {
+      "approve": true,
+      "matchCommandLine": true
     }
   },
   "cSpell.words": ["raspberrypi"]
