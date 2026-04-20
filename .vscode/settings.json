@@ -67,6 +67,10 @@
     "/^source \\.venv/bin/activate && flake8 src/wifi_notifier\\.py$/": {
       "approve": true,
       "matchCommandLine": true
+    },
+    "/^source \\.venv/bin/activate && black --check src/wifi_notifier\\.py$/": {
+      "approve": true,
+      "matchCommandLine": true
     }
   },
   "cSpell.words": ["raspberrypi"]
