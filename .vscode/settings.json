@@ -55,6 +55,14 @@
     "/^source \\.venv/bin/activate && pre-commit run --all-files$/": {
       "approve": true,
       "matchCommandLine": true
+    },
+    "/^source \\.venv/bin/activate && pre-commit run --all-files && git status --short$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^source \\.venv/bin/activate && pre-commit run check-yaml --files \\.github/workflows/python-quality\\.yml && pre-commit run trailing-whitespace --files \\.github/workflows/python-quality\\.yml && pre-commit run end-of-file-fixer --files \\.github/workflows/python-quality\\.yml && git status --short$/": {
+      "approve": true,
+      "matchCommandLine": true
     }
   },
   "cSpell.words": ["raspberrypi"]
