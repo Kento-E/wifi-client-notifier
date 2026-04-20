@@ -71,7 +71,12 @@
     "/^source \\.venv/bin/activate && black --check src/wifi_notifier\\.py$/": {
       "approve": true,
       "matchCommandLine": true
-    }
+    },
+    "/^echo \"\\$PI_HOST\" && bash -n deployment/setup_raspberrypi\\.sh$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "shellcheck": true
   },
   "cSpell.words": ["raspberrypi"]
 }

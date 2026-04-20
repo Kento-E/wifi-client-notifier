@@ -164,6 +164,10 @@ cfg.setdefault(\"arp\", {})
 cfg[\"arp\"].setdefault(\"interface\", \"wlan0\")
 cfg[\"arp\"].setdefault(\"timeout\", 2)
 cfg.setdefault(\"disconnect_grace_scans\", 3)
+if \"notification_cool_down_minutes\" not in cfg and \"notification_cooldown_minutes\" in cfg:
+  cfg[\"notification_cool_down_minutes\"] = cfg[\"notification_cooldown_minutes\"]
+cfg.setdefault(\"notification_cool_down_minutes\", 1440)
+cfg.setdefault(\"reconnect_notify_after_minutes\", 60)
 p.write_text(yaml.dump(cfg, allow_unicode=True, sort_keys=False), encoding=\"utf-8\")
 print(\"設定更新完了\")
 PY

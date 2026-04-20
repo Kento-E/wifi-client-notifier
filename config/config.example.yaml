@@ -58,7 +58,13 @@ disconnect_grace_scans: 3
 
 # 同一端末の再通知を抑止する時間（分）
 # 0 の場合は無効です。ARP環境で誤再通知が多い場合は 60〜1440 を推奨します
-notification_cooldown_minutes: 60
+notification_cool_down_minutes: 1440
+
+# 切断後に再接続した端末を再通知するまでの不在時間（分）
+# この時間以上不在だった端末が再接続すると、クールダウン中でも通知を送ります
+# 0 の場合は無効（不在時間によるクールダウン強制解除をしない）
+# 例: 60 → 1時間以上ぶりの再接続は再通知する
+reconnect_notify_after_minutes: 60
 
 # ログレベル（DEBUG, INFO, WARNING, ERROR, CRITICAL）
 log_level: "INFO"
