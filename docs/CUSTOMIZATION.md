@@ -56,18 +56,18 @@ def login(self) -> bool:
     """ルータにログイン (SHA256版)"""
     try:
         login_url = f"{self.base_url}/index.cgi/login"
-        
+
         # SHA256でパスワードをハッシュ化
         password_hash = hashlib.sha256(self.password.encode()).hexdigest()
-        
+
         login_data = {
             'user': self.username,
             'passwd': password_hash
         }
-        
+
         response = self.session.post(login_url, data=login_data, timeout=10)
         return response.status_code == 200
-        
+
     except Exception as e:
         logging.error(f"Login failed: {e}")
         return False
@@ -82,17 +82,17 @@ def login(self) -> bool:
     """ルータにログイン（カスタムパラメータ版）"""
     try:
         login_url = f"{self.base_url}/cgi-bin/login.cgi"  # URLを変更
-        
+
         login_data = {
             'username': self.username,  # パラメータ名を変更
             'password': self.password    # パラメータ名を変更
         }
-        
+
         response = self.session.post(login_url, data=login_data, timeout=10)
-        
+
         # 成功判定を変更
         return 'success' in response.text.lower()  # レスポンス内容で判定
-        
+
     except Exception as e:
         logging.error(f"Login failed: {e}")
         return False
@@ -109,15 +109,15 @@ def get_connected_devices(self) -> List[Dict[str, str]]:
         # エンドポイントを変更
         devices_url = f"{self.base_url}/wlmaclist.cgi"  # 例
         response = self.session.get(devices_url, timeout=10)
-        
+
         if response.status_code != 200:
             logging.warning(f"Failed to get device list: {response.status_code}")
             return []
-        
+
         # パースメソッドを呼び出し
         devices = self._parse_device_list(response.text)
         return devices
-        
+
     except Exception as e:
         logging.error(f"Error getting connected devices: {e}")
         return []
@@ -133,14 +133,14 @@ def get_connected_devices(self) -> List[Dict[str, str]]:
     try:
         devices_url = f"{self.base_url}/api/wireless/clients"
         response = self.session.get(devices_url, timeout=10)
-        
+
         if response.status_code != 200:
             return []
-        
+
         # JSONレスポンスをパース
         data = response.json()
         devices = []
-        
+
         for client in data.get('clients', []):
             device = {
                 'mac': client.get('mac', '').upper(),
@@ -148,9 +148,9 @@ def get_connected_devices(self) -> List[Dict[str, str]]:
                 'hostname': client.get('name', '')
             }
             devices.append(device)
-        
+
         return devices
-        
+
     except Exception as e:
         logging.error(f"Error getting connected devices: {e}")
         return []
@@ -166,19 +166,19 @@ def get_connected_devices(self) -> List[Dict[str, str]]:
 def parse_wireless_lan_status(html_content: str) -> List[Dict[str, str]]:
     """無線LAN状態ページをパース"""
     devices = []
-    
+
     try:
         soup = BeautifulSoup(html_content, 'html.parser')
-        
+
         # 特定のIDを持つテーブルを検索
         table = soup.find('table', {'id': 'wlan_client_table'})
-        
+
         if table:
             rows = table.find_all('tr')[1:]  # ヘッダー行をスキップ
-            
+
             for row in rows:
                 cells = row.find_all('td')
-                
+
                 if len(cells) >= 3:  # 最低3列必要と仮定
                     device = {
                         'mac': cells[0].get_text(strip=True),
@@ -186,9 +186,9 @@ def parse_wireless_lan_status(html_content: str) -> List[Dict[str, str]]:
                         'hostname': cells[2].get_text(strip=True)
                     }
                     devices.append(device)
-        
+
         return devices
-        
+
     except Exception as e:
         print(f"Error parsing HTML: {e}")
         return []
@@ -211,15 +211,15 @@ def get_connected_devices(self) -> List[Dict[str, str]]:
     try:
         devices_url = f"{self.base_url}/index.cgi/wireless_client_list"
         response = self.session.get(devices_url, timeout=10)
-        
+
         # レスポンス内容をログに出力（デバッグ用）
         logging.debug(f"Response status: {response.status_code}")
         logging.debug(f"Response headers: {response.headers}")
         logging.debug(f"Response content: {response.text[:500]}")  # 最初の500文字
-        
+
         devices = self._parse_device_list(response.text)
         return devices
-        
+
     except Exception as e:
         logging.error(f"Error getting connected devices: {e}")
         return []

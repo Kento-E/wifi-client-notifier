@@ -7,14 +7,14 @@ body:
     attributes:
       value: |
         ご質問ありがとうございます。
-        
+
         このテンプレートは、アプリケーションの現状の仕様や動作について
         GitHub Copilotに調査・回答を依頼する際に使用します。
-        
+
         💡 **GitHub Copilotの使い方**: Issue作成後、コメント欄で
         `@copilot` とメンションすることで、GitHub Copilotに
         質問内容の調査や回答を依頼できます。
-        
+
         📝 **注意**: 調査・回答だけでなく、必要に応じてGitHub Copilotに
         Pull Request作成を依頼することも可能です。
 

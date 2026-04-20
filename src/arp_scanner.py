@@ -211,7 +211,9 @@ class ARPScanner:
                         "vendor": vendor,
                     }
                 )
-                logging.debug(f"デバイス検出: MAC={mac}, IP={ip}, hostname={hostname}, vendor={vendor}")
+                logging.debug(
+                    f"デバイス検出: MAC={mac}, IP={ip}, hostname={hostname}, vendor={vendor}"
+                )
 
             logging.info(f"ARPスキャン完了: {len(devices)}台のデバイスを検出しました")
             return devices

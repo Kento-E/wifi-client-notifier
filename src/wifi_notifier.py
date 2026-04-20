@@ -323,7 +323,9 @@ class WiFiMonitor:
             # ルータAPIモード
             router_config = self.config.get("router")
             if not router_config:
-                raise ValueError("detection_method が 'router' の場合は 'router' セクションの設定が必要です。")
+                raise ValueError(
+                    "detection_method が 'router' の場合は 'router' セクションの設定が必要です。"
+                )
             self.router = WiFiRouter(
                 router_config["ip"], router_config["username"], router_config["password"]
             )
@@ -355,7 +357,9 @@ class WiFiMonitor:
                 "disconnect_grace_scans の値が不正のため 3 を使用します: %s",
                 raw_grace_scans,
             )
-        logging.info(f"切断判定の猶予回数: {self.disconnect_grace_scans}回（連続で見失った場合に切断扱い）")
+        logging.info(
+            f"切断判定の猶予回数: {self.disconnect_grace_scans}回（連続で見失った場合に切断扱い）"
+        )
 
         # 同一端末の短時間な再通知を抑止するためのクールダウン
         raw_cooldown_minutes = self.config.get("notification_cooldown_minutes", 0)
@@ -511,7 +515,10 @@ class WiFiMonitor:
                         continue
 
             self.state_loaded = True
-            logging.info(f"状態ファイルを読み込みました: known={len(self.known_devices)} " f"({self.state_file})")
+            logging.info(
+                f"状態ファイルを読み込みました: known={len(self.known_devices)} "
+                f"({self.state_file})"
+            )
             return True
 
         except Exception as e:
@@ -612,7 +619,8 @@ class WiFiMonitor:
 
             if disconnected:
                 logging.info(
-                    f"切断されたデバイス数: {len(disconnected)}" f"（連続{self.disconnect_grace_scans}回見失いで判定）"
+                    f"切断されたデバイス数: {len(disconnected)}"
+                    f"（連続{self.disconnect_grace_scans}回見失いで判定）"
                 )
                 for mac in disconnected:
                     self.known_devices.discard(mac)
