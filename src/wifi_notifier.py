@@ -171,12 +171,15 @@ class EmailNotifier:
         self.recipient_emails = recipient_emails
         self.use_tls = use_tls
 
-    def send_notification(self, device_info: Dict[str, str]) -> bool:
+    def send_notification(
+        self, device_info: Dict[str, str], is_unknown_device: bool = False
+    ) -> bool:
         """
         新しいデバイス接続についてメール通知を送信する。
 
         Args:
             device_info: デバイス情報を含む辞書
+            is_unknown_device: 未知端末の初回通知かどうか
 
         Returns:
             メール送信成功時はTrue、失敗時はFalse
@@ -185,10 +188,13 @@ class EmailNotifier:
             msg = MIMEMultipart()
             msg["From"] = self.sender_email
             msg["To"] = ", ".join(self.recipient_emails)
-            msg["Subject"] = f"新しいWiFi接続を検出 - {device_info.get('mac', 'Unknown Device')}"
+            notification_subject = (
+                "未知の端末を検出" if is_unknown_device else "新しいWiFi接続を検出"
+            )
+            msg["Subject"] = f"{notification_subject} - {device_info.get('mac', 'Unknown Device')}"
 
             # メール本文を作成
-            body = self._create_email_body(device_info)
+            body = self._create_email_body(device_info, is_unknown_device=is_unknown_device)
             msg.attach(MIMEText(body, "plain", "utf-8"))
 
             # メールを送信
@@ -209,20 +215,26 @@ class EmailNotifier:
             logging.error(f"Failed to send email: {e}")
             return False
 
-    def _create_email_body(self, device_info: Dict[str, str]) -> str:
+    def _create_email_body(
+        self, device_info: Dict[str, str], is_unknown_device: bool = False
+    ) -> str:
         """
         メール本文テキストを作成する。
 
         Args:
             device_info: デバイス情報を含む辞書
+            is_unknown_device: 未知端末の初回通知かどうか
 
         Returns:
             フォーマット済みのメール本文
         """
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        notification_type = "未知の端末（初回のみ通知）" if is_unknown_device else "新規WiFi接続"
 
         body = f"""
-新しいWiFi接続が検出されました
+WiFi接続が検出されました
+
+通知種別: {notification_type}
 
 検出時刻: {timestamp}
 MACアドレス: {device_info.get('mac', 'Unknown')}
@@ -253,12 +265,16 @@ class WiFiMonitor:
         self.notifier: Optional[EmailNotifier] = None
         self.known_devices: Set[str] = set()
         self.monitored_macs: Set[str] = set()
+        self.repeat_notification_macs: Set[str] = set()
+        self.unknown_notified_macs: Set[str] = set()
         self.missing_counts: Dict[str, int] = {}
         self.last_notified_at: Dict[str, float] = {}
         self.disconnected_at: Dict[str, float] = {}
         self.disconnect_grace_scans: int = 3
         self.notification_cooldown_seconds: int = 0
         self.reconnect_notify_after_seconds: int = 3600
+        self.notify_unknown_devices_once: bool = False
+        self.branch_notification_mode_enabled: bool = False
         self.state_file: str = self.config.get("state_file", DEFAULT_STATE_FILE)
         self.state_loaded: bool = False
         self._initialize_components()
@@ -291,6 +307,21 @@ class WiFiMonitor:
             handlers=[logging.FileHandler(log_file, encoding="utf-8"), logging.StreamHandler()],
             force=True,
         )
+
+    @staticmethod
+    def _parse_bool_config(value, default: bool = False) -> bool:
+        """真偽値設定を安全に解釈する。"""
+        if isinstance(value, bool):
+            return value
+        if value is None:
+            return default
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"1", "true", "yes", "on"}:
+                return True
+            if normalized in {"0", "false", "no", "off"}:
+                return False
+        return bool(value)
 
     def _initialize_components(self):
         """検出方式に応じたコンポーネントを初期化する。"""
@@ -348,6 +379,39 @@ class WiFiMonitor:
         # 監視対象デバイスを読み込む（指定されている場合）
         monitored_devices = self.config.get("monitored_devices", [])
         self.monitored_macs = {mac.lower() for mac in monitored_devices}
+
+        # 特定MACだけ再通知し、それ以外は未知端末として初回のみ通知する分岐モード
+        repeat_notification_devices = self.config.get("repeat_notification_devices", [])
+        if not isinstance(repeat_notification_devices, list):
+            logging.warning(
+                "repeat_notification_devices は配列である必要があります: %s",
+                repeat_notification_devices,
+            )
+            repeat_notification_devices = []
+        self.repeat_notification_macs = {
+            mac.strip().lower()
+            for mac in repeat_notification_devices
+            if isinstance(mac, str) and mac.strip()
+        }
+        self.notify_unknown_devices_once = self._parse_bool_config(
+            self.config.get("notify_unknown_devices_once"),
+            default=False,
+        )
+        self.branch_notification_mode_enabled = bool(self.repeat_notification_macs) or (
+            "notify_unknown_devices_once" in self.config
+        )
+        if self.branch_notification_mode_enabled:
+            logging.info(
+                "通知分岐モード: 有効（再通知対象MAC %s件 / 未知端末初回のみ通知: %s）",
+                len(self.repeat_notification_macs),
+                "有効" if self.notify_unknown_devices_once else "無効",
+            )
+            if self.monitored_macs:
+                logging.info("通知分岐モードが有効のため monitored_devices は無視されます")
+        elif self.monitored_macs:
+            logging.info("通知フィルタ: monitored_devices %s件", len(self.monitored_macs))
+        else:
+            logging.info("通知フィルタ: なし")
 
         # 切断判定の猶予回数（ARP検出の一時的な揺らぎ対策）
         raw_grace_scans = self.config.get("disconnect_grace_scans", 3)
@@ -448,6 +512,11 @@ class WiFiMonitor:
             initial_devices = self._get_current_devices()
             self.known_devices = {dev["mac"].lower() for dev in initial_devices}
             self.missing_counts = {mac: 0 for mac in self.known_devices}
+            if self.notify_unknown_devices_once:
+                baseline_unknown_devices = {
+                    mac for mac in self.known_devices if mac not in self.repeat_notification_macs
+                }
+                self.unknown_notified_macs.update(baseline_unknown_devices)
             logging.info(
                 "初回実行のため現在接続中デバイスをベースライン登録します: %s台",
                 len(self.known_devices),
@@ -484,6 +553,7 @@ class WiFiMonitor:
         if not os.path.exists(self.state_file):
             self.state_loaded = False
             self.known_devices = set()
+            self.unknown_notified_macs = set()
             self.missing_counts = {}
             self.last_notified_at = {}
             self.disconnected_at = {}
@@ -500,6 +570,15 @@ class WiFiMonitor:
             self.known_devices = {
                 mac.strip().lower()
                 for mac in known_devices_list
+                if isinstance(mac, str) and mac.strip()
+            }
+
+            unknown_notified_list = state.get("unknown_notified_macs", [])
+            if not isinstance(unknown_notified_list, list):
+                raise ValueError("unknown_notified_macs は配列である必要があります")
+            self.unknown_notified_macs = {
+                mac.strip().lower()
+                for mac in unknown_notified_list
                 if isinstance(mac, str) and mac.strip()
             }
 
@@ -563,6 +642,7 @@ class WiFiMonitor:
             logging.warning(f"状態ファイルの読み込みに失敗したため空状態で開始します: {e}")
             self.state_loaded = False
             self.known_devices = set()
+            self.unknown_notified_macs = set()
             self.missing_counts = {}
             self.last_notified_at = {}
             self.disconnected_at = {}
@@ -574,6 +654,7 @@ class WiFiMonitor:
         try:
             state = {
                 "known_devices": sorted(self.known_devices),
+                "unknown_notified_macs": sorted(self.unknown_notified_macs),
                 "missing_counts": {
                     mac: self.missing_counts.get(mac, 0) for mac in self.known_devices
                 },
@@ -621,46 +702,61 @@ class WiFiMonitor:
 
                 if device_info:
                     # このデバイスについて通知すべきかチェック
-                    should_notify = (
-                        not self.monitored_macs  # フィルターがない場合は全て通知
-                        or mac in self.monitored_macs  # または監視リストに含まれている場合
-                    )
+                    should_notify, is_unknown_device = self._should_notify_device(mac)
 
                     if should_notify:
-                        # 切断からの経過時間を確認（再接続強制通知の判定）
-                        disconnected_since = self.disconnected_at.get(mac)
-                        absence_seconds = (
-                            time.time() - disconnected_since
-                            if disconnected_since is not None
-                            else None
-                        )
-                        force_notify_by_reconnect = (
-                            self.reconnect_notify_after_seconds > 0
-                            and absence_seconds is not None
-                            and absence_seconds >= self.reconnect_notify_after_seconds
-                        )
-
-                        cooldown_remaining = self._get_notification_cooldown_remaining(mac)
-                        if cooldown_remaining > 0 and not force_notify_by_reconnect:
-                            logging.info(
-                                "同一端末の再通知を抑止しました: %s（クールダウン残り約%s秒）",
-                                mac,
-                                cooldown_remaining,
+                        if is_unknown_device:
+                            logging.info("未知の端末を初回検出しました: %s", mac)
+                            sent = self.notifier.send_notification(
+                                device_info, is_unknown_device=True
                             )
+                            if sent:
+                                self.unknown_notified_macs.add(mac)
+                                self.last_notified_at[mac] = time.time()
                         else:
-                            if force_notify_by_reconnect:
+                            # 切断からの経過時間を確認（再接続強制通知の判定）
+                            disconnected_since = self.disconnected_at.get(mac)
+                            absence_seconds = (
+                                time.time() - disconnected_since
+                                if disconnected_since is not None
+                                else None
+                            )
+                            force_notify_by_reconnect = (
+                                self.reconnect_notify_after_seconds > 0
+                                and absence_seconds is not None
+                                and absence_seconds >= self.reconnect_notify_after_seconds
+                            )
+
+                            cooldown_remaining = self._get_notification_cooldown_remaining(mac)
+                            if cooldown_remaining > 0 and not force_notify_by_reconnect:
                                 logging.info(
-                                    "%s分ぶりの再接続を検出しました（強制通知）: %s",
-                                    int(absence_seconds // 60),
+                                    "同一端末の再通知を抑止しました: %s（クールダウン残り約%s秒）",
                                     mac,
+                                    cooldown_remaining,
                                 )
                             else:
-                                logging.info(f"新しいデバイスを検出しました: {mac}")
-                            sent = self.notifier.send_notification(device_info)
-                            if sent:
-                                self.last_notified_at[mac] = time.time()
+                                if force_notify_by_reconnect:
+                                    logging.info(
+                                        "%s分ぶりの再接続を検出しました（強制通知）: %s",
+                                        int(absence_seconds // 60),
+                                        mac,
+                                    )
+                                else:
+                                    logging.info(f"新しいデバイスを検出しました: {mac}")
+                                sent = self.notifier.send_notification(device_info)
+                                if sent:
+                                    self.last_notified_at[mac] = time.time()
                     else:
-                        logging.debug(f"新しいデバイスを検出しましたが、監視対象外です: {mac}")
+                        if (
+                            self.branch_notification_mode_enabled
+                            and mac in self.unknown_notified_macs
+                        ):
+                            logging.debug(
+                                "未知端末は既に初回通知済みのため通知しません: %s",
+                                mac,
+                            )
+                        else:
+                            logging.debug(f"新しいデバイスを検出しましたが、監視対象外です: {mac}")
 
                     self.known_devices.add(mac)
                     self.missing_counts[mac] = 0
@@ -707,6 +803,18 @@ class WiFiMonitor:
         elapsed = int(time.time() - last_sent)
         remaining = self.notification_cooldown_seconds - elapsed
         return max(0, remaining)
+
+    def _should_notify_device(self, mac: str) -> tuple[bool, bool]:
+        """対象MACを通知すべきかと未知端末通知かどうかを返す。"""
+        if self.branch_notification_mode_enabled:
+            if mac in self.repeat_notification_macs:
+                return True, False
+            if self.notify_unknown_devices_once and mac not in self.unknown_notified_macs:
+                return True, True
+            return False, False
+
+        should_notify = not self.monitored_macs or mac in self.monitored_macs
+        return should_notify, False
 
 
 def main():

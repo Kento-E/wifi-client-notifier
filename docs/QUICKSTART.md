@@ -25,6 +25,7 @@ cd wifi-client-notifier
 ```
 
 または手動で:
+
 ```bash
 pip install -r requirements.txt
 ```
@@ -82,7 +83,10 @@ email:
 ```
 
 **オプション項目:**
-- `monitored_devices`: 監視したい特定のMACアドレスのリスト（空の場合は全デバイスを通知）
+
+- `repeat_notification_devices`: この一覧に入れたMACアドレスだけ再通知対象にする
+- `notify_unknown_devices_once`: 上記以外の端末を未知端末として初回のみ通知する
+- `monitored_devices`: 旧来の単純フィルタ設定（新しい通知分岐を使わない場合のみ）
 - `check_interval`: チェック間隔（秒）、デフォルトは60秒
 
 ### ステップ4: 設定をテスト
@@ -93,6 +97,7 @@ sudo python src/test_config.py config.yaml
 ```
 
 このコマンドで以下を確認:
+
 - ✓ 設定ファイルが正しく読み込めるか
 - ✓ ARPスキャン（またはルータ接続）が成功するか
 - ✓ SMTP認証が成功するか
@@ -101,6 +106,7 @@ sudo python src/test_config.py config.yaml
 ### ステップ5: 実行
 
 **テスト実行（フォアグラウンド）:**
+
 ```bash
 # ARPスキャンモードはroot権限が必要
 sudo python src/wifi_notifier.py config.yaml
@@ -111,11 +117,13 @@ Ctrl+Cで停止できます。
 **バックグラウンド実行（推奨）:**
 
 Linux / Raspberry Pi:
+
 ```bash
 sudo nohup python src/wifi_notifier.py config.yaml &
 ```
 
 または、Docker:
+
 ```bash
 docker-compose up -d
 ```
@@ -127,6 +135,7 @@ Raspberry Pi Zero 2 WでWi-Fi接続監視を常時稼働させる手順です。
 ### systemdサービスとして登録
 
 1. `config/wifi-notifier.service`を編集（`<YOUR_USER>`、`<YOUR_GROUP>`、パスを実際の値に置き換え）:
+
 ```ini
 [Service]
 User=<YOUR_USER>
@@ -138,7 +147,8 @@ AmbientCapabilities=CAP_NET_RAW
 CapabilityBoundingSet=CAP_NET_RAW
 ```
 
-2. サービスを有効化:
+1. サービスを有効化:
+
 ```bash
 sudo cp config/wifi-notifier.service /etc/systemd/system/
 sudo systemctl daemon-reload
@@ -146,7 +156,8 @@ sudo systemctl enable wifi-notifier
 sudo systemctl start wifi-notifier
 ```
 
-3. 動作確認:
+1. 動作確認:
+
 ```bash
 sudo systemctl status wifi-notifier
 sudo journalctl -u wifi-notifier -f
@@ -157,14 +168,15 @@ sudo journalctl -u wifi-notifier -f
 Gmailを使用する場合の手順:
 
 1. Googleアカウントで2段階認証を有効化
-   - https://myaccount.google.com/security
 
-2. アプリパスワードを生成
-   - https://myaccount.google.com/apppasswords
-   - アプリ: "その他（カスタム名）"
-   - 名前: "WiFi Notifier"
+  詳細: <https://myaccount.google.com/security>
 
-3. 生成された16文字のパスワードを`config.yaml`の`email.smtp_password`に設定
+1. アプリパスワードを生成
+
+  詳細: <https://myaccount.google.com/apppasswords>
+  アプリは「その他（カスタム名）」、名前は「WiFi Notifier」を指定します。
+
+1. 生成された16文字のパスワードを`config.yaml`の`email.smtp_password`に設定
 
 ## トラブルシューティング
 
@@ -203,9 +215,11 @@ Gmailを使用する場合の手順:
 ## サポート
 
 問題が発生した場合は、GitHubのIssueで報告してください:
-https://github.com/Kento-E/wifi-client-notifier/issues
+
+<https://github.com/Kento-E/wifi-client-notifier/issues>
 
 以下の情報を含めてください:
+
 - 使用している検出方式（ARPスキャンまたはルータAPI）
 - WiFiルータのモデル名（ルータAPIモードの場合）
 - エラーメッセージやログ

@@ -44,10 +44,19 @@ email:
     - "notify_recipient@example.com"
   use_tls: true # TLS暗号化を使用するか
 
-# 監視対象デバイス（MACアドレスのリスト）
-# 空の場合は全ての新規接続を通知
-monitored_devices:
+# 再通知対象デバイス（MACアドレスのリスト）
+# ここに含めたMACアドレスだけは切断後の再接続でも通知対象にします
+repeat_notification_devices:
   - "AA:BB:CC:DD:EE:FF"
+
+# それ以外の端末を「未知の端末」として初回のみ通知するか
+# true の場合、repeat_notification_devices に含まれないMACは最初の1回だけ通知します
+notify_unknown_devices_once: true
+
+# 旧来の単純フィルタ設定
+# repeat_notification_devices / notify_unknown_devices_once を使わない場合のみ使用してください
+# monitored_devices:
+#   - "AA:BB:CC:DD:EE:FF"
 
 # チェック間隔（秒）
 check_interval: 60

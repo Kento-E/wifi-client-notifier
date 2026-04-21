@@ -44,7 +44,7 @@ wifi-client-notifier/
 - **ARPスキャン**によるローカルネットワーク上の接続端末の監視（Raspberry Pi向け）
 - ルータ管理APIを使用した接続端末の監視
 - 新規WiFi接続の検出とSMTPメール通知
-- 特定MACアドレスのフィルタリング（オプション）
+- 特定MACアドレスの再通知制御と未知端末の初回通知
 - ログ出力（ファイル＋コンソール）
 
 ## 検出方式
@@ -105,6 +105,12 @@ cp config/config.example.yaml config.yaml
 2. `config.yaml`を編集して、環境に合わせて設定してください。
 
 設定項目の詳細は `config/config.example.yaml` を参照してください。
+
+通知制御の主な設定:
+
+- `repeat_notification_devices`: この一覧に入れたMACアドレスだけ再通知対象にする
+- `notify_unknown_devices_once`: 上記以外の端末を「未知の端末」として初回のみ通知する
+- `monitored_devices`: 旧来の単純フィルタ設定。上記2項目を使わない場合のみ利用
 
 3. 設定をテスト:
 
@@ -255,6 +261,12 @@ sudo journalctl -u wifi-notifier -f
 - ログレベルを`DEBUG`に変更して詳細情報を取得
 - ARPスキャンモードの場合: サブネットが正しいか確認（自動検出または手動設定）
 - ルータAPIモードの場合: `get_connected_devices()`メソッドのカスタマイズが必要な場合があります
+
+### 再通知の条件を調整したい
+
+- `repeat_notification_devices` に再通知したいMACアドレスを設定
+- `notify_unknown_devices_once: true` で、それ以外を未知端末として初回のみ通知
+- `notification_cool_down_minutes` と `reconnect_notify_after_minutes` で再通知の間隔を調整
 
 ## 免責事項
 
