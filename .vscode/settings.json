@@ -76,7 +76,24 @@
       "approve": true,
       "matchCommandLine": true
     },
-    "shellcheck": true
+    "shellcheck": true,
+    "./.venv/bin/python": true,
+    "/^python3 -m pip install pre-commit && python3 -m pre_commit run --files docs/QUICKSTART\\.md \\.pre-commit-config\\.yaml config/config\\.yaml src/wifi_notifier\\.py README\\.md config/config\\.example\\.yaml$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^python3 -m pre_commit run --files docs/QUICKSTART\\.md \\.pre-commit-config\\.yaml config/config\\.yaml src/wifi_notifier\\.py README\\.md config/config\\.example\\.yaml$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "./.venv/bin/pre-commit": true,
+    "markdownlint-cli2": true,
+    "/^python3 -m pip list \\| grep -E \"markdownlint\\|pre-commit\"$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "npx markdownlint-cli2": true,
+    "./deployment/setup_raspberrypi.sh": true
   },
   "cSpell.words": ["raspberrypi"]
 }
