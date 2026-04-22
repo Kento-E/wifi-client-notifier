@@ -22,6 +22,16 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 from typing import Dict, List, Optional, Set
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+try:
+    from google.oauth2 import service_account
+    from googleapiclient.discovery import build
+    from googleapiclient.errors import HttpError
+except ImportError:
+    service_account = None
+    build = None
+    HttpError = None
 
 # 直接実行（python src/wifi_notifier.py）とモジュール実行（python -m src.wifi_notifier）の両方に対応
 try:
@@ -172,7 +182,10 @@ class EmailNotifier:
         self.use_tls = use_tls
 
     def send_notification(
-        self, device_info: Dict[str, str], is_unknown_device: bool = False
+        self,
+        device_info: Dict[str, str],
+        is_unknown_device: bool = False,
+        detected_at: Optional[float] = None,
     ) -> bool:
         """
         新しいデバイス接続についてメール通知を送信する。
@@ -191,7 +204,9 @@ class EmailNotifier:
             notification_subject = (
                 "未知の端末を検出" if is_unknown_device else "新しいWiFi接続を検出"
             )
-            msg["Subject"] = f"{notification_subject} - {device_info.get('mac', 'Unknown Device')}"
+            vendor = str(device_info.get("vendor", "")).strip()
+            subject_target = vendor or device_info.get("mac", "Unknown Device")
+            msg["Subject"] = f"{notification_subject} - {subject_target}"
 
             # メール本文を作成
             body = self._create_email_body(device_info, is_unknown_device=is_unknown_device)
@@ -230,6 +245,8 @@ class EmailNotifier:
         """
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         notification_type = "未知の端末（初回のみ通知）" if is_unknown_device else "新規WiFi接続"
+        vendor = str(device_info.get("vendor", "")).strip()
+        vendor_line = f"メーカー: {vendor}\n" if vendor else ""
 
         body = f"""
 WiFi接続が検出されました
@@ -240,12 +257,206 @@ WiFi接続が検出されました
 MACアドレス: {device_info.get('mac', 'Unknown')}
 IPアドレス: {device_info.get('ip', 'Unknown')}
 ホスト名: {device_info.get('hostname', 'Unknown')}
-メーカー: {device_info.get('vendor', 'Unknown')}
+{vendor_line}
 
 ---
 WiFi Client Notifier
 """
         return body.strip()
+
+
+class GoogleCalendarNotifier:
+    """Googleカレンダーへの予定登録通知を処理する。"""
+
+    SCOPE = "https://www.googleapis.com/auth/calendar.events"
+
+    def __init__(
+        self,
+        credentials_file: str,
+        calendar_id: str,
+        timezone_name: str = "Asia/Tokyo",
+        event_duration_minutes: int = 30,
+        summary_prefix: str = "WiFi接続検知",
+        max_retries: int = 3,
+        retry_delay_seconds: int = 3,
+        dedupe_window_minutes: int = 10,
+    ):
+        """
+        Googleカレンダー通知機能を初期化する。
+
+        Args:
+            credentials_file: サービスアカウントJSONのパス
+            calendar_id: 登録先カレンダーID
+            timezone_name: 予定登録に使用するタイムゾーン
+            event_duration_minutes: 登録予定の終了時刻（開始からの分）
+            summary_prefix: 予定タイトルの先頭文字列
+            max_retries: 登録失敗時の最大リトライ回数
+            retry_delay_seconds: リトライ間隔（秒）
+            dedupe_window_minutes: 重複確認時に検索する時間幅（分）
+        """
+        if service_account is None or build is None:
+            raise ImportError(
+                "Googleカレンダー機能を使うには google-auth と "
+                "google-api-python-client のインストールが必要です"
+            )
+
+        self.credentials_file = credentials_file
+        self.calendar_id = calendar_id
+        self.event_duration_minutes = max(1, int(event_duration_minutes))
+        self.summary_prefix = summary_prefix.strip() if summary_prefix else "WiFi接続検知"
+        self.max_retries = max(1, int(max_retries))
+        self.retry_delay_seconds = max(1, int(retry_delay_seconds))
+        self.dedupe_window_minutes = max(1, int(dedupe_window_minutes))
+
+        try:
+            self.timezone = ZoneInfo(timezone_name)
+        except ZoneInfoNotFoundError:
+            logging.warning(
+                "Googleカレンダー設定の timezone が不正のため UTC を使用します: %s",
+                timezone_name,
+            )
+            self.timezone = ZoneInfo("UTC")
+
+        credentials = service_account.Credentials.from_service_account_file(
+            self.credentials_file,
+            scopes=[self.SCOPE],
+        )
+        self.service = build("calendar", "v3", credentials=credentials, cache_discovery=False)
+
+    def send_notification(
+        self,
+        device_info: Dict[str, str],
+        is_unknown_device: bool = False,
+        detected_at: Optional[float] = None,
+    ) -> bool:
+        """検出デバイス情報をGoogleカレンダー予定として登録する。"""
+        detected_ts = detected_at if detected_at is not None else time.time()
+        started_at = datetime.fromtimestamp(detected_ts, tz=self.timezone)
+        ended_at = datetime.fromtimestamp(
+            detected_ts + (self.event_duration_minutes * 60),
+            tz=self.timezone,
+        )
+
+        dedupe_key = self._build_dedupe_key(device_info, is_unknown_device, detected_ts)
+        if self._event_already_exists(dedupe_key, started_at):
+            logging.info("Googleカレンダー登録をスキップ（重複検知）: %s", dedupe_key)
+            return True
+
+        event = {
+            "summary": self._build_summary(device_info, is_unknown_device),
+            "description": self._build_description(device_info, is_unknown_device, started_at),
+            "start": {
+                "dateTime": started_at.isoformat(),
+                "timeZone": str(self.timezone),
+            },
+            "end": {
+                "dateTime": ended_at.isoformat(),
+                "timeZone": str(self.timezone),
+            },
+            "extendedProperties": {
+                "private": {
+                    "wifi_notifier_key": dedupe_key,
+                }
+            },
+        }
+
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                self.service.events().insert(calendarId=self.calendar_id, body=event).execute()
+                logging.info("Googleカレンダーへ予定登録しました: %s", dedupe_key)
+                return True
+            except Exception as e:
+                if self._is_conflict_error(e):
+                    logging.info("Googleカレンダー登録は既存イベントと競合したため成功扱いにします")
+                    return True
+
+                if attempt >= self.max_retries:
+                    logging.error("Googleカレンダー登録に失敗しました（リトライ上限）: %s", e)
+                    return False
+
+                logging.warning(
+                    "Googleカレンダー登録に失敗したためリトライします " "(%s/%s): %s",
+                    attempt,
+                    self.max_retries,
+                    e,
+                )
+                time.sleep(self.retry_delay_seconds)
+
+        return False
+
+    def _event_already_exists(self, dedupe_key: str, started_at: datetime) -> bool:
+        """同一重複キーを持つ予定が既にあるか確認する。"""
+        time_min = datetime.fromtimestamp(
+            started_at.timestamp() - (self.dedupe_window_minutes * 60),
+            tz=self.timezone,
+        ).isoformat()
+        time_max = datetime.fromtimestamp(
+            started_at.timestamp() + (self.dedupe_window_minutes * 60),
+            tz=self.timezone,
+        ).isoformat()
+
+        try:
+            result = (
+                self.service.events()
+                .list(
+                    calendarId=self.calendar_id,
+                    timeMin=time_min,
+                    timeMax=time_max,
+                    singleEvents=True,
+                    maxResults=5,
+                    privateExtendedProperty=[f"wifi_notifier_key={dedupe_key}"],
+                )
+                .execute()
+            )
+            items = result.get("items", [])
+            return bool(items)
+        except Exception as e:
+            logging.warning("重複確認に失敗したため登録を継続します: %s", e)
+            return False
+
+    @staticmethod
+    def _is_conflict_error(error: Exception) -> bool:
+        """API競合エラー（409）を重複として判定する。"""
+        if HttpError is not None and isinstance(error, HttpError):
+            return getattr(error.resp, "status", None) == 409
+        return "409" in str(error)
+
+    def _build_summary(self, device_info: Dict[str, str], is_unknown_device: bool) -> str:
+        """予定タイトルを生成する。"""
+        mac = device_info.get("mac", "Unknown")
+        hostname = device_info.get("hostname", "Unknown")
+        prefix = "未知端末" if is_unknown_device else "端末接続"
+        return f"{self.summary_prefix}: {prefix} {hostname} ({mac})"
+
+    @staticmethod
+    def _build_description(
+        device_info: Dict[str, str],
+        is_unknown_device: bool,
+        started_at: datetime,
+    ) -> str:
+        """予定説明を生成する。"""
+        notification_type = "未知の端末（初回のみ通知）" if is_unknown_device else "新規WiFi接続"
+        return (
+            "WiFi接続通知\n\n"
+            f"通知種別: {notification_type}\n"
+            f"検出時刻: {started_at.strftime('%Y-%m-%d %H:%M:%S %Z')}\n"
+            f"MACアドレス: {device_info.get('mac', 'Unknown')}\n"
+            f"IPアドレス: {device_info.get('ip', 'Unknown')}\n"
+            f"ホスト名: {device_info.get('hostname', 'Unknown')}\n"
+            f"メーカー: {device_info.get('vendor', 'Unknown')}\n"
+        )
+
+    @staticmethod
+    def _build_dedupe_key(
+        device_info: Dict[str, str],
+        is_unknown_device: bool,
+        detected_ts: float,
+    ) -> str:
+        """1分単位で重複判定するためのキーを生成する。"""
+        bucket_minute = int(detected_ts // 60)
+        mac = device_info.get("mac", "unknown").lower()
+        event_type = "unknown" if is_unknown_device else "known"
+        return f"{event_type}:{mac}:{bucket_minute}"
 
 
 class WiFiMonitor:
@@ -259,10 +470,11 @@ class WiFiMonitor:
             config_path: 設定ファイルのパス
         """
         self.config = self._load_config(config_path)
+        self.config_dir = os.path.dirname(os.path.abspath(config_path))
         self._setup_logging()  # 他の処理の前にロギングを設定
         self.router: Optional[WiFiRouter] = None
         self.arp_scanner = None
-        self.notifier: Optional[EmailNotifier] = None
+        self.notifiers: List[object] = []
         self.known_devices: Set[str] = set()
         self.monitored_macs: Set[str] = set()
         self.repeat_notification_macs: Set[str] = set()
@@ -275,7 +487,15 @@ class WiFiMonitor:
         self.reconnect_notify_after_seconds: int = 3600
         self.notify_unknown_devices_once: bool = False
         self.branch_notification_mode_enabled: bool = False
-        self.state_file: str = self.config.get("state_file", DEFAULT_STATE_FILE)
+        configured_state_file = str(self.config.get("state_file", "")).strip()
+        if configured_state_file:
+            expanded_state_file = os.path.expanduser(configured_state_file)
+            if os.path.isabs(expanded_state_file):
+                self.state_file = expanded_state_file
+            else:
+                self.state_file = os.path.join(self.config_dir, expanded_state_file)
+        else:
+            self.state_file = os.path.join(self.config_dir, DEFAULT_STATE_FILE)
         self.state_loaded: bool = False
         self._initialize_components()
 
@@ -366,7 +586,7 @@ class WiFiMonitor:
 
         # メール通知を初期化
         email_config = self.config["email"]
-        self.notifier = EmailNotifier(
+        email_notifier = EmailNotifier(
             email_config["smtp_server"],
             email_config["smtp_port"],
             email_config["smtp_user"],
@@ -375,6 +595,52 @@ class WiFiMonitor:
             email_config["recipient_emails"],
             email_config.get("use_tls", True),
         )
+        self.notifiers = [email_notifier]
+
+        # Googleカレンダー通知を初期化（有効時のみ）
+        calendar_config = self.config.get("google_calendar", {})
+        if not isinstance(calendar_config, dict):
+            calendar_config = {}
+
+        calendar_enabled = self._parse_bool_config(calendar_config.get("enabled"), default=False)
+        if calendar_enabled:
+            credentials_file_env = calendar_config.get("credentials_file_env")
+            credentials_file = calendar_config.get("credentials_file", "")
+
+            if credentials_file_env and isinstance(credentials_file_env, str):
+                credentials_file = os.getenv(credentials_file_env, credentials_file)
+
+            credentials_file = os.path.expanduser(str(credentials_file).strip())
+            calendar_id = str(calendar_config.get("calendar_id", "")).strip()
+
+            if not credentials_file:
+                raise ValueError(
+                    "google_calendar.enabled が true の場合は credentials_file "
+                    "または credentials_file_env を設定してください"
+                )
+            if not os.path.exists(credentials_file):
+                raise FileNotFoundError(
+                    f"GoogleサービスアカウントJSONが見つかりません: {credentials_file}"
+                )
+            if not calendar_id:
+                raise ValueError(
+                    "google_calendar.enabled が true の場合は calendar_id を設定してください"
+                )
+
+            calendar_notifier = GoogleCalendarNotifier(
+                credentials_file=credentials_file,
+                calendar_id=calendar_id,
+                timezone_name=calendar_config.get("timezone", "Asia/Tokyo"),
+                event_duration_minutes=calendar_config.get("event_duration_minutes", 30),
+                summary_prefix=calendar_config.get("summary_prefix", "WiFi接続検知"),
+                max_retries=calendar_config.get("max_retries", 3),
+                retry_delay_seconds=calendar_config.get("retry_delay_seconds", 3),
+                dedupe_window_minutes=calendar_config.get("dedupe_window_minutes", 10),
+            )
+            self.notifiers.append(calendar_notifier)
+            logging.info("Googleカレンダー通知: 有効（カレンダーID: %s）", calendar_id)
+        else:
+            logging.info("Googleカレンダー通知: 無効")
 
         # 監視対象デバイスを読み込む（指定されている場合）
         monitored_devices = self.config.get("monitored_devices", [])
@@ -701,18 +967,21 @@ class WiFiMonitor:
                 )
 
                 if device_info:
+                    detected_at = time.time()
                     # このデバイスについて通知すべきかチェック
                     should_notify, is_unknown_device = self._should_notify_device(mac)
 
                     if should_notify:
                         if is_unknown_device:
                             logging.info("未知の端末を初回検出しました: %s", mac)
-                            sent = self.notifier.send_notification(
-                                device_info, is_unknown_device=True
+                            sent = self._send_notifications(
+                                device_info,
+                                is_unknown_device=True,
+                                detected_at=detected_at,
                             )
                             if sent:
                                 self.unknown_notified_macs.add(mac)
-                                self.last_notified_at[mac] = time.time()
+                                self.last_notified_at[mac] = detected_at
                         else:
                             # 切断からの経過時間を確認（再接続強制通知の判定）
                             disconnected_since = self.disconnected_at.get(mac)
@@ -743,9 +1012,12 @@ class WiFiMonitor:
                                     )
                                 else:
                                     logging.info(f"新しいデバイスを検出しました: {mac}")
-                                sent = self.notifier.send_notification(device_info)
+                                sent = self._send_notifications(
+                                    device_info,
+                                    detected_at=detected_at,
+                                )
                                 if sent:
-                                    self.last_notified_at[mac] = time.time()
+                                    self.last_notified_at[mac] = detected_at
                     else:
                         if (
                             self.branch_notification_mode_enabled
@@ -790,6 +1062,46 @@ class WiFiMonitor:
 
         except Exception as e:
             logging.error(f"新しいデバイスのチェック中にエラーが発生しました: {e}")
+
+    def _send_notifications(
+        self,
+        device_info: Dict[str, str],
+        is_unknown_device: bool = False,
+        detected_at: Optional[float] = None,
+    ) -> bool:
+        """有効な通知チャネルへ順番に通知し、1つでも成功したらTrueを返す。"""
+        if not self.notifiers:
+            logging.error("通知チャネルが設定されていません")
+            return False
+
+        success_count = 0
+        for notifier in self.notifiers:
+            notifier_name = notifier.__class__.__name__
+            try:
+                sent = notifier.send_notification(
+                    device_info,
+                    is_unknown_device=is_unknown_device,
+                    detected_at=detected_at,
+                )
+                if sent:
+                    success_count += 1
+                else:
+                    logging.warning("通知チャネルの送信に失敗しました: %s", notifier_name)
+            except Exception as e:
+                logging.error("通知チャネル処理で例外が発生しました: %s (%s)", notifier_name, e)
+
+        if success_count == len(self.notifiers):
+            return True
+
+        if success_count > 0:
+            logging.warning(
+                "一部の通知チャネルで失敗しました（成功: %s / 全体: %s）",
+                success_count,
+                len(self.notifiers),
+            )
+            return True
+
+        return False
 
     def _get_notification_cooldown_remaining(self, mac: str) -> int:
         """同一MACへの再通知クールダウン残秒数を返す。"""
