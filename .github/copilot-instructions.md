@@ -10,9 +10,12 @@ GitHub Copilotに対する明確な指示を提供します。
 
 ### 用途別指示書
 
-- [`instructions/code-review.instructions.md`](instructions/code-review.instructions.md) - コードレビュー時の指示
-- [`instructions/pull-request.instructions.md`](instructions/pull-request.instructions.md) - Pull Request作成・管理時の指示
-- [`instructions/issue.instructions.md`](instructions/issue.instructions.md) - Issue作成・管理時の指示
+- [`instructions/code-review.instructions.md`](instructions/code-review.instructions.md)
+  コードレビュー時の指示
+- [`instructions/pull-request.instructions.md`](instructions/pull-request.instructions.md)
+  Pull Request作成・管理時の指示
+- [`instructions/issue.instructions.md`](instructions/issue.instructions.md)
+  Issue作成・管理時の指示
 
 ### 出力言語ルール
 
@@ -50,7 +53,7 @@ GitHub Copilotに対する明確な指示を提供します。
 
 良い例：
 
-```
+```text
 WiFi接続監視機能を追加
 
 - 新規接続デバイスの検出機能を実装
@@ -60,7 +63,7 @@ WiFi接続監視機能を追加
 
 悪い例（英語）：
 
-```
+```text
 Add WiFi monitoring feature
 
 - Implement new device detection
@@ -126,6 +129,9 @@ WiFiルータの接続監視とメール通知機能を実装しました。
 Pythonコードを変更した場合、コミット前に以下を実行：
 
 ```bash
+# pre-commit（Markdown含む全チェック）
+pre-commit run --all-files
+
 # コードを自動整形
 black src/
 
