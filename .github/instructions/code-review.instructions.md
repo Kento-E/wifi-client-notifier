@@ -2,9 +2,9 @@
 
 **すべてのコードレビューコメントは日本語で出力してください。**
 
-### コメント形式
+## コメント形式
 
-#### 良い例（日本語）
+### 良い例（日本語）
 
 ```markdown
 **提案**: この関数ではエラーハンドリングが不足しています。
@@ -13,16 +13,16 @@
 
 \`\`\`python
 try:
-    response = requests.get(url)
+response = requests.get(url)
 except requests.exceptions.ConnectionError as e:
-    logging.error(f"接続エラー: {e}")
-    return None
+logging.error(f"接続エラー: {e}")
+return None
 \`\`\`
 
 これにより、ユーザーに適切なエラーメッセージを表示できます。
 ```
 
-#### 悪い例（英語）
+### 悪い例（英語）
 
 ```markdown
 **Suggestion**: This function lacks error handling.
@@ -31,10 +31,10 @@ Consider adding error handling for network connection errors:
 
 \`\`\`python
 try:
-    response = requests.get(url)
+response = requests.get(url)
 except requests.exceptions.ConnectionError as e:
-    logging.error(f"Connection error: {e}")
-    return None
+logging.error(f"Connection error: {e}")
+return None
 \`\`\`
 ```
 

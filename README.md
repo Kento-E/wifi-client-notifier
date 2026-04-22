@@ -16,7 +16,7 @@ Wi-Fi接続検知ツール
 
 ## プロジェクト構成
 
-```
+```text
 wifi-client-notifier/
 ├── src/                      # ソースコード
 │   ├── wifi_notifier.py      # メイン監視スクリプト
@@ -50,10 +50,10 @@ wifi-client-notifier/
 
 ## 検出方式
 
-| 方式          | 説明                                      | 必要なもの                                                       |
-| ------------- | ----------------------------------------- | ---------------------------------------------------------------- |
-| `arp`（推奨） | ARPスキャンによるローカルネットワーク監視 | root権限（直接実行時）またはCAP_NET_RAWケーパビリティ（systemd） |
-| `router`      | ルータ管理APIを使用した接続監視           | ルータの管理者パスワード                                         |
+- `arp`（推奨）: ARPスキャンによるローカルネットワーク監視。
+    必要なものは root権限（直接実行時）またはCAP_NET_RAWケーパビリティ（systemd）。
+- `router`: ルータ管理APIを使用した接続監視。
+    必要なものはルータの管理者パスワード。
 
 `config.yaml` の `detection_method` で切り替えられます。
 
@@ -62,7 +62,9 @@ wifi-client-notifier/
 - Python 3.11以上
 - SMTPサーバーへのアクセス（Gmail、独自SMTPサーバーなど）
 - Googleカレンダー通知を使う場合: サービスアカウントJSON、対象カレンダーの共有設定
-- **ARPスキャンモード**: root権限（直接実行時は`sudo`）またはCAP_NET_RAWケーパビリティ（systemd）、scapy（`pip install scapy`）
+- **ARPスキャンモード**:
+    root権限（直接実行時は`sudo`）またはCAP_NET_RAWケーパビリティ（systemd）、
+    scapy（`pip install scapy`）
 - **ルータAPIモード**: WiFiルータへのアクセス権限（管理者ユーザー名とパスワード）
 
 ## インストール
@@ -74,13 +76,13 @@ git clone https://github.com/Kento-E/wifi-client-notifier.git
 cd wifi-client-notifier
 ```
 
-2. 依存パッケージをインストール:
+1. 依存パッケージをインストール:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-3. （開発者向け）コード品質チェックを有効化:
+1. （開発者向け）コード品質チェックを有効化:
 
 ```bash
 # コミット時に自動で black / flake8 を実行
@@ -91,7 +93,8 @@ black src/ scripts/
 flake8 src/ scripts/
 ```
 
-本リポジトリでは、Pythonコードの整形を `black`、静的チェックを `flake8` で統一しています。
+本リポジトリでは、Pythonコードの整形を `black`、
+静的チェックを `flake8` で統一しています。
 Pull RequestではCIで同チェックを必須として実行します。
 
 **開発環境のセットアップ**: コードの修正や機能追加を行う場合は、[deployment/README.md](deployment/README.md) を参照してください。
@@ -104,7 +107,7 @@ Pull RequestではCIで同チェックを必須として実行します。
 cp config/config.example.yaml config.yaml
 ```
 
-2. `config.yaml`を編集して、環境に合わせて設定してください。
+1. `config.yaml`を編集して、環境に合わせて設定してください。
 
 設定項目の詳細は `config/config.example.yaml` を参照してください。
 
@@ -117,12 +120,13 @@ cp config/config.example.yaml config.yaml
 Googleカレンダー通知の主な設定（任意）:
 
 - `google_calendar.enabled`: `true` で有効化
-- `google_calendar.credentials_file` または `google_calendar.credentials_file_env`: サービスアカウントJSONの配置先
+- `google_calendar.credentials_file` または
+    `google_calendar.credentials_file_env`: サービスアカウントJSONの配置先
 - `google_calendar.calendar_id`: 登録先カレンダーID（専用カレンダー推奨）
 - `google_calendar.max_retries` / `retry_delay_seconds`: API失敗時のリトライ制御
 - `google_calendar.dedupe_window_minutes`: 重複登録防止の検索時間幅
 
-3. 設定をテスト:
+1. 設定をテスト:
 
 ```bash
 # ARPスキャンモードの場合はsudoが必要
@@ -141,8 +145,8 @@ sudo python src/test_config.py config.yaml
 Gmailを使用する場合：
 
 1. Googleアカウントで2段階認証を有効化
-2. アプリパスワードを生成（<https://myaccount.google.com/apppasswords）>
-3. 生成したアプリパスワードを`smtp_password`に設定
+1. アプリパスワードを生成（<https://myaccount.google.com/apppasswords）>
+1. 生成したアプリパスワードを`smtp_password`に設定
 
 ## 使用方法
 
@@ -167,25 +171,25 @@ sudo nohup python src/wifi_notifier.py config.yaml &
 
 1. config.yamlを作成して設定を入力
 
-2. Dockerイメージをビルド:
+1. Dockerイメージをビルド:
 
 ```bash
 docker-compose build
 ```
 
-3. コンテナを起動:
+1. コンテナを起動:
 
 ```bash
 docker-compose up -d
 ```
 
-4. ログを確認:
+1. ログを確認:
 
 ```bash
 docker-compose logs -f
 ```
 
-5. コンテナを停止:
+1. コンテナを停止:
 
 ```bash
 docker-compose down
@@ -205,13 +209,13 @@ ARPスキャンモードでは `AmbientCapabilities=CAP_NET_RAW` が設定済み
 
 `ExecStart` は仮想環境の Python と `config/config.yaml` を指すように設定してください。
 
-2. サービスファイルをコピー:
+1. サービスファイルをコピー:
 
 ```bash
 sudo cp config/wifi-notifier.service /etc/systemd/system/
 ```
 
-3. サービスを有効化して起動:
+1. サービスを有効化して起動:
 
 ```bash
 sudo systemctl daemon-reload
@@ -220,7 +224,7 @@ sudo systemctl start wifi-notifier
 sudo systemctl status wifi-notifier
 ```
 
-4. ログを確認:
+1. ログを確認:
 
 ```bash
 sudo journalctl -u wifi-notifier -f

@@ -10,6 +10,7 @@ WiFiルータは様々なモデルがあり、それぞれ管理画面のイン�
 ## カスタマイズが必要な場合
 
 以下のような場合、カスタマイズが必要です：
+
 - ルータへのログインが失敗する
 - デバイスリストが取得できない
 - 空のデバイスリストが返される
@@ -199,6 +200,7 @@ def parse_wireless_lan_status(html_content: str) -> List[Dict[str, str]]:
 ### 1. ログレベルをDEBUGに設定
 
 `config.yaml`:
+
 ```yaml
 log_level: "DEBUG"
 ```

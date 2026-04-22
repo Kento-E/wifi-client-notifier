@@ -2,16 +2,18 @@
 
 **すべてのIssue関連の出力は日本語で記述してください。**
 
-### Issueタイトル
+## Issueタイトル
 
 具体的で内容がわかる日本語タイトルを使用：
 
 良い例：
+
 - `WG2600HP4でログインに失敗する`
 - `Gmail送信時にSMTPエラーが発生`
 - `デバイスリストが空で返される`
 
 悪い例（英語）：
+
 - `Login fails on WG2600HP4`
 - `SMTP error when using Gmail`
 - `Device list returns empty`
@@ -32,7 +34,7 @@ GitHubでIssueを作成する際、以下のテンプレートが利用可能で
 
 #### バグ報告の例
 
-```markdown
+````markdown
 ## 問題の説明
 
 WG2600HP4ルータでログインに失敗します。
@@ -50,7 +52,8 @@ WG2600HP4ルータでログインに失敗します。
 ## 実際の動作
 
 ログインに失敗し、以下のエラーが表示されます：
-```
+
+```text
 ERROR - Login failed: 401 Unauthorized
 ```
 
@@ -63,7 +66,7 @@ ERROR - Login failed: 401 Unauthorized
 
 ## エラーログ
 
-```
+```text
 2025-12-30 15:00:00 - ERROR - Login failed: 401 Unauthorized
 2025-12-30 15:00:00 - ERROR - Failed to get device list
 ```
@@ -71,7 +74,7 @@ ERROR - Login failed: 401 Unauthorized
 ## 追加情報
 
 ブラウザからは同じ認証情報で正常にログインできます。
-```
+````
 
 #### 機能リクエストの例
 
@@ -102,8 +105,6 @@ Webhook経由で外部サービスに通知する汎用的な機能を実装す�
 ```
 
 ### Issueコメント
-
-Issueへのコメントも日本語で記述：
 
 ```markdown
 このエラーは、ルータモデルによって認証方法が異なることが原因です。
