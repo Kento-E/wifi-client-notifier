@@ -6,6 +6,7 @@
 
 - Python 3.11以上がインストールされている
 - メール送信用のSMTPサーバーアクセス（Gmailなど）
+- Googleカレンダー通知を使う場合: サービスアカウントJSONと対象カレンダー共有
 - **ARPスキャンモード（推奨）**: root権限（直接実行時は`sudo`）、またはsystemdの`CAP_NET_RAW`設定
 - **ルータAPIモード**: WiFiルータの管理者権限（ユーザー名とパスワード）
 
@@ -88,6 +89,21 @@ email:
 - `notify_unknown_devices_once`: 上記以外の端末を未知端末として初回のみ通知する
 - `monitored_devices`: 旧来の単純フィルタ設定（新しい通知分岐を使わない場合のみ）
 - `check_interval`: チェック間隔（秒）、デフォルトは60秒
+
+Googleカレンダー通知を有効化する場合は、以下を追加します。
+
+```yaml
+google_calendar:
+  enabled: true
+  credentials_file: "/home/pi/secrets/google-service-account.json"
+  calendar_id: "wifi-notifier@example.com"
+  timezone: "Asia/Tokyo"
+  max_retries: 3
+  retry_delay_seconds: 3
+  dedupe_window_minutes: 10
+```
+
+サービスアカウントをGoogle Cloudで作成し、対象カレンダーをそのサービスアカウントへ共有してください。
 
 ### ステップ4: 設定をテスト
 
@@ -199,6 +215,12 @@ Gmailを使用する場合の手順:
 1. SMTP設定を再確認
 2. Gmailの場合、アプリパスワードを使用しているか確認
 3. ファイアウォール設定を確認
+
+### Googleカレンダーへ登録できない
+
+1. サービスアカウントJSONのパスを再確認
+2. カレンダー共有先にサービスアカウントのメールアドレスを追加
+3. `google_calendar.calendar_id` が対象カレンダーIDと一致しているか確認
 
 ### デバイスが検出されない
 

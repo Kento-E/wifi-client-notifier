@@ -44,6 +44,37 @@ email:
     - "notify_recipient@example.com"
   use_tls: true # TLS暗号化を使用するか
 
+# Googleカレンダー通知設定（任意）
+# サービスアカウントを作成し、対象カレンダーをそのサービスアカウントへ共有してください
+google_calendar:
+  enabled: false
+
+  # サービスアカウントJSONのパス（credentials_file_env が未指定の場合に使用）
+  # credentials_file: "/home/pi/secrets/google-service-account.json"
+
+  # 認証ファイルパスを環境変数から読む場合に指定
+  # credentials_file_env: "GOOGLE_CALENDAR_CREDENTIALS_FILE"
+
+  # 予定を登録するカレンダーID（専用カレンダー推奨）
+  # 例: "wifi-notifier@example.com"
+  calendar_id: ""
+
+  # 予定登録時のタイムゾーン
+  timezone: "Asia/Tokyo"
+
+  # 予定タイトルの先頭文字列
+  summary_prefix: "WiFi接続検知"
+
+  # 1件の予定の長さ（分）
+  event_duration_minutes: 30
+
+  # API失敗時のリトライ設定
+  max_retries: 3
+  retry_delay_seconds: 3
+
+  # 重複判定時に検索する前後時間幅（分）
+  dedupe_window_minutes: 10
+
 # 再通知対象デバイス（MACアドレスのリスト）
 # ここに含めたMACアドレスだけは切断後の再接続でも通知対象にします
 repeat_notification_devices:

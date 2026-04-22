@@ -44,6 +44,7 @@ wifi-client-notifier/
 - **ARPスキャン**によるローカルネットワーク上の接続端末の監視（Raspberry Pi向け）
 - ルータ管理APIを使用した接続端末の監視
 - 新規WiFi接続の検出とSMTPメール通知
+- Googleカレンダーへの予定自動登録通知（任意）
 - 特定MACアドレスの再通知制御と未知端末の初回通知
 - ログ出力（ファイル＋コンソール）
 
@@ -60,6 +61,7 @@ wifi-client-notifier/
 
 - Python 3.11以上
 - SMTPサーバーへのアクセス（Gmail、独自SMTPサーバーなど）
+- Googleカレンダー通知を使う場合: サービスアカウントJSON、対象カレンダーの共有設定
 - **ARPスキャンモード**: root権限（直接実行時は`sudo`）またはCAP_NET_RAWケーパビリティ（systemd）、scapy（`pip install scapy`）
 - **ルータAPIモード**: WiFiルータへのアクセス権限（管理者ユーザー名とパスワード）
 
@@ -111,6 +113,14 @@ cp config/config.example.yaml config.yaml
 - `repeat_notification_devices`: この一覧に入れたMACアドレスだけ再通知対象にする
 - `notify_unknown_devices_once`: 上記以外の端末を「未知の端末」として初回のみ通知する
 - `monitored_devices`: 旧来の単純フィルタ設定。上記2項目を使わない場合のみ利用
+
+Googleカレンダー通知の主な設定（任意）:
+
+- `google_calendar.enabled`: `true` で有効化
+- `google_calendar.credentials_file` または `google_calendar.credentials_file_env`: サービスアカウントJSONの配置先
+- `google_calendar.calendar_id`: 登録先カレンダーID（専用カレンダー推奨）
+- `google_calendar.max_retries` / `retry_delay_seconds`: API失敗時のリトライ制御
+- `google_calendar.dedupe_window_minutes`: 重複登録防止の検索時間幅
 
 3. 設定をテスト:
 
@@ -254,6 +264,12 @@ sudo journalctl -u wifi-notifier -f
 - SMTP設定を確認
 - Gmailの場合、アプリパスワードを使用しているか確認
 - ファイアウォールでSMTPポートが許可されているか確認
+
+### Googleカレンダーへ登録できない
+
+- サービスアカウントJSONのパスが正しいか確認
+- 登録先カレンダーをサービスアカウントへ共有済みか確認
+- `google_calendar.calendar_id` が対象カレンダーIDと一致するか確認
 
 ### デバイスが検出されない
 
