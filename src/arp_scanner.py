@@ -9,8 +9,11 @@ scapyライブラリを使用し、root権限またはCAP_NET_RAWケーパビリ
 
 import logging
 import os
+import glob
+import re
 import socket
-from typing import Dict, List, Optional
+import subprocess
+from typing import Dict, List, Optional, Tuple
 
 try:
     from scapy.all import ARP, Ether, srp  # type: ignore
@@ -198,21 +201,62 @@ class ARPScanner:
             answered_list, _ = srp(arp_request_broadcast, **kwargs)
 
             devices = []
+            dhcp_hostname_map = self._load_dhcp_hostname_map()
             for _, received in answered_list:
                 mac = received.hwsrc.upper()
                 ip = received.psrc
                 hostname = self._resolve_hostname(ip)
                 vendor = self._lookup_vendor(mac)
+                dhcp_hostname = self._lookup_dhcp_hostname(mac, ip, dhcp_hostname_map)
+                mdns_name = self._resolve_mdns_name(ip, fallback_hostname=hostname)
+                netbios_name = self._resolve_netbios_name(ip)
+                device_type, os_guess = self._guess_device_profile(
+                    hostname=hostname,
+                    vendor=vendor,
+                    dhcp_hostname=dhcp_hostname,
+                    mdns_name=mdns_name,
+                    netbios_name=netbios_name,
+                )
+                fingerprint = self._build_fingerprint(
+                    vendor=vendor,
+                    hostname=hostname,
+                    dhcp_hostname=dhcp_hostname,
+                    mdns_name=mdns_name,
+                    netbios_name=netbios_name,
+                    device_type=device_type,
+                    os_guess=os_guess,
+                )
                 devices.append(
                     {
                         "mac": mac,
                         "ip": ip,
                         "hostname": hostname,
                         "vendor": vendor,
+                        "dhcp_hostname": dhcp_hostname,
+                        "mdns_name": mdns_name,
+                        "netbios_name": netbios_name,
+                        # ARP方式では接続品質情報は取得元がないため空で返す
+                        "connection_band": "",
+                        "rssi": "",
+                        "bssid": "",
+                        "connection_time": "",
+                        "device_type": device_type,
+                        "os_guess": os_guess,
+                        "fingerprint": fingerprint,
                     }
                 )
                 logging.debug(
-                    f"デバイス検出: MAC={mac}, IP={ip}, hostname={hostname}, vendor={vendor}"
+                    "デバイス検出: MAC=%s, IP=%s, hostname=%s, vendor=%s, "
+                    "dhcp=%s, mdns=%s, netbios=%s, type=%s, os=%s",
+                    mac,
+                    ip,
+                    hostname,
+                    vendor,
+                    dhcp_hostname,
+                    mdns_name,
+                    netbios_name,
+                    device_type,
+                    os_guess,
                 )
 
             logging.info(f"ARPスキャン完了: {len(devices)}台のデバイスを検出しました")
@@ -275,3 +319,156 @@ class ARPScanner:
             return self._mac_lookup.lookup(mac)
         except Exception:
             return ""
+
+    @staticmethod
+    def _load_dhcp_hostname_map() -> Dict[str, str]:
+        """ローカルDHCPリース情報から MAC/IP -> ホスト名の対応表を作成する。"""
+        result: Dict[str, str] = {}
+        candidates: List[str] = []
+        for pattern in (
+            "/var/lib/misc/dnsmasq.leases",
+            "/var/lib/NetworkManager/dnsmasq-*.leases",
+            "/var/lib/NetworkManager/dnsmasq.leases",
+        ):
+            candidates.extend(glob.glob(pattern))
+
+        for lease_file in candidates:
+            try:
+                with open(lease_file, "r", encoding="utf-8", errors="ignore") as f:
+                    for line in f:
+                        parts = line.strip().split()
+                        if len(parts) < 4:
+                            continue
+                        # dnsmasq形式: <expiry> <mac> <ip> <hostname> <client-id>
+                        mac = parts[1].strip().lower()
+                        ip = parts[2].strip()
+                        hostname = parts[3].strip()
+                        if hostname in {"*", "-", ""}:
+                            continue
+                        if mac:
+                            result[f"mac:{mac}"] = hostname
+                        if ip:
+                            result[f"ip:{ip}"] = hostname
+            except OSError:
+                continue
+
+        return result
+
+    @staticmethod
+    def _lookup_dhcp_hostname(mac: str, ip: str, dhcp_hostname_map: Dict[str, str]) -> str:
+        """DHCPリース情報からホスト名を取得する。"""
+        mac_key = f"mac:{mac.lower()}"
+        ip_key = f"ip:{ip}"
+        return dhcp_hostname_map.get(mac_key, dhcp_hostname_map.get(ip_key, ""))
+
+    @staticmethod
+    def _run_command(command: List[str], timeout: float = 1.5) -> str:
+        """外部コマンドを短時間実行し、標準出力を返す。"""
+        try:
+            completed = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
+            )
+            if completed.returncode != 0:
+                return ""
+            return completed.stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            return ""
+
+    def _resolve_mdns_name(self, ip: str, fallback_hostname: str = "") -> str:
+        """mDNS名を推定して返す。"""
+        if fallback_hostname.endswith(".local"):
+            return fallback_hostname
+
+        output = self._run_command(["avahi-resolve-address", ip])
+        if output:
+            # 例: "192.168.10.20\thostname.local"
+            parts = output.split()
+            candidate = parts[-1] if parts else ""
+            if candidate.endswith(".local"):
+                return candidate
+
+        return ""
+
+    def _resolve_netbios_name(self, ip: str) -> str:
+        """NetBIOS名を取得する。取得不可時は空文字。"""
+        output = self._run_command(["nmblookup", "-A", ip])
+        if not output:
+            return ""
+
+        for line in output.splitlines():
+            # 例: "MYPC           <00> -         B <ACTIVE>"
+            match = re.match(r"^\s*([^<\s][^<]*)\s+<00>\s+-.*<ACTIVE>", line)
+            if match:
+                name = match.group(1).strip()
+                if name:
+                    return name
+
+        return ""
+
+    @staticmethod
+    def _guess_device_profile(
+        hostname: str,
+        vendor: str,
+        dhcp_hostname: str,
+        mdns_name: str,
+        netbios_name: str,
+    ) -> Tuple[str, str]:
+        """端末種別とOS推定をベストエフォートで返す。"""
+        combined = " ".join([hostname, vendor, dhcp_hostname, mdns_name, netbios_name]).lower()
+
+        if any(keyword in combined for keyword in ("iphone", "ipad", "ios", "apple")):
+            return "スマートフォン/タブレット", "iOS/iPadOS"
+        if any(keyword in combined for keyword in ("macbook", "imac", "mac mini", "macos")):
+            return "PC", "macOS"
+        if any(keyword in combined for keyword in ("android", "pixel", "galaxy", "xperia")):
+            return "スマートフォン/タブレット", "Android"
+        if any(keyword in combined for keyword in ("windows", "desktop-", "laptop-", "win")):
+            return "PC", "Windows"
+        if any(keyword in combined for keyword in ("playstation", "ps5", "ps4", "nintendo")):
+            return "ゲーム機", "専用OS"
+        if any(
+            keyword in combined for keyword in ("tv", "bravia", "regza", "fire tv", "chromecast")
+        ):
+            return "家電/AV機器", "組み込みOS"
+
+        if vendor:
+            return "不明", "不明"
+        return "", ""
+
+    @staticmethod
+    def _build_fingerprint(
+        vendor: str,
+        hostname: str,
+        dhcp_hostname: str,
+        mdns_name: str,
+        netbios_name: str,
+        device_type: str,
+        os_guess: str,
+    ) -> str:
+        """OUI以外の識別に使える情報を要約した文字列を返す。"""
+        items = [
+            vendor,
+            dhcp_hostname,
+            mdns_name,
+            netbios_name,
+            hostname,
+            device_type,
+            os_guess,
+        ]
+        normalized = []
+        seen = set()
+        for item in items:
+            value = str(item).strip()
+            if not value:
+                continue
+            key = value.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            normalized.append(value)
+
+        return " | ".join(normalized)

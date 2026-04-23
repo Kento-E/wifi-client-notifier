@@ -248,6 +248,28 @@ class EmailNotifier:
         vendor = str(device_info.get("vendor", "")).strip()
         vendor_line = f"メーカー: {vendor}\n" if vendor else ""
 
+        additional_lines = []
+        field_labels = [
+            ("dhcp_hostname", "DHCPホスト名"),
+            ("mdns_name", "mDNS名"),
+            ("netbios_name", "NetBIOS名"),
+            ("connection_band", "接続バンド"),
+            ("rssi", "RSSI"),
+            ("bssid", "BSSID"),
+            ("connection_time", "接続時間"),
+            ("device_type", "端末種別"),
+            ("os_guess", "OS推定"),
+            ("fingerprint", "指紋情報"),
+        ]
+        for field_key, label in field_labels:
+            value = str(device_info.get(field_key, "")).strip()
+            if value:
+                additional_lines.append(f"{label}: {value}")
+
+        additional_info = "\n".join(additional_lines)
+        if additional_info:
+            additional_info = f"{additional_info}\n"
+
         body = f"""
 WiFi接続が検出されました
 
@@ -258,6 +280,7 @@ MACアドレス: {device_info.get('mac', 'Unknown')}
 IPアドレス: {device_info.get('ip', 'Unknown')}
 ホスト名: {device_info.get('hostname', 'Unknown')}
 {vendor_line}
+{additional_info}
 
 ---
 WiFi Client Notifier
