@@ -10,476 +10,25 @@ WiFi接続通知ツール
   - "router" : ルータ管理画面のAPIを使用した接続監視
 """
 
-import requests
 import time
-import smtplib
-import json
 import os
 import tempfile
 import yaml
 import logging
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from datetime import datetime
+import sys
+import json
 from typing import Dict, List, Optional, Set
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-try:
-    from google.oauth2 import service_account
-    from googleapiclient.discovery import build
-    from googleapiclient.errors import HttpError
-except ImportError:
-    service_account = None
-    build = None
-    HttpError = None
-
-# 直接実行（python src/wifi_notifier.py）とモジュール実行（python -m src.wifi_notifier）の両方に対応
 try:
     from src.html_parser import parse_wireless_lan_status, extract_devices_from_json
     from src.constants import DEFAULT_STATE_FILE
+    from src.router import WiFiRouter
+    from src.notifiers import EmailNotifier, GoogleCalendarNotifier
 except ModuleNotFoundError:
     from html_parser import parse_wireless_lan_status, extract_devices_from_json
     from constants import DEFAULT_STATE_FILE
-
-
-class WiFiRouter:
-    """WiFiルータと通信するためのインターフェース。"""
-
-    def __init__(self, router_ip: str, username: str, password: str):
-        """
-        ルータ接続を初期化する。
-
-        Args:
-            router_ip: ルータのIPアドレス
-            username: 管理者ユーザー名
-            password: 管理者パスワード
-        """
-        self.router_ip = router_ip
-        self.username = username
-        self.password = password
-        self.session = requests.Session()
-        self.base_url = f"http://{router_ip}"
-
-    def login(self) -> bool:
-        """
-        ルータにログインする（Basic認証）。
-
-        Returns:
-            ログイン成功時はTrue、失敗時はFalse
-        """
-        try:
-            # 注記: これは汎用的なBasic認証の実装です
-            # 実際のWiFiルータはモデルによって異なる認証方法が必要な場合があります
-            # ユーザーは特定のルータモデルに合わせてカスタマイズする必要があります
-            # SHA-256ハッシュなど他の認証方法についてはCUSTOMIZATION.mdを参照してください
-
-            from requests.auth import HTTPBasicAuth
-
-            # Basic認証を設定
-            self.session.auth = HTTPBasicAuth(self.username, self.password)
-
-            # 認証が必要なページにアクセスして確認
-            response = self.session.get(f"{self.base_url}/index.html", timeout=10)
-            return response.status_code == 200
-
-        except Exception as e:
-            logging.error(f"Login failed: {e}")
-            return False
-
-    def get_connected_devices(self) -> List[Dict[str, str]]:
-        """
-        現在接続中のWiFiデバイスのリストを取得する。
-
-        Returns:
-            デバイス情報を含む辞書のリスト
-            各辞書には 'mac', 'ip', 'hostname' キーが含まれます
-        """
-        try:
-            # 注記: 実際のエンドポイントはルータモデルによって異なります
-            # 一般的なエンドポイント: /wlmaclist.cgi, /index.cgi/wireless_status
-            # ユーザーは特定のモデルに合わせてカスタマイズする必要があります
-
-            devices_url = f"{self.base_url}/index.cgi/wireless_client_list"
-            response = self.session.get(devices_url, timeout=10)
-
-            if response.status_code != 200:
-                logging.warning(f"Failed to get device list: {response.status_code}")
-                return []
-
-            # レスポンスを解析 - ルータモデルによって異なります
-            # これはプレースホルダー実装です
-            devices = self._parse_device_list(response.text)
-            return devices
-
-        except Exception as e:
-            logging.error(f"Error getting connected devices: {e}")
-            return []
-
-    def _parse_device_list(self, html_content: str) -> List[Dict[str, str]]:
-        """
-        HTMLレスポンスを解析してデバイス情報を抽出する。
-
-        このメソッドはまずJSONとして解析を試み、失敗した場合はHTMLスクレイピングにフォールバックします。
-
-        Args:
-            html_content: ルータからのHTML/JSONレスポンス
-
-        Returns:
-            デバイス辞書のリスト
-        """
-        devices = []
-
-        # まずJSONとして解析を試みる
-        try:
-            json_data = json.loads(html_content)
-            devices = extract_devices_from_json(json_data)
-            if devices:
-                logging.debug(f"Parsed {len(devices)} devices from JSON")
-                return devices
-        except (json.JSONDecodeError, ValueError):
-            # JSONとしての解析に失敗した場合はHTMLスクレイピングにフォールバックする
-            logging.debug("JSONとして解析できなかったため、HTMLパースにフォールバックします")
-
-        # HTMLスクレイピングにフォールバック
-        devices = parse_wireless_lan_status(html_content)
-        if devices:
-            logging.debug(f"Parsed {len(devices)} devices from HTML")
-
-        return devices
-
-
-class EmailNotifier:
-    """SMTP経由でメール通知を処理する。"""
-
-    def __init__(
-        self,
-        smtp_server: str,
-        smtp_port: int,
-        smtp_user: str,
-        smtp_password: str,
-        sender_email: str,
-        recipient_emails: List[str],
-        use_tls: bool = True,
-    ):
-        """
-        メール通知機能を初期化する。
-
-        Args:
-            smtp_server: SMTPサーバーアドレス
-            smtp_port: SMTPサーバーポート
-            smtp_user: SMTPユーザー名
-            smtp_password: SMTPパスワード
-            sender_email: 送信元メールアドレス
-            recipient_emails: 受信者メールアドレスのリスト
-            use_tls: TLSを使用するか（デフォルト: True）
-        """
-        self.smtp_server = smtp_server
-        self.smtp_port = smtp_port
-        self.smtp_user = smtp_user
-        self.smtp_password = smtp_password
-        self.sender_email = sender_email
-        self.recipient_emails = recipient_emails
-        self.use_tls = use_tls
-
-    def send_notification(
-        self,
-        device_info: Dict[str, str],
-        is_unknown_device: bool = False,
-        detected_at: Optional[float] = None,
-    ) -> bool:
-        """
-        新しいデバイス接続についてメール通知を送信する。
-
-        Args:
-            device_info: デバイス情報を含む辞書
-            is_unknown_device: 未知端末の初回通知かどうか
-
-        Returns:
-            メール送信成功時はTrue、失敗時はFalse
-        """
-        try:
-            msg = MIMEMultipart()
-            msg["From"] = self.sender_email
-            msg["To"] = ", ".join(self.recipient_emails)
-            notification_subject = (
-                "未知の端末を検出" if is_unknown_device else "新しいWiFi接続を検出"
-            )
-            vendor = str(device_info.get("vendor", "")).strip()
-            subject_target = vendor or device_info.get("mac", "Unknown Device")
-            msg["Subject"] = f"{notification_subject} - {subject_target}"
-
-            # メール本文を作成
-            body = self._create_email_body(device_info, is_unknown_device=is_unknown_device)
-            msg.attach(MIMEText(body, "plain", "utf-8"))
-
-            # メールを送信
-            if self.use_tls:
-                server = smtplib.SMTP(self.smtp_server, self.smtp_port)
-                server.starttls()
-            else:
-                server = smtplib.SMTP(self.smtp_server, self.smtp_port)
-
-            server.login(self.smtp_user, self.smtp_password)
-            server.send_message(msg)
-            server.quit()
-
-            logging.info(f"Notification sent for device: {device_info.get('mac', 'Unknown')}")
-            return True
-
-        except Exception as e:
-            logging.error(f"Failed to send email: {e}")
-            return False
-
-    def _create_email_body(
-        self, device_info: Dict[str, str], is_unknown_device: bool = False
-    ) -> str:
-        """
-        メール本文テキストを作成する。
-
-        Args:
-            device_info: デバイス情報を含む辞書
-            is_unknown_device: 未知端末の初回通知かどうか
-
-        Returns:
-            フォーマット済みのメール本文
-        """
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        notification_type = "未知の端末（初回のみ通知）" if is_unknown_device else "新規WiFi接続"
-        vendor = str(device_info.get("vendor", "")).strip()
-        vendor_line = f"メーカー: {vendor}\n" if vendor else ""
-
-        additional_lines = []
-        field_labels = [
-            ("dhcp_hostname", "DHCPホスト名"),
-            ("mdns_name", "mDNS名"),
-            ("netbios_name", "NetBIOS名"),
-            ("connection_band", "接続バンド"),
-            ("rssi", "RSSI"),
-            ("bssid", "BSSID"),
-            ("connection_time", "接続時間"),
-            ("device_type", "端末種別"),
-            ("os_guess", "OS推定"),
-            ("fingerprint", "指紋情報"),
-        ]
-        for field_key, label in field_labels:
-            value = str(device_info.get(field_key, "")).strip()
-            if value:
-                additional_lines.append(f"{label}: {value}")
-
-        additional_info = "\n".join(additional_lines)
-        if additional_info:
-            additional_info = f"{additional_info}\n"
-
-        body = f"""
-WiFi接続が検出されました
-
-通知種別: {notification_type}
-
-検出時刻: {timestamp}
-MACアドレス: {device_info.get('mac', 'Unknown')}
-IPアドレス: {device_info.get('ip', 'Unknown')}
-ホスト名: {device_info.get('hostname', 'Unknown')}
-{vendor_line}
-{additional_info}
-
----
-WiFi Client Notifier
-"""
-        return body.strip()
-
-
-class GoogleCalendarNotifier:
-    """Googleカレンダーへの予定登録通知を処理する。"""
-
-    SCOPE = "https://www.googleapis.com/auth/calendar.events"
-
-    def __init__(
-        self,
-        credentials_file: str,
-        calendar_id: str,
-        timezone_name: str = "Asia/Tokyo",
-        event_duration_minutes: int = 30,
-        summary_prefix: str = "WiFi接続検知",
-        max_retries: int = 3,
-        retry_delay_seconds: int = 3,
-        dedupe_window_minutes: int = 10,
-    ):
-        """
-        Googleカレンダー通知機能を初期化する。
-
-        Args:
-            credentials_file: サービスアカウントJSONのパス
-            calendar_id: 登録先カレンダーID
-            timezone_name: 予定登録に使用するタイムゾーン
-            event_duration_minutes: 登録予定の終了時刻（開始からの分）
-            summary_prefix: 予定タイトルの先頭文字列
-            max_retries: 登録失敗時の最大リトライ回数
-            retry_delay_seconds: リトライ間隔（秒）
-            dedupe_window_minutes: 重複確認時に検索する時間幅（分）
-        """
-        if service_account is None or build is None:
-            raise ImportError(
-                "Googleカレンダー機能を使うには google-auth と "
-                "google-api-python-client のインストールが必要です"
-            )
-
-        self.credentials_file = credentials_file
-        self.calendar_id = calendar_id
-        self.event_duration_minutes = max(1, int(event_duration_minutes))
-        self.summary_prefix = summary_prefix.strip() if summary_prefix else "WiFi接続検知"
-        self.max_retries = max(1, int(max_retries))
-        self.retry_delay_seconds = max(1, int(retry_delay_seconds))
-        self.dedupe_window_minutes = max(1, int(dedupe_window_minutes))
-
-        try:
-            self.timezone = ZoneInfo(timezone_name)
-        except ZoneInfoNotFoundError:
-            logging.warning(
-                "Googleカレンダー設定の timezone が不正のため UTC を使用します: %s",
-                timezone_name,
-            )
-            self.timezone = ZoneInfo("UTC")
-
-        credentials = service_account.Credentials.from_service_account_file(
-            self.credentials_file,
-            scopes=[self.SCOPE],
-        )
-        self.service = build("calendar", "v3", credentials=credentials, cache_discovery=False)
-
-    def send_notification(
-        self,
-        device_info: Dict[str, str],
-        is_unknown_device: bool = False,
-        detected_at: Optional[float] = None,
-    ) -> bool:
-        """検出デバイス情報をGoogleカレンダー予定として登録する。"""
-        detected_ts = detected_at if detected_at is not None else time.time()
-        started_at = datetime.fromtimestamp(detected_ts, tz=self.timezone)
-        ended_at = datetime.fromtimestamp(
-            detected_ts + (self.event_duration_minutes * 60),
-            tz=self.timezone,
-        )
-
-        dedupe_key = self._build_dedupe_key(device_info, is_unknown_device, detected_ts)
-        if self._event_already_exists(dedupe_key, started_at):
-            logging.info("Googleカレンダー登録をスキップ（重複検知）: %s", dedupe_key)
-            return True
-
-        event = {
-            "summary": self._build_summary(device_info, is_unknown_device),
-            "description": self._build_description(device_info, is_unknown_device, started_at),
-            "start": {
-                "dateTime": started_at.isoformat(),
-                "timeZone": str(self.timezone),
-            },
-            "end": {
-                "dateTime": ended_at.isoformat(),
-                "timeZone": str(self.timezone),
-            },
-            "extendedProperties": {
-                "private": {
-                    "wifi_notifier_key": dedupe_key,
-                }
-            },
-        }
-
-        for attempt in range(1, self.max_retries + 1):
-            try:
-                self.service.events().insert(calendarId=self.calendar_id, body=event).execute()
-                logging.info("Googleカレンダーへ予定登録しました: %s", dedupe_key)
-                return True
-            except Exception as e:
-                if self._is_conflict_error(e):
-                    logging.info("Googleカレンダー登録は既存イベントと競合したため成功扱いにします")
-                    return True
-
-                if attempt >= self.max_retries:
-                    logging.error("Googleカレンダー登録に失敗しました（リトライ上限）: %s", e)
-                    return False
-
-                logging.warning(
-                    "Googleカレンダー登録に失敗したためリトライします " "(%s/%s): %s",
-                    attempt,
-                    self.max_retries,
-                    e,
-                )
-                time.sleep(self.retry_delay_seconds)
-
-        return False
-
-    def _event_already_exists(self, dedupe_key: str, started_at: datetime) -> bool:
-        """同一重複キーを持つ予定が既にあるか確認する。"""
-        time_min = datetime.fromtimestamp(
-            started_at.timestamp() - (self.dedupe_window_minutes * 60),
-            tz=self.timezone,
-        ).isoformat()
-        time_max = datetime.fromtimestamp(
-            started_at.timestamp() + (self.dedupe_window_minutes * 60),
-            tz=self.timezone,
-        ).isoformat()
-
-        try:
-            result = (
-                self.service.events()
-                .list(
-                    calendarId=self.calendar_id,
-                    timeMin=time_min,
-                    timeMax=time_max,
-                    singleEvents=True,
-                    maxResults=5,
-                    privateExtendedProperty=[f"wifi_notifier_key={dedupe_key}"],
-                )
-                .execute()
-            )
-            items = result.get("items", [])
-            return bool(items)
-        except Exception as e:
-            logging.warning("重複確認に失敗したため登録を継続します: %s", e)
-            return False
-
-    @staticmethod
-    def _is_conflict_error(error: Exception) -> bool:
-        """API競合エラー（409）を重複として判定する。"""
-        if HttpError is not None and isinstance(error, HttpError):
-            return getattr(error.resp, "status", None) == 409
-        return "409" in str(error)
-
-    def _build_summary(self, device_info: Dict[str, str], is_unknown_device: bool) -> str:
-        """予定タイトルを生成する。"""
-        mac = device_info.get("mac", "Unknown")
-        hostname = device_info.get("hostname", "Unknown")
-        prefix = "未知端末" if is_unknown_device else "端末接続"
-        return f"{self.summary_prefix}: {prefix} {hostname} ({mac})"
-
-    @staticmethod
-    def _build_description(
-        device_info: Dict[str, str],
-        is_unknown_device: bool,
-        started_at: datetime,
-    ) -> str:
-        """予定説明を生成する。"""
-        notification_type = "未知の端末（初回のみ通知）" if is_unknown_device else "新規WiFi接続"
-        return (
-            "WiFi接続通知\n\n"
-            f"通知種別: {notification_type}\n"
-            f"検出時刻: {started_at.strftime('%Y-%m-%d %H:%M:%S %Z')}\n"
-            f"MACアドレス: {device_info.get('mac', 'Unknown')}\n"
-            f"IPアドレス: {device_info.get('ip', 'Unknown')}\n"
-            f"ホスト名: {device_info.get('hostname', 'Unknown')}\n"
-            f"メーカー: {device_info.get('vendor', 'Unknown')}\n"
-        )
-
-    @staticmethod
-    def _build_dedupe_key(
-        device_info: Dict[str, str],
-        is_unknown_device: bool,
-        detected_ts: float,
-    ) -> str:
-        """1分単位で重複判定するためのキーを生成する。"""
-        bucket_minute = int(detected_ts // 60)
-        mac = device_info.get("mac", "unknown").lower()
-        event_type = "unknown" if is_unknown_device else "known"
-        return f"{event_type}:{mac}:{bucket_minute}"
+    from router import WiFiRouter
+    from notifiers import EmailNotifier, GoogleCalendarNotifier
 
 
 class WiFiMonitor:
@@ -494,7 +43,7 @@ class WiFiMonitor:
         """
         self.config = self._load_config(config_path)
         self.config_dir = os.path.dirname(os.path.abspath(config_path))
-        self._setup_logging()  # 他の処理の前にロギングを設定
+        self._setup_logging()
         self.router: Optional[WiFiRouter] = None
         self.arp_scanner = None
         self.notifiers: List[object] = []
@@ -533,7 +82,6 @@ class WiFiMonitor:
             print("  cp config/config.example.yaml config.yaml")
             raise
         except Exception as e:
-            # ロギングがまだ設定されていないためprintを使用
             print(f"設定ファイルの読み込みに失敗しました: {e}")
             raise
 
@@ -541,8 +89,6 @@ class WiFiMonitor:
         """ロギング設定をセットアップする。"""
         log_level = self.config.get("log_level", "INFO")
         log_file = self.config.get("log_file", "wifi_notifier.log")
-
-        # 既存のハンドラーをクリアして最初から設定
         logging.root.handlers = []
         logging.basicConfig(
             level=getattr(logging, log_level),
@@ -583,7 +129,6 @@ class WiFiMonitor:
             )
 
         if detection_method == "arp":
-            # ARPスキャンモード（Raspberry Pi向け）
             try:
                 from src.arp_scanner import ARPScanner
             except ModuleNotFoundError:
@@ -596,18 +141,14 @@ class WiFiMonitor:
             )
             logging.info("検出方式: ARPスキャン（ローカルネットワーク）")
         else:
-            # ルータAPIモード
             router_config = self.config.get("router")
             if not router_config:
-                raise ValueError(
-                    "detection_method が 'router' の場合は 'router' セクションの設定が必要です。"
-                )
+                raise ValueError("detection_method が 'router' の場合は 'router' セクションの設定が必要です。")
             self.router = WiFiRouter(
                 router_config["ip"], router_config["username"], router_config["password"]
             )
             logging.info("検出方式: ルータAPI")
 
-        # メール通知を初期化
         email_config = self.config["email"]
         email_notifier = EmailNotifier(
             email_config["smtp_server"],
@@ -620,7 +161,6 @@ class WiFiMonitor:
         )
         self.notifiers = [email_notifier]
 
-        # Googleカレンダー通知を初期化（有効時のみ）
         calendar_config = self.config.get("google_calendar", {})
         if not isinstance(calendar_config, dict):
             calendar_config = {}
@@ -642,13 +182,9 @@ class WiFiMonitor:
                     "または credentials_file_env を設定してください"
                 )
             if not os.path.exists(credentials_file):
-                raise FileNotFoundError(
-                    f"GoogleサービスアカウントJSONが見つかりません: {credentials_file}"
-                )
+                raise FileNotFoundError(f"GoogleサービスアカウントJSONが見つかりません: {credentials_file}")
             if not calendar_id:
-                raise ValueError(
-                    "google_calendar.enabled が true の場合は calendar_id を設定してください"
-                )
+                raise ValueError("google_calendar.enabled が true の場合は calendar_id を設定してください")
 
             calendar_notifier = GoogleCalendarNotifier(
                 credentials_file=credentials_file,
@@ -665,11 +201,9 @@ class WiFiMonitor:
         else:
             logging.info("Googleカレンダー通知: 無効")
 
-        # 監視対象デバイスを読み込む（指定されている場合）
         monitored_devices = self.config.get("monitored_devices", [])
         self.monitored_macs = {mac.lower() for mac in monitored_devices}
 
-        # 特定MACだけ再通知し、それ以外は未知端末として初回のみ通知する分岐モード
         repeat_notification_devices = self.config.get("repeat_notification_devices", [])
         if not isinstance(repeat_notification_devices, list):
             logging.warning(
@@ -702,7 +236,6 @@ class WiFiMonitor:
         else:
             logging.info("通知フィルタ: なし")
 
-        # 切断判定の猶予回数（ARP検出の一時的な揺らぎ対策）
         raw_grace_scans = self.config.get("disconnect_grace_scans", 3)
         try:
             self.disconnect_grace_scans = max(1, int(raw_grace_scans))
@@ -712,11 +245,8 @@ class WiFiMonitor:
                 "disconnect_grace_scans の値が不正のため 3 を使用します: %s",
                 raw_grace_scans,
             )
-        logging.info(
-            f"切断判定の猶予回数: {self.disconnect_grace_scans}回（連続で見失った場合に切断扱い）"
-        )
+        logging.info(f"切断判定の猶予回数: {self.disconnect_grace_scans}回（連続で見失った場合に切断扱い）")
 
-        # 同一端末の短時間な再通知を抑止するための cool down
         raw_cooldown_minutes = self.config.get(
             "notification_cool_down_minutes",
             self.config.get("notification_cooldown_minutes", 0),
@@ -737,7 +267,6 @@ class WiFiMonitor:
         else:
             logging.info("通知クールダウン: 無効")
 
-        # 切断後の再接続で強制通知するまでの不在時間閾値
         raw_reconnect_minutes = self.config.get("reconnect_notify_after_minutes", 60)
         try:
             self.reconnect_notify_after_seconds = max(0, int(raw_reconnect_minutes) * 60)
@@ -758,12 +287,7 @@ class WiFiMonitor:
         logging.info("コンポーネントの初期化が完了しました")
 
     def _get_current_devices(self) -> List[Dict[str, str]]:
-        """
-        現在の検出方式を使用して接続中デバイスのリストを取得する。
-
-        Returns:
-            デバイス情報を含む辞書のリスト
-        """
+        """現在の検出方式を使用して接続中デバイスのリストを取得する。"""
         if self.arp_scanner is not None:
             arp_config = self.config.get("arp", {})
             timeout = arp_config.get("timeout", 2)
@@ -779,25 +303,17 @@ class WiFiMonitor:
             return []
 
     def start(self, single_run: bool = False):
-        """
-        WiFi接続の監視を開始する。
-
-        Args:
-            single_run: Trueの場合、1回だけチェックして終了
-        """
+        """WiFi接続の監視を開始する。"""
         logging.info("WiFiモニターを起動しています")
 
-        # ルータAPIモードの場合はログインが必要
         if self.router is not None:
             if not self.router.login():
                 logging.error("ルータへのログインに失敗しました")
                 return
             logging.info("ルータへのログインに成功しました")
 
-        # 前回の状態を読み込む（初回は空状態）
         self._load_state()
         if not self.state_loaded:
-            # 初回は現在接続中デバイスをベースラインとして登録し、通知スパイクを防ぐ
             initial_devices = self._get_current_devices()
             self.known_devices = {dev["mac"].lower() for dev in initial_devices}
             self.missing_counts = {mac: 0 for mac in self.known_devices}
@@ -812,14 +328,12 @@ class WiFiMonitor:
             )
 
         if single_run:
-            # 1回だけチェックして終了
             logging.info("シングルランモード: 1回チェックして終了します")
             self._check_for_new_devices()
             self._save_state()
             logging.info("シングルランが完了しました")
             return
 
-        # 監視ループを開始
         check_interval = self.config.get("check_interval", 60)
 
         try:
@@ -833,12 +347,7 @@ class WiFiMonitor:
             logging.error(f"モニターでエラーが発生しました: {e}")
 
     def _load_state(self) -> bool:
-        """
-        状態ファイルから既知デバイス情報を読み込む。
-
-        Returns:
-            読み込みに成功した場合はTrue、状態ファイルがない/不正の場合はFalse
-        """
+        """状態ファイルから既知デバイス情報を読み込む。"""
         if not os.path.exists(self.state_file):
             self.state_loaded = False
             self.known_devices = set()
@@ -921,10 +430,7 @@ class WiFiMonitor:
                         continue
 
             self.state_loaded = True
-            logging.info(
-                f"状態ファイルを読み込みました: known={len(self.known_devices)} "
-                f"({self.state_file})"
-            )
+            logging.info(f"状態ファイルを読み込みました: known={len(self.known_devices)} " f"({self.state_file})")
             return True
 
         except Exception as e:
@@ -979,19 +485,15 @@ class WiFiMonitor:
         try:
             current_devices = self._get_current_devices()
             current_macs = {dev["mac"].lower() for dev in current_devices}
-
-            # 新しいデバイスを検出
             new_macs = current_macs - self.known_devices
 
             for mac in new_macs:
-                # デバイス情報を検索
                 device_info = next(
                     (dev for dev in current_devices if dev["mac"].lower() == mac), None
                 )
 
                 if device_info:
                     detected_at = time.time()
-                    # このデバイスについて通知すべきかチェック
                     should_notify, is_unknown_device = self._should_notify_device(mac)
 
                     if should_notify:
@@ -1006,7 +508,6 @@ class WiFiMonitor:
                                 self.unknown_notified_macs.add(mac)
                                 self.last_notified_at[mac] = detected_at
                         else:
-                            # 切断からの経過時間を確認（再接続強制通知の判定）
                             disconnected_since = self.disconnected_at.get(mac)
                             absence_seconds = (
                                 time.time() - disconnected_since
@@ -1055,15 +556,12 @@ class WiFiMonitor:
 
                     self.known_devices.add(mac)
                     self.missing_counts[mac] = 0
-                    # 再接続が確定したので切断タイムスタンプを削除
                     self.disconnected_at.pop(mac, None)
 
-            # 見えているデバイスは見失いカウントをリセット
             for mac in current_macs:
                 if mac in self.known_devices:
                     self.missing_counts[mac] = 0
 
-            # 既知セットから見えなくなったデバイスを猶予付きで切断判定
             disconnected_candidates = self.known_devices - current_macs
             disconnected: Set[str] = set()
             for mac in disconnected_candidates:
@@ -1074,13 +572,11 @@ class WiFiMonitor:
 
             if disconnected:
                 logging.info(
-                    f"切断されたデバイス数: {len(disconnected)}"
-                    f"（連続{self.disconnect_grace_scans}回見失いで判定）"
+                    f"切断されたデバイス数: {len(disconnected)}" f"（連続{self.disconnect_grace_scans}回見失いで判定）"
                 )
                 for mac in disconnected:
                     self.known_devices.discard(mac)
                     self.missing_counts.pop(mac, None)
-                    # 切断タイムスタンプを記録（再接続時の強制通知判定に使用）
                     self.disconnected_at[mac] = time.time()
 
         except Exception as e:
@@ -1154,8 +650,6 @@ class WiFiMonitor:
 
 def main():
     """メインエントリーポイント。"""
-    import sys
-
     if len(sys.argv) < 2:
         print("Usage: python src/wifi_notifier.py <config_file> [--single-run]")
         print("Example: python src/wifi_notifier.py config.yaml")
