@@ -93,7 +93,8 @@
       "matchCommandLine": true
     },
     "npx markdownlint-cli2": true,
-    "./deployment/setup_raspberrypi.sh": true
+    "./deployment/setup_raspberrypi.sh": true,
+    "test": true
   },
   "cSpell.words": ["raspberrypi"]
 }
