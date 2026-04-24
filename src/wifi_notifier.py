@@ -499,8 +499,9 @@ class WiFiMonitor:
                     if should_notify:
                         if is_unknown_device:
                             logging.info("未知の端末を初回検出しました: %s", mac)
+                            notification_device_info = dict(device_info)
                             sent = self._send_notifications(
-                                device_info,
+                                notification_device_info,
                                 is_unknown_device=True,
                                 detected_at=detected_at,
                             )
@@ -536,8 +537,16 @@ class WiFiMonitor:
                                     )
                                 else:
                                     logging.info(f"新しいデバイスを検出しました: {mac}")
+                                notification_device_info = dict(device_info)
+                                if (
+                                    self.branch_notification_mode_enabled
+                                    and mac in self.repeat_notification_macs
+                                ):
+                                    notification_device_info["_notification_type"] = (
+                                        "repeat_known_device"
+                                    )
                                 sent = self._send_notifications(
-                                    device_info,
+                                    notification_device_info,
                                     detected_at=detected_at,
                                 )
                                 if sent:

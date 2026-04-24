@@ -68,7 +68,13 @@ class EmailNotifier(BaseNotifier):
             msg = MIMEMultipart()
             msg["From"] = self.sender_email
             msg["To"] = ", ".join(self.recipient_emails)
-            notification_subject = "未知の端末を検出" if is_unknown_device else "新しいWiFi接続を検出"
+            notification_type = str(device_info.get("_notification_type", "")).strip()
+            if is_unknown_device:
+                notification_subject = "未知の端末を検出"
+            elif notification_type == "repeat_known_device":
+                notification_subject = "既知端末の再接続を検出"
+            else:
+                notification_subject = "新しいWiFi接続を検出"
             vendor = str(device_info.get("vendor", "")).strip()
             subject_target = vendor or device_info.get("mac", "Unknown Device")
             msg["Subject"] = f"{notification_subject} - {subject_target}"
