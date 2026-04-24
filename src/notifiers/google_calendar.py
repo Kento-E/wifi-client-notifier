@@ -6,7 +6,6 @@ Googleカレンダーへの予定登録通知を行う機能を提供します�
 
 import time
 import logging
-import os
 from datetime import datetime
 from typing import Dict, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -54,7 +53,8 @@ class GoogleCalendarNotifier(BaseNotifier):
         """
         if service_account is None or build is None:
             raise ImportError(
-                "Googleカレンダー機能を使うには google-auth と " "google-api-python-client のインストールが必要です"
+                "Googleカレンダー機能を使うには google-auth と "
+                "google-api-python-client のインストールが必要です"
             )
 
         self.credentials_file = credentials_file

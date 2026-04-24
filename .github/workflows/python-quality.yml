@@ -54,7 +54,6 @@ jobs:
 
       - name: pre-commitチェック
         run: |
-          pre-commit run \
-            --from-ref "${{ steps.changed_refs.outputs.from_ref }}" \
-            --to-ref "${{ steps.changed_refs.outputs.to_ref }}" \
-            --show-diff-on-failure
+          ./scripts/run_quality_checks.sh \
+            "${{ steps.changed_refs.outputs.from_ref }}" \
+            "${{ steps.changed_refs.outputs.to_ref }}"

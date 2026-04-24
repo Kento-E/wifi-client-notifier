@@ -33,7 +33,10 @@ except ImportError:
 def _require_scapy() -> None:
     """scapyが利用可能か確認し、利用できない場合は例外を送出する。"""
     if not SCAPY_AVAILABLE:
-        raise ImportError("scapyがインストールされていません。" " 'pip install scapy' を実行してインストールしてください。")
+        raise ImportError(
+            "scapyがインストールされていません。"
+            " 'pip install scapy' を実行してインストールしてください。"
+        )
 
 
 def _has_cap_net_raw() -> bool:

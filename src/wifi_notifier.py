@@ -20,12 +20,10 @@ import json
 from typing import Dict, List, Optional, Set
 
 try:
-    from src.html_parser import parse_wireless_lan_status, extract_devices_from_json
     from src.constants import DEFAULT_STATE_FILE
     from src.router import WiFiRouter
     from src.notifiers import EmailNotifier, GoogleCalendarNotifier
 except ModuleNotFoundError:
-    from html_parser import parse_wireless_lan_status, extract_devices_from_json
     from constants import DEFAULT_STATE_FILE
     from router import WiFiRouter
     from notifiers import EmailNotifier, GoogleCalendarNotifier
@@ -143,7 +141,9 @@ class WiFiMonitor:
         else:
             router_config = self.config.get("router")
             if not router_config:
-                raise ValueError("detection_method が 'router' の場合は 'router' セクションの設定が必要です。")
+                raise ValueError(
+                    "detection_method が 'router' の場合は 'router' セクションの設定が必要です。"
+                )
             self.router = WiFiRouter(
                 router_config["ip"], router_config["username"], router_config["password"]
             )
@@ -182,9 +182,13 @@ class WiFiMonitor:
                     "または credentials_file_env を設定してください"
                 )
             if not os.path.exists(credentials_file):
-                raise FileNotFoundError(f"GoogleサービスアカウントJSONが見つかりません: {credentials_file}")
+                raise FileNotFoundError(
+                    f"GoogleサービスアカウントJSONが見つかりません: {credentials_file}"
+                )
             if not calendar_id:
-                raise ValueError("google_calendar.enabled が true の場合は calendar_id を設定してください")
+                raise ValueError(
+                    "google_calendar.enabled が true の場合は calendar_id を設定してください"
+                )
 
             calendar_notifier = GoogleCalendarNotifier(
                 credentials_file=credentials_file,
@@ -245,7 +249,9 @@ class WiFiMonitor:
                 "disconnect_grace_scans の値が不正のため 3 を使用します: %s",
                 raw_grace_scans,
             )
-        logging.info(f"切断判定の猶予回数: {self.disconnect_grace_scans}回（連続で見失った場合に切断扱い）")
+        logging.info(
+            f"切断判定の猶予回数: {self.disconnect_grace_scans}回（連続で見失った場合に切断扱い）"
+        )
 
         raw_cooldown_minutes = self.config.get(
             "notification_cool_down_minutes",
@@ -430,7 +436,10 @@ class WiFiMonitor:
                         continue
 
             self.state_loaded = True
-            logging.info(f"状態ファイルを読み込みました: known={len(self.known_devices)} " f"({self.state_file})")
+            logging.info(
+                f"状態ファイルを読み込みました: known={len(self.known_devices)} "
+                f"({self.state_file})"
+            )
             return True
 
         except Exception as e:
@@ -542,9 +551,9 @@ class WiFiMonitor:
                                     self.branch_notification_mode_enabled
                                     and mac in self.repeat_notification_macs
                                 ):
-                                    notification_device_info[
-                                        "_notification_type"
-                                    ] = "repeat_known_device"
+                                    notification_device_info["_notification_type"] = (
+                                        "repeat_known_device"
+                                    )
                                 sent = self._send_notifications(
                                     notification_device_info,
                                     detected_at=detected_at,
@@ -581,7 +590,8 @@ class WiFiMonitor:
 
             if disconnected:
                 logging.info(
-                    f"切断されたデバイス数: {len(disconnected)}" f"（連続{self.disconnect_grace_scans}回見失いで判定）"
+                    f"切断されたデバイス数: {len(disconnected)}"
+                    f"（連続{self.disconnect_grace_scans}回見失いで判定）"
                 )
                 for mac in disconnected:
                     self.known_devices.discard(mac)
