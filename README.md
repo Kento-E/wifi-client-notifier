@@ -94,9 +94,9 @@ pip install -r requirements.txt
 
 本リポジトリでは、Pythonコードの整形を `black`、
 静的チェックを `flake8`、Markdownチェックを `markdownlint-cli2` で統一しています。
-開発時は [scripts/run_quality_checks.sh](/Users/kento_e/work/wifi-client-notifier/scripts/run_quality_checks.sh) を実行し、
-CIでも同じスクリプトを使って差分チェックを行います。
-また、[scripts/setup_git_hooks.sh](/Users/kento_e/work/wifi-client-notifier/scripts/setup_git_hooks.sh) を実行すると、
+開発時は [scripts/run_quality_checks.sh](scripts/run_quality_checks.sh) を実行し、
+CIでも同じスクリプトで差分チェックを行います。
+また、[scripts/setup_git_hooks.sh](scripts/setup_git_hooks.sh) を実行すると、
 コミット前に同じ検証が自動実行されます。
 
 **開発環境のセットアップ**: コードの修正や機能追加を行う場合は、[deployment/README.md](deployment/README.md) を参照してください。
