@@ -542,9 +542,9 @@ class WiFiMonitor:
                                     self.branch_notification_mode_enabled
                                     and mac in self.repeat_notification_macs
                                 ):
-                                    notification_device_info["_notification_type"] = (
-                                        "repeat_known_device"
-                                    )
+                                    notification_device_info[
+                                        "_notification_type"
+                                    ] = "repeat_known_device"
                                 sent = self._send_notifications(
                                     notification_device_info,
                                     detected_at=detected_at,

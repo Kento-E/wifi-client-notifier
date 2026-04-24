@@ -94,7 +94,20 @@
     },
     "npx markdownlint-cli2": true,
     "./deployment/setup_raspberrypi.sh": true,
-    "test": true
+    "test": true,
+    "/^python3 -m pip install pre-commit && python3 -m pre_commit run --all-files 2>&1 \\| head -100$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "brew": true,
+    "/^python3 -m pip install pre-commit && python3 -m pre_commit run --all-files$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^python3 -m black \\. && python3 -m flake8 \\.$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
   },
   "cSpell.words": ["raspberrypi"]
 }

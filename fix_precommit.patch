@@ -1,0 +1,22 @@
+diff --git a/.vscode/settings.json b/.vscode/settings.json
+index 7cb7792..006033c 100644
+--- a/.vscode/settings.json
++++ b/.vscode/settings.json
+@@ -94,7 +94,16 @@
+     },
+     "npx markdownlint-cli2": true,
+     "./deployment/setup_raspberrypi.sh": true,
+-    "test": true
++    "test": true,
++    "/^python3 -m pip install pre-commit && python3 -m pre_commit run --all-files 2>&1 \\| head -100$/": {
++      "approve": true,
++      "matchCommandLine": true
++    },
++    "brew": true,
++    "/^python3 -m pip install pre-commit && python3 -m pre_commit run --all-files$/": {
++      "approve": true,
++      "matchCommandLine": true
++    }
+   },
+   "cSpell.words": ["raspberrypi"]
+ }
