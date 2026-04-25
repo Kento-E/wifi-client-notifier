@@ -141,6 +141,20 @@ class EmailNotifier(BaseNotifier):
         if additional_info:
             additional_info = f"{additional_info}\n"
 
+        raw_channel_errors = device_info.get("_channel_errors")
+        channel_errors = []
+        if isinstance(raw_channel_errors, list):
+            channel_errors = [str(item).strip() for item in raw_channel_errors if str(item).strip()]
+
+        channel_error_section = ""
+        if channel_errors:
+            formatted_errors = "\n".join(f"- {item}" for item in channel_errors)
+            channel_error_section = (
+                "\n通知チャネル異常:\n"
+                f"{formatted_errors}\n"
+                "※メール以外の通知に失敗した可能性があります。"
+            )
+
         body = f"""
 WiFi接続が検出されました
 
@@ -152,6 +166,7 @@ IPアドレス: {device_info.get('ip', 'Unknown')}
 ホスト名: {device_info.get('hostname', 'Unknown')}
 {vendor_line}
 {additional_info}
+{channel_error_section}
 
 ---
 WiFi Client Notifier

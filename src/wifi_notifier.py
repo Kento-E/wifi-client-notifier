@@ -57,6 +57,7 @@ class WiFiMonitor:
         self.reconnect_notify_after_seconds: int = 3600
         self.notify_unknown_devices_once: bool = False
         self.branch_notification_mode_enabled: bool = False
+        self.calendar_init_error: Optional[str] = None
         configured_state_file = str(self.config.get("state_file", "")).strip()
         if configured_state_file:
             expanded_state_file = os.path.expanduser(configured_state_file)
@@ -167,41 +168,48 @@ class WiFiMonitor:
 
         calendar_enabled = self._parse_bool_config(calendar_config.get("enabled"), default=False)
         if calendar_enabled:
-            credentials_file_env = calendar_config.get("credentials_file_env")
-            credentials_file = calendar_config.get("credentials_file", "")
+            try:
+                credentials_file_env = calendar_config.get("credentials_file_env")
+                credentials_file = calendar_config.get("credentials_file", "")
 
-            if credentials_file_env and isinstance(credentials_file_env, str):
-                credentials_file = os.getenv(credentials_file_env, credentials_file)
+                if credentials_file_env and isinstance(credentials_file_env, str):
+                    credentials_file = os.getenv(credentials_file_env, credentials_file)
 
-            credentials_file = os.path.expanduser(str(credentials_file).strip())
-            calendar_id = str(calendar_config.get("calendar_id", "")).strip()
+                credentials_file = os.path.expanduser(str(credentials_file).strip())
+                calendar_id = str(calendar_config.get("calendar_id", "")).strip()
 
-            if not credentials_file:
-                raise ValueError(
-                    "google_calendar.enabled が true の場合は credentials_file "
-                    "または credentials_file_env を設定してください"
+                if not credentials_file:
+                    raise ValueError(
+                        "google_calendar.enabled が true の場合は credentials_file "
+                        "または credentials_file_env を設定してください"
+                    )
+                if not os.path.exists(credentials_file):
+                    raise FileNotFoundError(
+                        f"GoogleサービスアカウントJSONが見つかりません: {credentials_file}"
+                    )
+                if not calendar_id:
+                    raise ValueError(
+                        "google_calendar.enabled が true の場合は calendar_id を設定してください"
+                    )
+
+                calendar_notifier = GoogleCalendarNotifier(
+                    credentials_file=credentials_file,
+                    calendar_id=calendar_id,
+                    timezone_name=calendar_config.get("timezone", "Asia/Tokyo"),
+                    event_duration_minutes=calendar_config.get("event_duration_minutes", 30),
+                    summary_prefix=calendar_config.get("summary_prefix", "WiFi接続検知"),
+                    max_retries=calendar_config.get("max_retries", 3),
+                    retry_delay_seconds=calendar_config.get("retry_delay_seconds", 3),
+                    dedupe_window_minutes=calendar_config.get("dedupe_window_minutes", 10),
                 )
-            if not os.path.exists(credentials_file):
-                raise FileNotFoundError(
-                    f"GoogleサービスアカウントJSONが見つかりません: {credentials_file}"
+                self.notifiers.append(calendar_notifier)
+                logging.info("Googleカレンダー通知: 有効（カレンダーID: %s）", calendar_id)
+            except Exception as e:
+                self.calendar_init_error = str(e)
+                logging.error(
+                    "Googleカレンダー通知の初期化に失敗したためメール通知のみ継続します: %s",
+                    e,
                 )
-            if not calendar_id:
-                raise ValueError(
-                    "google_calendar.enabled が true の場合は calendar_id を設定してください"
-                )
-
-            calendar_notifier = GoogleCalendarNotifier(
-                credentials_file=credentials_file,
-                calendar_id=calendar_id,
-                timezone_name=calendar_config.get("timezone", "Asia/Tokyo"),
-                event_duration_minutes=calendar_config.get("event_duration_minutes", 30),
-                summary_prefix=calendar_config.get("summary_prefix", "WiFi接続検知"),
-                max_retries=calendar_config.get("max_retries", 3),
-                retry_delay_seconds=calendar_config.get("retry_delay_seconds", 3),
-                dedupe_window_minutes=calendar_config.get("dedupe_window_minutes", 10),
-            )
-            self.notifiers.append(calendar_notifier)
-            logging.info("Googleカレンダー通知: 有効（カレンダーID: %s）", calendar_id)
         else:
             logging.info("Googleカレンダー通知: 無効")
 
@@ -612,12 +620,42 @@ class WiFiMonitor:
             logging.error("通知チャネルが設定されていません")
             return False
 
+        notification_payload = dict(device_info)
+        channel_errors: List[str] = []
+        if self.calendar_init_error:
+            channel_errors.append(f"Googleカレンダー通知の初期化に失敗: {self.calendar_init_error}")
+
+        email_notifiers = [n for n in self.notifiers if isinstance(n, EmailNotifier)]
+        other_notifiers = [n for n in self.notifiers if not isinstance(n, EmailNotifier)]
+
         success_count = 0
-        for notifier in self.notifiers:
+        for notifier in other_notifiers:
             notifier_name = notifier.__class__.__name__
             try:
                 sent = notifier.send_notification(
-                    device_info,
+                    notification_payload,
+                    is_unknown_device=is_unknown_device,
+                    detected_at=detected_at,
+                )
+                if sent:
+                    success_count += 1
+                else:
+                    logging.warning("通知チャネルの送信に失敗しました: %s", notifier_name)
+                    channel_errors.append(
+                        f"{notifier_name} の送信に失敗しました（詳細はログを確認）"
+                    )
+            except Exception as e:
+                logging.error("通知チャネル処理で例外が発生しました: %s (%s)", notifier_name, e)
+                channel_errors.append(f"{notifier_name} で例外が発生: {e}")
+
+        if channel_errors:
+            notification_payload["_channel_errors"] = channel_errors
+
+        for notifier in email_notifiers:
+            notifier_name = notifier.__class__.__name__
+            try:
+                sent = notifier.send_notification(
+                    notification_payload,
                     is_unknown_device=is_unknown_device,
                     detected_at=detected_at,
                 )
