@@ -12,7 +12,7 @@ Wi-Fi接続検知ツール
 メーカー提供のルータ管理通知サービスの終了に伴い、
 同様の機能を自前で実現するために開発されたツールです。
 
-**📖 すぐに始めたい方は [クイックスタートガイド](docs/QUICKSTART.md) をご覧ください。**
+**📖 すぐに始めたい方は本READMEの「クイックスタート」から開始してください。**
 
 ## プロジェクト構成
 
@@ -25,7 +25,6 @@ wifi-client-notifier/
 │   ├── test_config.py        # 設定テストツール
 │   └── demo.py               # デモスクリプト
 ├── docs/                     # ドキュメント
-│   ├── QUICKSTART.md         # クイックスタート
 │   └── CUSTOMIZATION.md      # カスタマイズガイド
 ├── config/                   # 設定ファイル
 │   ├── config.example.yaml   # 設定例
@@ -66,6 +65,44 @@ wifi-client-notifier/
     root権限（直接実行時は`sudo`）またはCAP_NET_RAWケーパビリティ（systemd）、
     scapy（`pip install scapy`）
 - **ルータAPIモード**: WiFiルータへのアクセス権限（管理者ユーザー名とパスワード）
+
+## クイックスタート
+
+最短で動かす場合は、以下の5ステップだけ実施してください。
+
+1. リポジトリを取得して依存パッケージをインストール
+
+```bash
+git clone https://github.com/Kento-E/wifi-client-notifier.git
+cd wifi-client-notifier
+pip install -r requirements.txt
+```
+
+1. 設定ファイルを作成
+
+```bash
+cp config/config.example.yaml config.yaml
+```
+
+1. `config.yaml` の最小必須項目を設定
+
+- `detection_method`: `arp` または `router`
+- `email`: SMTPサーバー、ユーザー、パスワード、送受信先
+- Googleカレンダー利用時は `google_calendar.credentials_file` と `calendar_id`
+
+1. 設定テストを実行（ARPモードはsudo推奨）
+
+```bash
+sudo python src/test_config.py config.yaml
+```
+
+1. 監視を開始
+
+```bash
+sudo python src/wifi_notifier.py config.yaml
+```
+
+詳細な設定例や運用方法は、このまま下の「設定」「使用方法」「トラブルシューティング」を参照してください。
 
 ## インストール
 
@@ -127,6 +164,20 @@ Googleカレンダー通知の主な設定（任意）:
 - `google_calendar.calendar_id`: 登録先カレンダーID（専用カレンダー推奨）
 - `google_calendar.max_retries` / `retry_delay_seconds`: API失敗時のリトライ制御
 - `google_calendar.dedupe_window_minutes`: 重複登録防止の検索時間幅
+
+Googleカレンダー通知を有効化する手順（推奨）:
+
+1. Google Cloud でサービスアカウントを作成し、JSONキーをダウンロード
+2. JSONを安全な場所へ配置（例: `/home/pi/secrets/google-service-account.json`）
+3. `config.yaml` の `google_calendar.credentials_file` にその絶対パスを設定
+4. 対象カレンダーをサービスアカウントのメールアドレスへ「予定の変更権限」で共有
+5. `google_calendar.calendar_id` に対象カレンダーIDを設定
+
+設定キー名の注意:
+
+- 正しいキーは `credentials_file` です
+- `credentails_file` は誤記のため認識されません
+- 起動ログや通知メールに「Googleカレンダー通知の初期化に失敗」と出た場合は、まずキー名とパスを確認してください
 
 1. 設定をテスト:
 
@@ -276,6 +327,8 @@ sudo journalctl -u wifi-notifier -f
 - サービスアカウントJSONのパスが正しいか確認
 - 登録先カレンダーをサービスアカウントへ共有済みか確認
 - `google_calendar.calendar_id` が対象カレンダーIDと一致するか確認
+- 設定キー名が `credentials_file` になっているか確認（`credentails_file` は誤記）
+- 接続通知メール本文の「通知チャネル異常」にエラー詳細が出ていないか確認
 
 ### デバイスが検出されない
 
