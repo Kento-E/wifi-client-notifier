@@ -47,7 +47,7 @@ NECのルータ管理サービス通知サービス終了に伴い、同等の�
 - `html_parser.py`: HTML/JSONパーサー
 - `config.example.json`: 設定ファイルのサンプル
 - `README.md`: 使用方法の説明
-- `QUICKSTART.md`: クイックスタートガイド
+- `docs/CUSTOMIZATION.md`: ルータモデル別カスタマイズ手順
 
 ## 関連Issue
 
