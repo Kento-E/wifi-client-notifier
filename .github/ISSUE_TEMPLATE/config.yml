@@ -4,5 +4,5 @@ contact_links:
     url: https://github.com/Kento-E/wifi-client-notifier/blob/main/README.md
     about: プロジェクトのドキュメントを確認する
   - name: 🚀 クイックスタート
-    url: https://github.com/Kento-E/wifi-client-notifier/blob/main/docs/QUICKSTART.md
-    about: クイックスタートガイドを確認する
+    url: https://github.com/Kento-E/wifi-client-notifier/blob/main/README.md#クイックスタート
+    about: README内のクイックスタートを確認する
