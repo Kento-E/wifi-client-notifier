@@ -169,20 +169,22 @@ class WiFiMonitor:
         calendar_enabled = self._parse_bool_config(calendar_config.get("enabled"), default=False)
         if calendar_enabled:
             try:
-                credentials_file_env = calendar_config.get("credentials_file_env")
-                credentials_file = calendar_config.get("credentials_file", "")
+                credentials_file_env = str(calendar_config.get("credentials_file_env", "")).strip()
+                credentials_file = ""
 
-                if credentials_file_env and isinstance(credentials_file_env, str):
-                    credentials_file = os.getenv(credentials_file_env, credentials_file)
+                if credentials_file_env:
+                    credentials_file = os.getenv(credentials_file_env, "")
 
                 credentials_file = os.path.expanduser(str(credentials_file).strip())
                 calendar_id = str(calendar_config.get("calendar_id", "")).strip()
 
-                if not credentials_file:
+                if not credentials_file_env:
                     raise ValueError(
-                        "google_calendar.enabled が true の場合は credentials_file "
-                        "または credentials_file_env を設定してください"
+                        "google_calendar.enabled が true の場合は "
+                        "credentials_file_env を設定してください"
                     )
+                if not credentials_file:
+                    raise ValueError("環境変数が未設定または空です: " f"{credentials_file_env}")
                 if not os.path.exists(credentials_file):
                     raise FileNotFoundError(
                         f"GoogleサービスアカウントJSONが見つかりません: {credentials_file}"
@@ -555,6 +557,10 @@ class WiFiMonitor:
                                 else:
                                     logging.info(f"新しいデバイスを検出しました: {mac}")
                                 notification_device_info = dict(device_info)
+                                if disconnected_since is not None:
+                                    notification_device_info["_notification_type"] = (
+                                        "repeat_known_device"
+                                    )
                                 if (
                                     self.branch_notification_mode_enabled
                                     and mac in self.repeat_notification_macs
