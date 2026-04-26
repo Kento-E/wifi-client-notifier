@@ -78,25 +78,25 @@ cd wifi-client-notifier
 pip install -r requirements.txt
 ```
 
-1. 設定ファイルを作成
+2. 設定ファイルを作成
 
 ```bash
 cp config/config.example.yaml config.yaml
 ```
 
-1. `config.yaml` の最小必須項目を設定
+3. `config.yaml` の最小必須項目を設定
 
 - `detection_method`: `arp` または `router`
 - `email`: SMTPサーバー、ユーザー、パスワード、送受信先
 - Googleカレンダー利用時は `google_calendar.credentials_file_env` と `calendar_id`
 
-1. 設定テストを実行（ARPモードはsudo推奨）
+4. 設定テストを実行（ARPモードはsudo推奨）
 
 ```bash
 sudo python src/test_config.py config.yaml
 ```
 
-1. 監視を開始
+5. 監視を開始
 
 ```bash
 sudo python src/wifi_notifier.py config.yaml
@@ -113,13 +113,13 @@ git clone https://github.com/Kento-E/wifi-client-notifier.git
 cd wifi-client-notifier
 ```
 
-1. 依存パッケージをインストール:
+2. 依存パッケージをインストール:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-1. （開発者向け）コード品質チェックを有効化:
+3. （開発者向け）コード品質チェックを有効化:
 
 ```bash
 # コミット前の品質チェックを自動化
@@ -146,7 +146,7 @@ CIでも同じスクリプトで差分チェックを行います。
 cp config/config.example.yaml config.yaml
 ```
 
-1. `config.yaml`を編集して、環境に合わせて設定してください。
+2. `config.yaml`を編集して、環境に合わせて設定してください。
 
 設定項目の詳細は `config/config.example.yaml` を参照してください。
 
@@ -299,8 +299,8 @@ sudo python src/test_config.py config.yaml
 Gmailを使用する場合：
 
 1. Googleアカウントで2段階認証を有効化
-1. アプリパスワードを生成（<https://myaccount.google.com/apppasswords）>
-1. 生成したアプリパスワードを`smtp_password`に設定
+2. アプリパスワードを生成（<https://myaccount.google.com/apppasswords）>
+3. 生成したアプリパスワードを`smtp_password`に設定
 
 ## 使用方法
 
@@ -325,25 +325,25 @@ sudo nohup python src/wifi_notifier.py config.yaml &
 
 1. config.yamlを作成して設定を入力
 
-1. Dockerイメージをビルド:
+2. Dockerイメージをビルド:
 
 ```bash
 docker-compose build
 ```
 
-1. コンテナを起動:
+3. コンテナを起動:
 
 ```bash
 docker-compose up -d
 ```
 
-1. ログを確認:
+4. ログを確認:
 
 ```bash
 docker-compose logs -f
 ```
 
-1. コンテナを停止:
+5. コンテナを停止:
 
 ```bash
 docker-compose down
@@ -363,13 +363,13 @@ ARPスキャンモードでは `AmbientCapabilities=CAP_NET_RAW` が設定済み
 
 `ExecStart` は仮想環境の Python と `config/config.yaml` を指すように設定してください。
 
-1. サービスファイルをコピー:
+2. サービスファイルをコピー:
 
 ```bash
 sudo cp config/wifi-notifier.service /etc/systemd/system/
 ```
 
-1. サービスを有効化して起動:
+3. サービスを有効化して起動:
 
 ```bash
 sudo systemctl daemon-reload
@@ -378,7 +378,7 @@ sudo systemctl start wifi-notifier
 sudo systemctl status wifi-notifier
 ```
 
-1. ログを確認:
+4. ログを確認:
 
 ```bash
 sudo journalctl -u wifi-notifier -f
