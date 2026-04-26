@@ -88,7 +88,7 @@ cp config/config.example.yaml config.yaml
 
 - `detection_method`: `arp` または `router`
 - `email`: SMTPサーバー、ユーザー、パスワード、送受信先
-- Googleカレンダー利用時は `google_calendar.credentials_file` と `calendar_id`
+- Googleカレンダー利用時は `google_calendar.credentials_file_env` と `calendar_id`
 
 1. 設定テストを実行（ARPモードはsudo推奨）
 
@@ -159,26 +159,133 @@ cp config/config.example.yaml config.yaml
 Googleカレンダー通知の主な設定（任意）:
 
 - `google_calendar.enabled`: `true` で有効化
-- `google_calendar.credentials_file` または
-    `google_calendar.credentials_file_env`: サービスアカウントJSONの配置先
+- `google_calendar.credentials_file_env`: サービスアカウントJSONパスを保持した環境変数名
 - `google_calendar.calendar_id`: 登録先カレンダーID（専用カレンダー推奨）
 - `google_calendar.max_retries` / `retry_delay_seconds`: API失敗時のリトライ制御
 - `google_calendar.dedupe_window_minutes`: 重複登録防止の検索時間幅
 
-Googleカレンダー通知を有効化する手順（推奨）:
+### Googleカレンダー通知を有効化する手順（推奨）
 
-1. Google Cloud でサービスアカウントを作成し、JSONキーをダウンロード
-2. JSONを安全な場所へ配置（例: `/home/pi/secrets/google-service-account.json`）
-3. `config.yaml` の `google_calendar.credentials_file` にその絶対パスを設定
-4. 対象カレンダーをサービスアカウントのメールアドレスへ「予定の変更権限」で共有
-5. `google_calendar.calendar_id` に対象カレンダーIDを設定
+#### ステップ1: Google Cloud プロジェクトとサービスアカウントを作成
 
-設定をテスト:
+1. Google Cloudコンソールへアクセス
+   - <https://console.cloud.google.com/> を開く
+   - Googleアカウントでログイン（Googleカレンダーのアカウント、またはカレンダー所有者のアカウント）
+
+2. 新しいプロジェクトを作成
+   - 画面上部の「プロジェクト選択」 → 「新しいプロジェクト」をクリック
+   - プロジェクト名: `wifi-notifier` など わかりやすい名前を入力
+   - 「作成」をクリック
+   - プロジェクト作成完了まで待機（1-2分）
+
+3. Google Calendar APIを有効化
+   - 左側メニューの「APIとサービス」 → 「ライブラリ」をクリック
+   - 検索ボックスに `Google Calendar API` と入力
+   - 「Google Calendar API」をクリック
+   - 「有効にする」ボタンをクリック
+
+4. サービスアカウントを作成（ロール設定を含む）
+   - 左側メニューの「APIとサービス」 → 「認証情報」をクリック
+   - 「認証情報を作成」 → 「サービスアカウント」をクリック
+   - サービスアカウント名: `wifi-notifier` など入力
+   - サービスアカウントID: 自動生成される（編集可）
+   - 「作成して続行」をクリック
+   - 「このサービスアカウントにプロジェクトへのアクセス権を付与」セクションでロールを設定
+   - 「ロールを選択」ドロップダウンをクリック
+   - `基本` → `編集者` を選択
+   - 「続行」をクリック
+
+5. サービスアカウントキー（JSON）を作成・ダウンロード
+   - 作成したサービスアカウントの詳細を開き、「鍵」タブをクリック
+   - 「キーを追加」 → 「新しい鍵を作成」をクリック
+   - 「JSON」を選択し「作成」をクリック
+   - JSONファイルが自動的にダウンロードされます
+   - **このファイルは安全に保管してください（秘密鍵を含む）**
+
+#### ステップ2: JSONファイルを配置し、環境変数とconfig.yamlを設定
+
+1. JSONファイルをサーバー上の安全な場所に配置
+
+   ```bash
+   # Raspberry Piの場合の例
+   mkdir -p /home/pi/secrets
+   # ダウンロードしたJSONをこの場所にコピー（例: google-service-account.json）
+   chmod 600 /home/pi/secrets/google-service-account.json
+   ```
+
+2. JSONファイルのパスを環境変数に設定
+
+   ```bash
+   # 実行ユーザーのシェル設定に追記する例（bash/zsh）
+   export GOOGLE_CALENDAR_CREDENTIALS_FILE=/home/pi/secrets/google-service-account.json
+   ```
+
+3. `config.yaml` に環境変数名を設定
+
+   ```yaml
+   google_calendar:
+     enabled: true
+     credentials_file_env: "GOOGLE_CALENDAR_CREDENTIALS_FILE"
+     calendar_id: "your-calendar-id@group.calendar.google.com"
+   ```
+
+4. 実行環境ごとに環境変数を確実に渡す
+
+    シェル（bash/zsh）で常用する場合:
+
+    ```bash
+    # ~/.bashrc または ~/.zshrc に追記
+    export GOOGLE_CALENDAR_CREDENTIALS_FILE=/home/pi/secrets/google-service-account.json
+
+    # 反映
+    source ~/.bashrc  # zshの場合は source ~/.zshrc
+    ```
+
+    systemdサービスで実行する場合:
+
+    ```ini
+    # /etc/systemd/system/wifi-notifier.service の [Service] セクションに追加
+    Environment="GOOGLE_CALENDAR_CREDENTIALS_FILE=/home/pi/secrets/google-service-account.json"
+    ```
+
+    ```bash
+    # 反映
+    sudo systemctl daemon-reload
+    sudo systemctl restart wifi-notifier
+    ```
+
+    一時実行で確認する場合:
+
+    ```bash
+    GOOGLE_CALENDAR_CREDENTIALS_FILE=/home/pi/secrets/google-service-account.json \
+    sudo -E python src/test_config.py config.yaml
+    ```
+
+#### ステップ3: Googleカレンダーを共有設定
+
+1. Googleカレンダーにサービスアカウントメールアドレスを共有
+   - Google Calendarを開く（<https://calendar.google.com>）
+   - 登録対象のカレンダー名の右側「⋮」（オプション）をクリック
+   - 「設定と共有」をクリック
+   - 「特定のユーザーと共有」セクションで「ユーザーを追加」をクリック
+   - Google Cloudコンソールで確認できるサービスアカウントのメールアドレスを入力
+     - 形式: `wifi-notifier@プロジェクトID.iam.gserviceaccount.com`
+   - 権限は「予定の変更」を選択
+   - 「共有」をクリック
+
+2. カレンダーIDを確認
+   - 登録対象カレンダーの「設定と共有」ページで、「カレンダーID」を確認
+   - 形式: `your-calendar-id@group.calendar.google.com`
+   - この値を `config.yaml` の `google_calendar.calendar_id` に設定
+
+#### ステップ4: 設定をテスト
 
 ```bash
 # ARPスキャンモードの場合はsudoが必要
 sudo python src/test_config.py config.yaml
 ```
+
+設定が正しければ、テストスクリプトが成功し、テスト用イベントがカレンダーに登録されます。
 
 このテストスクリプトは以下を確認します：
 
