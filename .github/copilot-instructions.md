@@ -16,6 +16,8 @@ GitHub Copilotに対する明確な指示を提供します。
   Pull Request作成・管理時の指示
 - [`instructions/issue.instructions.md`](instructions/issue.instructions.md)
   Issue作成・管理時の指示
+- [`instructions/config-sync.instructions.md`](instructions/config-sync.instructions.md)
+  設定ファイル更新時の同期・整合性維持指示
 
 ### 出力言語ルール
 
