@@ -49,11 +49,9 @@ email:
 google_calendar:
   enabled: false
 
-  # サービスアカウントJSONのパス（credentials_file_env が未指定の場合に使用）
-  # credentials_file: "/home/pi/secrets/google-service-account.json"
-
-  # 認証ファイルパスを環境変数から読む場合に指定
-  # credentials_file_env: "GOOGLE_CALENDAR_CREDENTIALS_FILE"
+  # サービスアカウントJSONのパスを格納した環境変数名（推奨）
+  # 例: /home/pi/secrets/google-service-account.json を環境変数に設定して参照
+  credentials_file_env: "GOOGLE_CALENDAR_CREDENTIALS_FILE"
 
   # 予定を登録するカレンダーID（専用カレンダー推奨）
   # 例: "wifi-notifier@example.com"
