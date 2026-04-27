@@ -182,7 +182,27 @@ if [[ ${RUN_TEST} -eq 1 ]]; then
   ssh "${PI_HOST}" "bash -lc '
 set -e
 cd ${REMOTE_PROJECT}
-printf \"n\\n\" | sudo .venv/bin/python src/test_config.py config/config.yaml
+GCAL_ENV_NAME=\"\$(python3 - <<\"PY\"
+import yaml
+from pathlib import Path
+cfg = yaml.safe_load(Path(\"config/config.yaml\").read_text(encoding=\"utf-8\")) or {}
+cal = cfg.get(\"google_calendar\", {})
+print(str(cal.get(\"credentials_file_env\", \"\")).strip())
+PY
+)\"
+GCAL_ENV_VALUE=\"\$(python3 - <<\"PY\"
+import yaml
+from pathlib import Path
+cfg = yaml.safe_load(Path(\"config/config.yaml\").read_text(encoding=\"utf-8\")) or {}
+cal = cfg.get(\"google_calendar\", {})
+print(str(cal.get(\"credentials_file\", \"\")).strip())
+PY
+)\"
+if [ -n \"\${GCAL_ENV_NAME}\" ] && [ -n \"\${GCAL_ENV_VALUE}\" ]; then
+  printf \"n\\n\" | sudo env \"\${GCAL_ENV_NAME}=\${GCAL_ENV_VALUE}\" .venv/bin/python src/test_config.py config/config.yaml
+else
+  printf \"n\\n\" | sudo .venv/bin/python src/test_config.py config/config.yaml
+fi
 '"
 else
   echo "[5/6] 設定テストをスキップ"
@@ -193,7 +213,27 @@ if [[ ${RUN_SINGLE} -eq 1 ]]; then
   ssh "${PI_HOST}" "bash -lc '
 set -e
 cd ${REMOTE_PROJECT}
-sudo .venv/bin/python src/wifi_notifier.py config/config.yaml --single-run
+GCAL_ENV_NAME=\"\$(python3 - <<\"PY\"
+import yaml
+from pathlib import Path
+cfg = yaml.safe_load(Path(\"config/config.yaml\").read_text(encoding=\"utf-8\")) or {}
+cal = cfg.get(\"google_calendar\", {})
+print(str(cal.get(\"credentials_file_env\", \"\")).strip())
+PY
+)\"
+GCAL_ENV_VALUE=\"\$(python3 - <<\"PY\"
+import yaml
+from pathlib import Path
+cfg = yaml.safe_load(Path(\"config/config.yaml\").read_text(encoding=\"utf-8\")) or {}
+cal = cfg.get(\"google_calendar\", {})
+print(str(cal.get(\"credentials_file\", \"\")).strip())
+PY
+)\"
+if [ -n \"\${GCAL_ENV_NAME}\" ] && [ -n \"\${GCAL_ENV_VALUE}\" ]; then
+  sudo env \"\${GCAL_ENV_NAME}=\${GCAL_ENV_VALUE}\" .venv/bin/python src/wifi_notifier.py config/config.yaml --single-run
+else
+  sudo .venv/bin/python src/wifi_notifier.py config/config.yaml --single-run
+fi
 '"
 fi
 
@@ -208,6 +248,26 @@ SERVICE_GROUP=\"\$(id -gn)\"
 # .venv/bin/python は python3 への 1 段シンボリックリンク。
 # systemd は 2 段チェーンを解決しないため python3 を明示的に指定する。
 PYTHON_BIN=\"\${REMOTE_PROJECT_PATH}/.venv/bin/python3\"
+GCAL_ENV_NAME=\"\$(python3 - <<\"PY\"
+import yaml
+from pathlib import Path
+cfg = yaml.safe_load(Path(\"config/config.yaml\").read_text(encoding=\"utf-8\")) or {}
+cal = cfg.get(\"google_calendar\", {})
+print(str(cal.get(\"credentials_file_env\", \"\")).strip())
+PY
+)\"
+GCAL_ENV_VALUE=\"\$(python3 - <<\"PY\"
+import yaml
+from pathlib import Path
+cfg = yaml.safe_load(Path(\"config/config.yaml\").read_text(encoding=\"utf-8\")) or {}
+cal = cfg.get(\"google_calendar\", {})
+print(str(cal.get(\"credentials_file\", \"\")).strip())
+PY
+)\"
+SERVICE_ENV_LINE=\"\"
+if [ -n \"\${GCAL_ENV_NAME}\" ] && [ -n \"\${GCAL_ENV_VALUE}\" ]; then
+  SERVICE_ENV_LINE=\"Environment=\${GCAL_ENV_NAME}=\${GCAL_ENV_VALUE}\"
+fi
 # 過去に sudo で直接実行したときに root 所有になったログファイルがあれば所有権を修正
 if [ -f \"\${REMOTE_PROJECT_PATH}/wifi_notifier.log\" ]; then
   sudo chown \"\${SERVICE_USER}:\${SERVICE_GROUP}\" \"\${REMOTE_PROJECT_PATH}/wifi_notifier.log\"
@@ -223,6 +283,7 @@ Type=simple
 User=\${SERVICE_USER}
 Group=\${SERVICE_GROUP}
 WorkingDirectory=\${REMOTE_PROJECT_PATH}
+\${SERVICE_ENV_LINE}
 ExecStart=\${PYTHON_BIN} \${REMOTE_PROJECT_PATH}/src/wifi_notifier.py \${REMOTE_PROJECT_PATH}/config/config.yaml
 Restart=on-failure
 RestartSec=30
