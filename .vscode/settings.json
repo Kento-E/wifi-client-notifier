@@ -1,4 +1,6 @@
 {
+  "markdownlint.config": {
+  },
   "chat.tools.terminal.autoApprove": {
     "env": true,
     "true": true,
@@ -107,7 +109,35 @@
     "/^python3 -m black \\. && python3 -m flake8 \\.$/": {
       "approve": true,
       "matchCommandLine": true
-    }
+    },
+    "/^source \\.venv/bin/activate && flake8 src/wifi_notifier\\.py src/notifiers/email\\.py$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^source \\.venv/bin/activate && pre-commit run markdownlint-cli2 --all-files$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^source \\.venv/bin/activate && markdownlint-cli2 \"\\*\\*/\\*\\.md\"$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "./.venv/bin/markdownlint-cli2": true,
+    "/^source \\.venv/bin/activate && pip list \\| grep markdownlint$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^source \\.venv/bin/activate && pre-commit run markdownlint-cli2 --all-files --verbose$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "/^source \\.venv/bin/activate && pre-commit run markdownlint-cli2 --all-files --hook-stage manual$/": {
+      "approve": true,
+      "matchCommandLine": true
+    },
+    "npx --yes markdownlint-cli2": true,
+    ".venv/bin/pre-commit": true,
+    "./scripts/run_quality_checks.sh": true
   },
   "cSpell.words": ["raspberrypi"]
 }
