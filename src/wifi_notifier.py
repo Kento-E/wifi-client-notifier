@@ -534,6 +534,10 @@ class WiFiMonitor:
                                 if disconnected_since is not None
                                 else None
                             )
+                            is_repeat_target_mac = (
+                                self.branch_notification_mode_enabled
+                                and mac in self.repeat_notification_macs
+                            )
                             force_notify_by_reconnect = (
                                 self.reconnect_notify_after_seconds > 0
                                 and absence_seconds is not None
@@ -541,7 +545,11 @@ class WiFiMonitor:
                             )
 
                             cooldown_remaining = self._get_notification_cooldown_remaining(mac)
-                            if cooldown_remaining > 0 and not force_notify_by_reconnect:
+                            if (
+                                cooldown_remaining > 0
+                                and not force_notify_by_reconnect
+                                and not is_repeat_target_mac
+                            ):
                                 logging.info(
                                     "同一端末の再通知を抑止しました: %s（クールダウン残り約%s秒）",
                                     mac,
@@ -552,6 +560,11 @@ class WiFiMonitor:
                                     logging.info(
                                         "%s分ぶりの再接続を検出しました（強制通知）: %s",
                                         int(absence_seconds // 60),
+                                        mac,
+                                    )
+                                elif cooldown_remaining > 0 and is_repeat_target_mac:
+                                    logging.info(
+                                        "再通知対象MACのためクールダウンを無視して通知します: %s",
                                         mac,
                                     )
                                 else:
