@@ -1,6 +1,5 @@
 {
-  "markdownlint.config": {
-  },
+  "markdownlint.config": {},
   "chat.tools.terminal.autoApprove": {
     "env": true,
     "true": true,
