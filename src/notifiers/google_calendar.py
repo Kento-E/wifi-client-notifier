@@ -79,6 +79,28 @@ class GoogleCalendarNotifier(BaseNotifier):
             scopes=[self.SCOPE],
         )
         self.service = build("calendar", "v3", credentials=credentials, cache_discovery=False)
+        self.service_account_email = getattr(credentials, "service_account_email", "")
+        self._validate_calendar_access()
+
+    def _validate_calendar_access(self) -> None:
+        """初期化時に対象カレンダーへのアクセス可否を検証する。"""
+        try:
+            self.service.calendars().get(calendarId=self.calendar_id).execute()
+        except Exception as e:
+            if HttpError is not None and isinstance(e, HttpError):
+                status = getattr(e.resp, "status", None)
+                if status in (403, 404):
+                    account_hint = (
+                        self.service_account_email
+                        if self.service_account_email
+                        else "サービスアカウント"
+                    )
+                    raise ValueError(
+                        "Googleカレンダーへアクセスできません。"
+                        f" calendar_id='{self.calendar_id}' を確認し、"
+                        f"{account_hint} に対象カレンダーの共有権限を付与してください"
+                    ) from e
+            raise
 
     def send_notification(
         self,
