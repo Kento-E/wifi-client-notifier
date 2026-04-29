@@ -136,7 +136,9 @@
     },
     "npx --yes markdownlint-cli2": true,
     ".venv/bin/pre-commit": true,
-    "./scripts/run_quality_checks.sh": true
+    "./scripts/run_quality_checks.sh": true,
+    "./scripts/setup_git_hooks.sh": true,
+    "git config": true
   },
   "cSpell.words": ["raspberrypi"]
 }
