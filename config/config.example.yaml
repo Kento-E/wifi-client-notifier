@@ -63,9 +63,6 @@ google_calendar:
   # 予定タイトルの先頭文字列
   summary_prefix: "🛜"
 
-  # 1件の予定の長さ（分）
-  event_duration_minutes: 30
-
   # API失敗時のリトライ設定
   max_retries: 3
   retry_delay_seconds: 3

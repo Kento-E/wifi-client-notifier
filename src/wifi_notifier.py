@@ -253,7 +253,6 @@ class WiFiMonitor:
                 credentials_file=credentials_file,
                 calendar_id=calendar_id,
                 timezone_name=calendar_config.get("timezone", "Asia/Tokyo"),
-                event_duration_minutes=calendar_config.get("event_duration_minutes", 30),
                 summary_prefix=calendar_config.get("summary_prefix", "🛜"),
                 max_retries=calendar_config.get("max_retries", 3),
                 retry_delay_seconds=calendar_config.get("retry_delay_seconds", 3),

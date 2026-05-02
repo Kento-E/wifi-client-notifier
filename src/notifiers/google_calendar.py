@@ -32,7 +32,6 @@ class GoogleCalendarNotifier(BaseNotifier):
         credentials_file: str,
         calendar_id: str,
         timezone_name: str = "Asia/Tokyo",
-        event_duration_minutes: int = 30,
         summary_prefix: str = "🛜",
         max_retries: int = 3,
         retry_delay_seconds: int = 3,
@@ -45,7 +44,6 @@ class GoogleCalendarNotifier(BaseNotifier):
             credentials_file: サービスアカウントJSONのパス
             calendar_id: 登録先カレンダーID
             timezone_name: 予定登録に使用するタイムゾーン
-            event_duration_minutes: 登録予定の終了時刻（開始からの分）
             summary_prefix: 予定タイトルの先頭文字列
             max_retries: 登録失敗時の最大リトライ回数
             retry_delay_seconds: リトライ間隔（秒）
@@ -59,7 +57,6 @@ class GoogleCalendarNotifier(BaseNotifier):
 
         self.credentials_file = credentials_file
         self.calendar_id = calendar_id
-        self.event_duration_minutes = max(1, int(event_duration_minutes))
         self.summary_prefix = summary_prefix.strip() if summary_prefix else "🛜"
         self.max_retries = max(1, int(max_retries))
         self.retry_delay_seconds = max(1, int(retry_delay_seconds))
@@ -118,10 +115,7 @@ class GoogleCalendarNotifier(BaseNotifier):
         """検出デバイス情報をGoogleカレンダー予定として登録する。"""
         detected_ts = detected_at if detected_at is not None else time.time()
         started_at = datetime.fromtimestamp(detected_ts, tz=self.timezone)
-        ended_at = datetime.fromtimestamp(
-            detected_ts + (self.event_duration_minutes * 60),
-            tz=self.timezone,
-        )
+        ended_at = started_at
 
         dedupe_key = self._build_dedupe_key(device_info, is_unknown_device, detected_ts)
         if self._event_already_exists(dedupe_key, started_at):
