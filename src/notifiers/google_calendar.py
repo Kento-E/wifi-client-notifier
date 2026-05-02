@@ -83,9 +83,16 @@ class GoogleCalendarNotifier(BaseNotifier):
         self._validate_calendar_access()
 
     def _validate_calendar_access(self) -> None:
-        """初期化時に対象カレンダーへのアクセス可否を検証する。"""
+        """初期化時に対象カレンダーへのアクセス可否を検証する。
+
+        calendar.events スコープで利用可能な events.list を使って
+        アクセス権を確認する（calendars.get は calendar.readonly 以上が必要なため使用しない）。
+        """
         try:
-            self.service.calendars().get(calendarId=self.calendar_id).execute()
+            self.service.events().list(
+                calendarId=self.calendar_id,
+                maxResults=1,
+            ).execute()
         except Exception as e:
             if HttpError is not None and isinstance(e, HttpError):
                 status = getattr(e.resp, "status", None)
