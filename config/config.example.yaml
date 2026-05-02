@@ -61,7 +61,7 @@ google_calendar:
   timezone: "Asia/Tokyo"
 
   # 予定タイトルの先頭文字列
-  summary_prefix: "WiFi接続検知"
+  summary_prefix: "🛜"
 
   # 1件の予定の長さ（分）
   event_duration_minutes: 30

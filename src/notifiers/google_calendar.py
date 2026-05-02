@@ -33,7 +33,7 @@ class GoogleCalendarNotifier(BaseNotifier):
         calendar_id: str,
         timezone_name: str = "Asia/Tokyo",
         event_duration_minutes: int = 30,
-        summary_prefix: str = "WiFi接続検知",
+        summary_prefix: str = "🛜",
         max_retries: int = 3,
         retry_delay_seconds: int = 3,
         dedupe_window_minutes: int = 10,
@@ -60,7 +60,7 @@ class GoogleCalendarNotifier(BaseNotifier):
         self.credentials_file = credentials_file
         self.calendar_id = calendar_id
         self.event_duration_minutes = max(1, int(event_duration_minutes))
-        self.summary_prefix = summary_prefix.strip() if summary_prefix else "WiFi接続検知"
+        self.summary_prefix = summary_prefix.strip() if summary_prefix else "🛜"
         self.max_retries = max(1, int(max_retries))
         self.retry_delay_seconds = max(1, int(retry_delay_seconds))
         self.dedupe_window_minutes = max(1, int(dedupe_window_minutes))
