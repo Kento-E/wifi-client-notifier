@@ -239,7 +239,7 @@ class WiFiMonitor:
                     "credentials_file_env を設定してください"
                 )
             if not credentials_file:
-                raise ValueError("環境変数が未設定または空です: " f"{credentials_file_env}")
+                raise ValueError(f"環境変数が未設定または空です: {credentials_file_env}")
             if not os.path.exists(credentials_file):
                 raise FileNotFoundError(
                     f"GoogleサービスアカウントJSONが見つかりません: {credentials_file}"
@@ -259,7 +259,11 @@ class WiFiMonitor:
                 dedupe_window_minutes=calendar_config.get("dedupe_window_minutes", 10),
             )
             self.notifiers.append(calendar_notifier)
-            logging.info("Googleカレンダー通知: 有効（カレンダーID: %s）", calendar_id)
+            logging.info(
+                "Googleカレンダー通知: 有効（カレンダーID: %s, summary_prefix: %s）",
+                calendar_id,
+                calendar_notifier.summary_prefix,
+            )
         except Exception as e:
             self.calendar_init_error = str(e)
             logging.error(
