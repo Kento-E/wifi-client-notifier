@@ -49,8 +49,9 @@ email:
 google_calendar:
   enabled: false
 
-  # サービスアカウントJSONのパスを格納した環境変数名（推奨）
-  # 例: /home/pi/secrets/google-service-account.json を環境変数に設定して参照
+  # サービスアカウントJSONのパスを格納した環境変数名
+  # systemdサービスの場合: Environment="GOOGLE_CALENDAR_CREDENTIALS_FILE=/path/to/key.json"
+  # シェル実行の場合: export GOOGLE_CALENDAR_CREDENTIALS_FILE=/path/to/key.json
   credentials_file_env: "GOOGLE_CALENDAR_CREDENTIALS_FILE"
 
   # 予定を登録するカレンダーID（専用カレンダー推奨）

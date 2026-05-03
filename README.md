@@ -88,7 +88,7 @@ cp config/config.example.yaml config.yaml
 
 - `detection_method`: `arp` または `router`
 - `email`: SMTPサーバー、ユーザー、パスワード、送受信先
-- Googleカレンダー利用時は `google_calendar.credentials_file_env` と `calendar_id`
+- Googleカレンダー利用時は `google_calendar.credentials_file_env` と `google_calendar.calendar_id`
 
 4. 設定テストを実行（ARPモードはsudo推奨）
 
@@ -220,7 +220,7 @@ Googleカレンダー通知の主な設定（任意）:
    export GOOGLE_CALENDAR_CREDENTIALS_FILE=/home/pi/secrets/google-service-account.json
    ```
 
-3. `config.yaml` に環境変数名を設定
+3. `config.yaml` に環境変数名とカレンダーIDを設定
 
    ```yaml
    google_calendar:

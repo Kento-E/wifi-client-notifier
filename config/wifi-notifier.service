@@ -10,6 +10,7 @@ Type=simple
 User=<YOUR_USER>
 Group=<YOUR_GROUP>
 WorkingDirectory=/path/to/wifi-client-notifier
+Environment="GOOGLE_CALENDAR_CREDENTIALS_FILE=/path/to/secrets/google-service-account.json"
 ExecStart=/path/to/wifi-client-notifier/.venv/bin/python /path/to/wifi-client-notifier/src/wifi_notifier.py /path/to/wifi-client-notifier/config/config.yaml
 
 # 失敗時に再起動
