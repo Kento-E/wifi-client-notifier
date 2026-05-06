@@ -33,8 +33,10 @@ arp:
 #   username: "admin"             # 管理者ユーザー名
 #   password: "your_router_password"  # 管理者パスワード
 
-# メール設定
+# メール通知設定（任意）
+# Firebase や Google カレンダーだけで運用する場合は enabled: false にできます
 email:
+  enabled: true
   smtp_server: "smtp.gmail.com" # SMTPサーバーアドレス
   smtp_port: 587 # SMTPポート番号
   smtp_user: "your_email@gmail.com" # SMTP認証ユーザー名
@@ -70,6 +72,29 @@ google_calendar:
 
   # 重複判定時に検索する前後時間幅（分）
   dedupe_window_minutes: 10
+
+# Firebase Cloud Messaging 通知設定（任意）
+# Android アプリなどで取得した registration token を指定すると、対象端末へ push 通知できます
+firebase:
+  enabled: false
+
+  # Firebase サービスアカウントJSONのパスを格納した環境変数名
+  # systemdサービスの場合: Environment="FIREBASE_CREDENTIALS_FILE=/path/to/firebase-service-account.json"
+  # シェル実行の場合: export FIREBASE_CREDENTIALS_FILE=/path/to/firebase-service-account.json
+  credentials_file_env: "FIREBASE_CREDENTIALS_FILE"
+
+  # Firebase プロジェクト ID
+  project_id: ""
+
+  # 通知タイトルの先頭文字列
+  notification_title_prefix: "WiFi通知"
+
+  # FCM API タイムアウト（秒）
+  timeout_seconds: 10
+
+  # Android 端末側で取得した registration token の一覧
+  registration_tokens:
+    - ""
 
 # 再通知対象デバイス（MACアドレスのリスト）
 # ここに含めたMACアドレスだけは切断後の再接続でも通知対象にします

@@ -9,6 +9,7 @@ PI_HOST="${PI_HOST:-}"
 WORK_DIR="~/work"
 REPO_URL="https://github.com/Kento-E/wifi-client-notifier.git"
 LOCAL_CONFIG="config/config.yaml"
+FIREBASE_CREDENTIALS_REMOTE="${FIREBASE_CREDENTIALS_REMOTE:-}"
 COPY_CONFIG=1
 RUN_TEST=1
 RUN_SINGLE=1
@@ -34,6 +35,8 @@ usage() {
   --repo <url>             クローンするリポジトリURL
   --workdir <path>         Raspberry Pi側の作業ディレクトリ（デフォルト: ~/work）
   --config <path>          ローカル設定ファイルのパス（デフォルト: config/config.yaml）
+  --firebase-credentials <path>
+                           Raspberry Pi上のFirebaseサービスアカウントJSONパス
   --no-config-copy         設定ファイル転送をスキップ
   --skip-test              test_config.py の実行をスキップ
   --skip-single-run        wifi_notifier.py --single-run の実行をスキップ
@@ -42,7 +45,8 @@ usage() {
 
 例:
   PI_HOST=user@hostname.local ./deployment/setup_raspberrypi.sh
-  ./deployment/setup_raspberrypi.sh --host pi@192.168.10.50 --branch main
+  ./deployment/setup_raspberrypi.sh --host pi@192.168.10.50 --branch main \
+    --firebase-credentials /home/pi/secrets/firebase-service-account.json
 USAGE
 }
 
@@ -66,6 +70,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --config)
       LOCAL_CONFIG="$2"
+      shift 2
+      ;;
+    --firebase-credentials)
+      FIREBASE_CREDENTIALS_REMOTE="$2"
       shift 2
       ;;
     --no-config-copy)
@@ -108,6 +116,9 @@ echo "=== Raspberry Pi セットアップ開始 ==="
 echo "接続先: ${PI_HOST}"
 echo "ブランチ: ${BRANCH}"
 echo "作業ディレクトリ: ${WORK_DIR}"
+if [[ -n "${FIREBASE_CREDENTIALS_REMOTE}" ]]; then
+  echo "Firebase認証情報: ${FIREBASE_CREDENTIALS_REMOTE}"
+fi
 if [[ ${INSTALL_SERVICE} -eq 1 ]]; then
   echo "systemdサービス: インストールする"
 else
@@ -149,29 +160,30 @@ if [[ ${COPY_CONFIG} -eq 1 ]]; then
   cat "${LOCAL_CONFIG}" | ssh "${PI_HOST}" "cat > ${REMOTE_PROJECT}/config/config.yaml"
 
   echo "[4/6] Raspberry Pi向け ARP 設定を補完"
-  ssh "${PI_HOST}" "bash -lc '
+  ssh "${PI_HOST}" bash -s -- "${REMOTE_PROJECT}" <<'EOF'
 set -e
-cd ${REMOTE_PROJECT}
+remote_project="$1"
+cd "$remote_project"
 . .venv/bin/activate
-python - <<\"PY\"
+python - <<"PY"
 import yaml
 from pathlib import Path
 
-p = Path(\"config/config.yaml\")
-cfg = yaml.safe_load(p.read_text(encoding=\"utf-8\"))
-cfg[\"detection_method\"] = \"arp\"
-cfg.setdefault(\"arp\", {})
-cfg[\"arp\"].setdefault(\"interface\", \"wlan0\")
-cfg[\"arp\"].setdefault(\"timeout\", 2)
-cfg.setdefault(\"disconnect_grace_scans\", 3)
-if \"notification_cool_down_minutes\" not in cfg and \"notification_cooldown_minutes\" in cfg:
-  cfg[\"notification_cool_down_minutes\"] = cfg[\"notification_cooldown_minutes\"]
-cfg.setdefault(\"notification_cool_down_minutes\", 1440)
-cfg.setdefault(\"reconnect_notify_after_minutes\", 60)
-p.write_text(yaml.dump(cfg, allow_unicode=True, sort_keys=False), encoding=\"utf-8\")
-print(\"設定更新完了\")
+p = Path("config/config.yaml")
+cfg = yaml.safe_load(p.read_text(encoding="utf-8"))
+cfg["detection_method"] = "arp"
+cfg.setdefault("arp", {})
+cfg["arp"].setdefault("interface", "wlan0")
+cfg["arp"].setdefault("timeout", 2)
+cfg.setdefault("disconnect_grace_scans", 3)
+if "notification_cool_down_minutes" not in cfg and "notification_cooldown_minutes" in cfg:
+    cfg["notification_cool_down_minutes"] = cfg["notification_cooldown_minutes"]
+cfg.setdefault("notification_cool_down_minutes", 1440)
+cfg.setdefault("reconnect_notify_after_minutes", 60)
+p.write_text(yaml.dump(cfg, allow_unicode=True, sort_keys=False), encoding="utf-8")
+print("設定更新完了")
 PY
-'"
+EOF
 else
   echo "[3/6] 設定ファイル転送をスキップ"
   echo "[4/6] Raspberry Pi向け ARP 設定補完をスキップ"
@@ -179,100 +191,177 @@ fi
 
 if [[ ${RUN_TEST} -eq 1 ]]; then
   echo "[5/6] 設定テスト実行"
-  ssh "${PI_HOST}" "bash -lc '
+  ssh "${PI_HOST}" bash -s -- "${REMOTE_PROJECT}" "${FIREBASE_CREDENTIALS_REMOTE}" <<'EOF'
 set -e
-cd ${REMOTE_PROJECT}
-GCAL_ENV_NAME=\"\$(python3 - <<\"PY\"
+remote_project="$1"
+firebase_credentials_remote="$2"
+cd "$remote_project"
+
+get_config_value() {
+  python3 - "$1" "$2" <<'PY'
+import sys
 import yaml
 from pathlib import Path
-cfg = yaml.safe_load(Path(\"config/config.yaml\").read_text(encoding=\"utf-8\")) or {}
-cal = cfg.get(\"google_calendar\", {})
-print(str(cal.get(\"credentials_file_env\", \"\")).strip())
+
+section = sys.argv[1]
+key = sys.argv[2]
+cfg = yaml.safe_load(Path("config/config.yaml").read_text(encoding="utf-8")) or {}
+value = cfg.get(section, {})
+if not isinstance(value, dict):
+    value = {}
+value = value.get(key, "")
+if isinstance(value, bool):
+    print("1" if value else "")
+elif value is None:
+    print("")
+else:
+    print(str(value).strip())
 PY
-)\"
-GCAL_ENV_VALUE=\"\$(python3 - <<\"PY\"
-import yaml
-from pathlib import Path
-cfg = yaml.safe_load(Path(\"config/config.yaml\").read_text(encoding=\"utf-8\")) or {}
-cal = cfg.get(\"google_calendar\", {})
-print(str(cal.get(\"credentials_file\", \"\")).strip())
-PY
-)\"
-if [ -n \"\${GCAL_ENV_NAME}\" ] && [ -n \"\${GCAL_ENV_VALUE}\" ]; then
-  printf \"n\\n\" | sudo env \"\${GCAL_ENV_NAME}=\${GCAL_ENV_VALUE}\" .venv/bin/python src/test_config.py config/config.yaml
-else
-  printf \"n\\n\" | sudo .venv/bin/python src/test_config.py config/config.yaml
+}
+
+gcal_env_name="$(get_config_value google_calendar credentials_file_env)"
+gcal_env_value="$(get_config_value google_calendar credentials_file)"
+firebase_enabled="$(get_config_value firebase enabled)"
+firebase_env_name="$(get_config_value firebase credentials_file_env)"
+
+env_args=()
+if [[ -n "${gcal_env_name}" && -n "${gcal_env_value}" ]]; then
+  env_args+=("${gcal_env_name}=${gcal_env_value}")
 fi
-'"
+if [[ -n "${firebase_enabled}" ]]; then
+  if [[ -z "${firebase_env_name}" ]]; then
+    echo "エラー: firebase.enabled=true ですが credentials_file_env が未設定です" >&2
+    exit 1
+  fi
+  if [[ -z "${firebase_credentials_remote}" ]]; then
+    echo "エラー: firebase.enabled=true ですが --firebase-credentials が未指定です" >&2
+    exit 1
+  fi
+  env_args+=("${firebase_env_name}=${firebase_credentials_remote}")
+fi
+
+printf "n\n" | sudo env "${env_args[@]}" .venv/bin/python src/test_config.py config/config.yaml
+EOF
 else
   echo "[5/6] 設定テストをスキップ"
 fi
 
 if [[ ${RUN_SINGLE} -eq 1 ]]; then
   echo "[追加確認] single-run 実行"
-  ssh "${PI_HOST}" "bash -lc '
+  ssh "${PI_HOST}" bash -s -- "${REMOTE_PROJECT}" "${FIREBASE_CREDENTIALS_REMOTE}" <<'EOF'
 set -e
-cd ${REMOTE_PROJECT}
-GCAL_ENV_NAME=\"\$(python3 - <<\"PY\"
+remote_project="$1"
+firebase_credentials_remote="$2"
+cd "$remote_project"
+
+get_config_value() {
+  python3 - "$1" "$2" <<'PY'
+import sys
 import yaml
 from pathlib import Path
-cfg = yaml.safe_load(Path(\"config/config.yaml\").read_text(encoding=\"utf-8\")) or {}
-cal = cfg.get(\"google_calendar\", {})
-print(str(cal.get(\"credentials_file_env\", \"\")).strip())
+
+section = sys.argv[1]
+key = sys.argv[2]
+cfg = yaml.safe_load(Path("config/config.yaml").read_text(encoding="utf-8")) or {}
+value = cfg.get(section, {})
+if not isinstance(value, dict):
+    value = {}
+value = value.get(key, "")
+if isinstance(value, bool):
+    print("1" if value else "")
+elif value is None:
+    print("")
+else:
+    print(str(value).strip())
 PY
-)\"
-GCAL_ENV_VALUE=\"\$(python3 - <<\"PY\"
-import yaml
-from pathlib import Path
-cfg = yaml.safe_load(Path(\"config/config.yaml\").read_text(encoding=\"utf-8\")) or {}
-cal = cfg.get(\"google_calendar\", {})
-print(str(cal.get(\"credentials_file\", \"\")).strip())
-PY
-)\"
-if [ -n \"\${GCAL_ENV_NAME}\" ] && [ -n \"\${GCAL_ENV_VALUE}\" ]; then
-  sudo env \"\${GCAL_ENV_NAME}=\${GCAL_ENV_VALUE}\" .venv/bin/python src/wifi_notifier.py config/config.yaml --single-run
-else
-  sudo .venv/bin/python src/wifi_notifier.py config/config.yaml --single-run
+}
+
+gcal_env_name="$(get_config_value google_calendar credentials_file_env)"
+gcal_env_value="$(get_config_value google_calendar credentials_file)"
+firebase_enabled="$(get_config_value firebase enabled)"
+firebase_env_name="$(get_config_value firebase credentials_file_env)"
+
+env_args=()
+if [[ -n "${gcal_env_name}" && -n "${gcal_env_value}" ]]; then
+  env_args+=("${gcal_env_name}=${gcal_env_value}")
 fi
-'"
+if [[ -n "${firebase_enabled}" ]]; then
+  if [[ -z "${firebase_env_name}" ]]; then
+    echo "エラー: firebase.enabled=true ですが credentials_file_env が未設定です" >&2
+    exit 1
+  fi
+  if [[ -z "${firebase_credentials_remote}" ]]; then
+    echo "エラー: firebase.enabled=true ですが --firebase-credentials が未指定です" >&2
+    exit 1
+  fi
+  env_args+=("${firebase_env_name}=${firebase_credentials_remote}")
+fi
+
+sudo env "${env_args[@]}" .venv/bin/python src/wifi_notifier.py config/config.yaml --single-run
+EOF
 fi
 
 if [[ ${INSTALL_SERVICE} -eq 1 ]]; then
   echo "[6/6] systemdサービスをインストールして起動"
-  ssh "${PI_HOST}" "bash -lc '
+  ssh "${PI_HOST}" bash -s -- "${REMOTE_PROJECT}" "${FIREBASE_CREDENTIALS_REMOTE}" <<'EOF'
 set -e
-cd ${REMOTE_PROJECT}
-REMOTE_PROJECT_PATH=\"\$(pwd)\"
-SERVICE_USER=\"\$(id -un)\"
-SERVICE_GROUP=\"\$(id -gn)\"
-# .venv/bin/python は python3 への 1 段シンボリックリンク。
-# systemd は 2 段チェーンを解決しないため python3 を明示的に指定する。
-PYTHON_BIN=\"\${REMOTE_PROJECT_PATH}/.venv/bin/python3\"
-GCAL_ENV_NAME=\"\$(python3 - <<\"PY\"
+remote_project="$1"
+firebase_credentials_remote="$2"
+cd "$remote_project"
+
+get_config_value() {
+  python3 - "$1" "$2" <<'PY'
+import sys
 import yaml
 from pathlib import Path
-cfg = yaml.safe_load(Path(\"config/config.yaml\").read_text(encoding=\"utf-8\")) or {}
-cal = cfg.get(\"google_calendar\", {})
-print(str(cal.get(\"credentials_file_env\", \"\")).strip())
+
+section = sys.argv[1]
+key = sys.argv[2]
+cfg = yaml.safe_load(Path("config/config.yaml").read_text(encoding="utf-8")) or {}
+value = cfg.get(section, {})
+if not isinstance(value, dict):
+    value = {}
+value = value.get(key, "")
+if isinstance(value, bool):
+    print("1" if value else "")
+elif value is None:
+    print("")
+else:
+    print(str(value).strip())
 PY
-)\"
-GCAL_ENV_VALUE=\"\$(python3 - <<\"PY\"
-import yaml
-from pathlib import Path
-cfg = yaml.safe_load(Path(\"config/config.yaml\").read_text(encoding=\"utf-8\")) or {}
-cal = cfg.get(\"google_calendar\", {})
-print(str(cal.get(\"credentials_file\", \"\")).strip())
-PY
-)\"
-SERVICE_ENV_LINE=\"\"
-if [ -n \"\${GCAL_ENV_NAME}\" ] && [ -n \"\${GCAL_ENV_VALUE}\" ]; then
-  SERVICE_ENV_LINE=\"Environment=\${GCAL_ENV_NAME}=\${GCAL_ENV_VALUE}\"
+}
+
+remote_project_path="$(pwd)"
+service_user="$(id -un)"
+service_group="$(id -gn)"
+python_bin="${remote_project_path}/.venv/bin/python3"
+gcal_env_name="$(get_config_value google_calendar credentials_file_env)"
+gcal_env_value="$(get_config_value google_calendar credentials_file)"
+firebase_enabled="$(get_config_value firebase enabled)"
+firebase_env_name="$(get_config_value firebase credentials_file_env)"
+
+service_env_lines=()
+if [[ -n "${gcal_env_name}" && -n "${gcal_env_value}" ]]; then
+  service_env_lines+=("Environment=${gcal_env_name}=${gcal_env_value}")
 fi
-# 過去に sudo で直接実行したときに root 所有になったログファイルがあれば所有権を修正
-if [ -f \"\${REMOTE_PROJECT_PATH}/wifi_notifier.log\" ]; then
-  sudo chown \"\${SERVICE_USER}:\${SERVICE_GROUP}\" \"\${REMOTE_PROJECT_PATH}/wifi_notifier.log\"
+if [[ -n "${firebase_enabled}" ]]; then
+  if [[ -z "${firebase_env_name}" ]]; then
+    echo "エラー: firebase.enabled=true ですが credentials_file_env が未設定です" >&2
+    exit 1
+  fi
+  if [[ -z "${firebase_credentials_remote}" ]]; then
+    echo "エラー: firebase.enabled=true ですが --firebase-credentials が未指定です" >&2
+    exit 1
+  fi
+  service_env_lines+=("Environment=${firebase_env_name}=${firebase_credentials_remote}")
 fi
-sudo tee /etc/systemd/system/wifi-notifier.service >/dev/null <<EOF
+
+if [[ -f "${remote_project_path}/wifi_notifier.log" ]]; then
+  sudo chown "${service_user}:${service_group}" "${remote_project_path}/wifi_notifier.log"
+fi
+
+{
+  cat <<EOF2
 [Unit]
 Description=WiFi Client Notifier
 After=network.target network-online.target
@@ -280,18 +369,22 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=\${SERVICE_USER}
-Group=\${SERVICE_GROUP}
-WorkingDirectory=\${REMOTE_PROJECT_PATH}
-\${SERVICE_ENV_LINE}
-ExecStart=\${PYTHON_BIN} \${REMOTE_PROJECT_PATH}/src/wifi_notifier.py \${REMOTE_PROJECT_PATH}/config/config.yaml
+User=${service_user}
+Group=${service_group}
+WorkingDirectory=${remote_project_path}
+EOF2
+  for service_env_line in "${service_env_lines[@]}"; do
+    printf '%s\n' "${service_env_line}"
+  done
+  cat <<EOF2
+ExecStart=${python_bin} ${remote_project_path}/src/wifi_notifier.py ${remote_project_path}/config/config.yaml
 Restart=on-failure
 RestartSec=30
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=\${REMOTE_PROJECT_PATH}
+ReadWritePaths=${remote_project_path}
 AmbientCapabilities=CAP_NET_RAW
 CapabilityBoundingSet=CAP_NET_RAW
 StandardOutput=journal
@@ -300,13 +393,15 @@ SyslogIdentifier=wifi-notifier
 
 [Install]
 WantedBy=multi-user.target
-EOF
+EOF2
+} | sudo tee /etc/systemd/system/wifi-notifier.service >/dev/null
+
 sudo systemctl daemon-reload
 sudo systemctl enable wifi-notifier
 sudo systemctl restart wifi-notifier
 sleep 4
 sudo systemctl --no-pager --lines=20 status wifi-notifier
-'"
+EOF
 else
   echo "[6/6] systemdサービスのインストールをスキップ"
 fi

@@ -7,10 +7,18 @@ ARPスキャンモードとルータAPIモードの両方をテストできま�
 """
 
 import sys
+import os
 import yaml
 import smtplib
 import requests
 from email.mime.text import MIMEText
+
+try:
+    from google.auth.transport.requests import Request
+    from google.oauth2 import service_account
+except ImportError:
+    Request = None
+    service_account = None
 
 
 def test_config_file(config_path):
@@ -153,6 +161,63 @@ def send_test_email(config):
         return False
 
 
+def test_firebase_connection(config):
+    """Firebase認証情報からアクセストークンを取得できるかテストする。"""
+    print("\nFirebase通知設定をテスト中...")
+
+    firebase_config = config.get("firebase", {})
+    if not firebase_config.get("enabled", False):
+        print("- Firebase通知は無効です")
+        return None
+
+    if service_account is None or Request is None:
+        print("✗ エラー: Firebase通知テストに必要な google-auth がありません")
+        return False
+
+    credentials_env = str(firebase_config.get("credentials_file_env", "")).strip()
+    project_id = str(firebase_config.get("project_id", "")).strip()
+    registration_tokens = [
+        str(token).strip()
+        for token in firebase_config.get("registration_tokens", [])
+        if str(token).strip()
+    ]
+
+    if not credentials_env:
+        print("✗ エラー: firebase.credentials_file_env が未設定です")
+        return False
+
+    credentials_file = os.getenv(credentials_env, "").strip()
+    if not credentials_file:
+        print(f"✗ エラー: 環境変数 {credentials_env} が未設定です")
+        return False
+    if not os.path.exists(credentials_file):
+        print(f"✗ エラー: FirebaseサービスアカウントJSONが見つかりません: {credentials_file}")
+        return False
+    if not project_id:
+        print("✗ エラー: firebase.project_id が未設定です")
+        return False
+    if not registration_tokens:
+        print("✗ エラー: firebase.registration_tokens が未設定です")
+        return False
+
+    try:
+        credentials = service_account.Credentials.from_service_account_file(
+            credentials_file,
+            scopes=["https://www.googleapis.com/auth/firebase.messaging"],
+        )
+        credentials.refresh(Request())
+        if not credentials.token:
+            print("✗ エラー: Firebase用アクセストークンを取得できませんでした")
+            return False
+
+        print(f"✓ Firebase認証成功: project_id={project_id}")
+        print(f"  - 通知先トークン数: {len(registration_tokens)}")
+        return True
+    except Exception as e:
+        print(f"✗ Firebase認証エラー: {e}")
+        return False
+
+
 def main():
     """メインテスト関数。"""
     print("=== WiFi Client Notifier 設定テスト ===\n")
@@ -177,8 +242,14 @@ def main():
     else:
         detection_ok = test_router_connection(config)
 
-    # SMTP接続をテスト
-    smtp_ok = test_smtp_connection(config)
+    email_config = config.get("email", {})
+    email_enabled = bool(email_config) and email_config.get("enabled", True)
+
+    smtp_ok = None
+    if email_enabled:
+        smtp_ok = test_smtp_connection(config)
+    else:
+        print("\nSMTP接続テストをスキップします（メール通知が無効）")
 
     # テストメール送信を提案
     if smtp_ok:
@@ -187,14 +258,31 @@ def main():
         if response == "y":
             send_test_email(config)
 
+    firebase_ok = test_firebase_connection(config)
+
     # サマリー
     detection_label = "ARPスキャン" if detection_method == "arp" else "ルータ接続"
     print("\n=== テスト結果 ===")
     print("設定ファイル: ✓")
     print(f"{detection_label}: {'✓' if detection_ok else '✗'}")
-    print(f"SMTP接続: {'✓' if smtp_ok else '✗'}")
+    if smtp_ok is None:
+        print("SMTP接続: - （無効）")
+    else:
+        print(f"SMTP接続: {'✓' if smtp_ok else '✗'}")
+    if firebase_ok is None:
+        print("Firebase認証: - （無効）")
+    else:
+        print(f"Firebase認証: {'✓' if firebase_ok else '✗'}")
 
-    if detection_ok and smtp_ok:
+    notifier_results = []
+    if smtp_ok is not None:
+        notifier_results.append(smtp_ok)
+    if firebase_ok is not None:
+        notifier_results.append(firebase_ok)
+
+    notifier_ok = bool(notifier_results) and all(notifier_results)
+
+    if detection_ok and notifier_ok:
         print("\n✓ すべてのテストが成功しました！")
         print("次のコマンドでモニタリングを開始できます:")
         print(f"python src/wifi_notifier.py {config_path}")

@@ -18,13 +18,13 @@ from typing import Dict, List, Optional, Set
 
 try:
     from src.router import WiFiRouter
-    from src.notifiers import EmailNotifier, GoogleCalendarNotifier
+    from src.notifiers import EmailNotifier, FirebaseNotifier, GoogleCalendarNotifier
     from src.config_manager import ConfigManager
     from src.state_manager import StateManager
     from src.notification_handler import NotificationHandler
 except ModuleNotFoundError:
     from router import WiFiRouter
-    from notifiers import EmailNotifier, GoogleCalendarNotifier
+    from notifiers import EmailNotifier, FirebaseNotifier, GoogleCalendarNotifier
     from config_manager import ConfigManager
     from state_manager import StateManager
     from notification_handler import NotificationHandler
@@ -60,7 +60,7 @@ class WiFiMonitor:
         self.reconnect_notify_after_seconds: int = 3600
         self.notify_unknown_devices_once: bool = False
         self.notification_handler: Optional[NotificationHandler] = None
-        self.calendar_init_error: Optional[str] = None
+        self.notifier_init_errors: List[str] = []
 
         self._initialize_components()
 
@@ -88,17 +88,26 @@ class WiFiMonitor:
             logging.info("検出方式: ルータAPI")
 
         # メール通知の初期化
-        email_config = ConfigManager.validate_email_config(self.config)
-        email_notifier = EmailNotifier(
-            email_config["smtp_server"],
-            email_config["smtp_port"],
-            email_config["smtp_user"],
-            email_config["smtp_password"],
-            email_config["sender_email"],
-            email_config["recipient_emails"],
-            email_config.get("use_tls", True),
+        email_config = ConfigManager.get_email_config(self.config)
+        email_enabled = ConfigManager.parse_bool_config(
+            email_config.get("enabled"),
+            default=bool(email_config),
         )
-        self.notifiers = [email_notifier]
+        if email_enabled:
+            validated_email_config = ConfigManager.validate_email_config(self.config)
+            email_notifier = EmailNotifier(
+                validated_email_config["smtp_server"],
+                validated_email_config["smtp_port"],
+                validated_email_config["smtp_user"],
+                validated_email_config["smtp_password"],
+                validated_email_config["sender_email"],
+                validated_email_config["recipient_emails"],
+                validated_email_config.get("use_tls", True),
+            )
+            self.notifiers.append(email_notifier)
+            logging.info("メール通知: 有効")
+        else:
+            logging.info("メール通知: 無効")
 
         # Google Calendar通知の初期化
         calendar_config = ConfigManager.get_google_calendar_config(self.config)
@@ -110,6 +119,22 @@ class WiFiMonitor:
             self._initialize_google_calendar(calendar_config)
         else:
             logging.info("Googleカレンダー通知: 無効")
+
+        firebase_config = ConfigManager.get_firebase_config(self.config)
+        firebase_enabled = ConfigManager.parse_bool_config(
+            firebase_config.get("enabled"),
+            default=False,
+        )
+        if firebase_enabled:
+            self._initialize_firebase(firebase_config)
+        else:
+            logging.info("Firebase通知: 無効")
+
+        if not self.notifiers:
+            raise ValueError(
+                "有効な通知チャネルがありません。email.enabled、"
+                "google_calendar.enabled、firebase.enabled のいずれかを有効にしてください"
+            )
 
         # 監視対象デバイスの設定
         monitored_devices = self.config.get("monitored_devices", [])
@@ -212,8 +237,8 @@ class WiFiMonitor:
             repeat_notification_macs=self.repeat_notification_macs,
             notify_unknown_devices_once=self.notify_unknown_devices_once,
         )
-        if self.calendar_init_error:
-            self.notification_handler.calendar_init_error = self.calendar_init_error
+        if self.notifier_init_errors:
+            self.notification_handler.notifier_init_errors = list(self.notifier_init_errors)
 
         logging.info("コンポーネントの初期化が完了しました")
 
@@ -265,9 +290,63 @@ class WiFiMonitor:
                 calendar_notifier.summary_prefix,
             )
         except Exception as e:
-            self.calendar_init_error = str(e)
+            self.notifier_init_errors.append(f"Googleカレンダー通知の初期化に失敗: {e}")
             logging.error(
-                "Googleカレンダー通知の初期化に失敗したためメール通知のみ継続します: %s",
+                "Googleカレンダー通知の初期化に失敗したため他の通知チャネルのみ継続します: %s",
+                e,
+            )
+
+    def _initialize_firebase(self, firebase_config: Dict) -> None:
+        """Firebase 通知を初期化する。"""
+        try:
+            credentials_file_env = str(firebase_config.get("credentials_file_env", "")).strip()
+            credentials_file = ""
+
+            if credentials_file_env:
+                credentials_file = os.getenv(credentials_file_env, "")
+
+            credentials_file = os.path.expanduser(str(credentials_file).strip())
+            project_id = str(firebase_config.get("project_id", "")).strip()
+            registration_tokens = ConfigManager.parse_string_list_config(
+                firebase_config.get("registration_tokens", [])
+            )
+
+            if not credentials_file_env:
+                raise ValueError(
+                    "firebase.enabled が true の場合は credentials_file_env を設定してください"
+                )
+            if not credentials_file:
+                raise ValueError(f"環境変数が未設定または空です: {credentials_file_env}")
+            if not os.path.exists(credentials_file):
+                raise FileNotFoundError(
+                    f"FirebaseサービスアカウントJSONが見つかりません: {credentials_file}"
+                )
+            if not project_id:
+                raise ValueError("firebase.enabled が true の場合は project_id を設定してください")
+            if not registration_tokens:
+                raise ValueError(
+                    "firebase.enabled が true の場合は registration_tokens を設定してください"
+                )
+
+            firebase_notifier = FirebaseNotifier(
+                project_id=project_id,
+                credentials_file=credentials_file,
+                registration_tokens=registration_tokens,
+                notification_title_prefix=firebase_config.get(
+                    "notification_title_prefix", "WiFi通知"
+                ),
+                timeout_seconds=firebase_config.get("timeout_seconds", 10),
+            )
+            self.notifiers.append(firebase_notifier)
+            logging.info(
+                "Firebase通知: 有効（project_id: %s, 送信先: %s件）",
+                project_id,
+                len(registration_tokens),
+            )
+        except Exception as e:
+            self.notifier_init_errors.append(f"Firebase通知の初期化に失敗: {e}")
+            logging.error(
+                "Firebase通知の初期化に失敗したため他の通知チャネルのみ継続します: %s",
                 e,
             )
 

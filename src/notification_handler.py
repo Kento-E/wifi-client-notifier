@@ -50,7 +50,7 @@ class NotificationHandler:
         self.branch_notification_mode_enabled = (
             bool(self.repeat_notification_macs) or notify_unknown_devices_once
         )
-        self.calendar_init_error: Optional[str] = None
+        self.notifier_init_errors: List[str] = []
 
     def should_notify_device(self, mac: str) -> Tuple[bool, bool]:
         """対象MACを通知すべきか、未知端末通知かどうかを判定する。
@@ -144,8 +144,8 @@ class NotificationHandler:
         notification_payload = dict(device_info)
         channel_errors: List[str] = []
 
-        if self.calendar_init_error:
-            channel_errors.append(f"Googleカレンダー通知の初期化に失敗: {self.calendar_init_error}")
+        if self.notifier_init_errors:
+            channel_errors.extend(self.notifier_init_errors)
 
         # 非メール通知を先に送信
         email_notifiers = [n for n in self.notifiers if isinstance(n, EmailNotifier)]

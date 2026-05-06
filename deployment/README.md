@@ -98,7 +98,8 @@ docker-compose down
 手順をまとめたスクリプトを追加しています。
 
 ```bash
-PI_HOST=user@hostname.local ./deployment/setup_raspberrypi.sh
+PI_HOST=user@hostname.local ./deployment/setup_raspberrypi.sh \
+  --firebase-credentials /home/pi/secrets/firebase-service-account.json
 ```
 
 このスクリプトは以下を自動で実行します。
@@ -109,6 +110,7 @@ PI_HOST=user@hostname.local ./deployment/setup_raspberrypi.sh
 - `.venv` 作成と `requirements.txt` インストール
 - `config/config.yaml` 転送（デフォルト）
 - ARPモード設定補完（`detection_method: arp`, `interface: wlan0`）
+- Firebase有効時は `--firebase-credentials` で指定したJSONパスを実行時とsystemdへ反映
 - `test_config.py` 実行
 - `wifi_notifier.py --single-run` 実行
 - `systemd` サービスのインストール、有効化、起動確認
@@ -117,10 +119,15 @@ PI_HOST=user@hostname.local ./deployment/setup_raspberrypi.sh
 
 ```bash
 export PI_HOST=user@hostname.local
-./deployment/setup_raspberrypi.sh --host pi@192.168.10.50 --branch main
+./deployment/setup_raspberrypi.sh --host pi@192.168.10.50 --branch main \
+  --firebase-credentials /home/pi/secrets/firebase-service-account.json
 ./deployment/setup_raspberrypi.sh --no-config-copy --skip-test --skip-single-run
 ./deployment/setup_raspberrypi.sh --skip-service-install
 ```
+
+Firebase を有効にしている場合は、`firebase.credentials_file_env` に対応する実ファイルパスを
+`--firebase-credentials` で必ず渡してください。`config/config.yaml` には Firebase JSON の実パスを保持していないため、
+この指定がないと Pi 上の `test_config.py`、`--single-run`、systemd サービス検証は失敗します。
 
 手動で1ステップずつ実行したい場合は、以下の手順を使用してください。
 
@@ -197,7 +204,8 @@ ARP スキャンは root 権限が必要なため、`sudo` で実行します。
 ssh "$PI_HOST" '
 set -e
 cd ~/work/wifi-client-notifier
-printf "n\n" | sudo .venv/bin/python src/test_config.py config/config.yaml
+printf "n\n" | sudo env FIREBASE_CREDENTIALS_FILE=/home/pi/secrets/firebase-service-account.json \
+  .venv/bin/python src/test_config.py config/config.yaml
 '
 ```
 
@@ -207,7 +215,8 @@ printf "n\n" | sudo .venv/bin/python src/test_config.py config/config.yaml
 ssh "$PI_HOST" '
 set -e
 cd ~/work/wifi-client-notifier
-sudo .venv/bin/python src/wifi_notifier.py config/config.yaml --single-run
+sudo env FIREBASE_CREDENTIALS_FILE=/home/pi/secrets/firebase-service-account.json \
+  .venv/bin/python src/wifi_notifier.py config/config.yaml --single-run
 '
 ```
 
@@ -225,6 +234,8 @@ SERVICE_USER="$(id -un)"
 SERVICE_GROUP="$(id -gn)"
 # .venv/bin/python3 は 1 段リンクのため systemd でも解決できる（python は 2 段でNG）
 PYTHON_BIN="${REMOTE_PROJECT_PATH}/.venv/bin/python3"
+FIREBASE_ENV_NAME="FIREBASE_CREDENTIALS_FILE"
+FIREBASE_ENV_VALUE="/home/pi/secrets/firebase-service-account.json"
 # sudo で直接実行したことがある場合は root 所有になったログを修正
 if [ -f "${REMOTE_PROJECT_PATH}/wifi_notifier.log" ]; then
   sudo chown "${SERVICE_USER}:${SERVICE_GROUP}" "${REMOTE_PROJECT_PATH}/wifi_notifier.log"
@@ -240,6 +251,7 @@ Type=simple
 User=${SERVICE_USER}
 Group=${SERVICE_GROUP}
 WorkingDirectory=${REMOTE_PROJECT_PATH}
+Environment=${FIREBASE_ENV_NAME}=${FIREBASE_ENV_VALUE}
 ExecStart=${PYTHON_BIN} ${REMOTE_PROJECT_PATH}/src/wifi_notifier.py ${REMOTE_PROJECT_PATH}/config/config.yaml
 Restart=on-failure
 RestartSec=30

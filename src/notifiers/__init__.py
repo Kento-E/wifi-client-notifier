@@ -6,6 +6,12 @@ WiFi通知モジュール
 
 from .base import BaseNotifier
 from .email import EmailNotifier
+from .firebase import FirebaseNotifier
 from .google_calendar import GoogleCalendarNotifier
 
-__all__ = ["BaseNotifier", "EmailNotifier", "GoogleCalendarNotifier"]
+__all__ = [
+    "BaseNotifier",
+    "EmailNotifier",
+    "FirebaseNotifier",
+    "GoogleCalendarNotifier",
+]

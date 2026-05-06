@@ -4,10 +4,11 @@ Wi-Fi接続検知ツール
 
 ## 概要
 
-ローカルネットワークに接続した端末を検出し、メール通知を送信するPythonスクリプトです。
+ローカルネットワークに接続した端末を検出し、メール通知やFirebase通知を送信するPythonスクリプトです。
 
 **Raspberry Pi Zero 2 W** などのローカルネットワーク上のホストで常時稼働させることを想定しており、
-同じWi-Fi環境に新しい端末が接続してきたときに自動でSMTPメール通知を送ります。
+同じWi-Fi環境に新しい端末が接続してきたときに自動でSMTPメール通知や
+Firebase Cloud Messaging によるプッシュ通知を送ります。
 
 メーカー提供のルータ管理通知サービスの終了に伴い、
 同様の機能を自前で実現するために開発されたツールです。
@@ -43,6 +44,7 @@ wifi-client-notifier/
 - **ARPスキャン**によるローカルネットワーク上の接続端末の監視（Raspberry Pi向け）
 - ルータ管理APIを使用した接続端末の監視
 - 新規WiFi接続の検出とSMTPメール通知
+- Firebase Cloud Messaging による特定 Android 端末向けプッシュ通知
 - Googleカレンダーへの予定自動登録通知（任意）
 - 特定MACアドレスの再通知制御と未知端末の初回通知
 - ログ出力（ファイル＋コンソール）
@@ -59,7 +61,9 @@ wifi-client-notifier/
 ## 必要要件
 
 - Python 3.11以上
-- SMTPサーバーへのアクセス（Gmail、独自SMTPサーバーなど）
+- 少なくとも1つの通知チャネルが必要です
+- メール通知を使う場合は SMTPサーバーへのアクセスが必要です
+- Firebase通知を使う場合は FirebaseサービスアカウントJSON と registration token が必要です
 - Googleカレンダー通知を使う場合: サービスアカウントJSON、対象カレンダーの共有設定
 - **ARPスキャンモード**:
     root権限（直接実行時は`sudo`）またはCAP_NET_RAWケーパビリティ（systemd）、
@@ -88,6 +92,7 @@ cp config/config.example.yaml config.yaml
 
 - `detection_method`: `arp` または `router`
 - `email`: SMTPサーバー、ユーザー、パスワード、送受信先
+- または `firebase`: `project_id`、`credentials_file_env`、`registration_tokens`
 - Googleカレンダー利用時は `google_calendar.credentials_file_env` と `google_calendar.calendar_id`
 
 4. 設定テストを実行（ARPモードはsudo推奨）
@@ -163,6 +168,16 @@ Googleカレンダー通知の主な設定（任意）:
 - `google_calendar.calendar_id`: 登録先カレンダーID（専用カレンダー推奨）
 - `google_calendar.max_retries` / `retry_delay_seconds`: API失敗時のリトライ制御
 - `google_calendar.dedupe_window_minutes`: 重複登録防止の検索時間幅
+
+Firebase通知の主な設定（任意）:
+
+- `firebase.enabled`: `true` で有効化
+- `firebase.credentials_file_env`: サービスアカウントJSONパスを保持した環境変数名
+- `firebase.project_id`: Firebase プロジェクト ID
+- `firebase.registration_tokens`: 通知先 Android 端末の registration token 一覧
+- `firebase.notification_title_prefix`: 通知タイトルの接頭辞
+
+Firebase 通知のセットアップ手順は [docs/FIREBASE_SETUP.md](docs/FIREBASE_SETUP.md) を参照してください。
 
 ### Googleカレンダー通知を有効化する手順（推奨）
 

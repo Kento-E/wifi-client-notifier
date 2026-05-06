@@ -193,6 +193,14 @@ class ConfigManager:
         return email_config
 
     @staticmethod
+    def get_email_config(config: Dict[str, Any]) -> Dict[str, Any]:
+        """メール設定を取得する。"""
+        email_config = config.get("email", {})
+        if not isinstance(email_config, dict):
+            return {}
+        return email_config
+
+    @staticmethod
     def get_google_calendar_config(config: Dict[str, Any]) -> Dict[str, Any]:
         """Google Calendar設定を取得する。
 
@@ -208,6 +216,21 @@ class ConfigManager:
         if not isinstance(calendar_config, dict):
             return {}
         return calendar_config
+
+    @staticmethod
+    def get_firebase_config(config: Dict[str, Any]) -> Dict[str, Any]:
+        """Firebase 設定を取得する。"""
+        firebase_config = config.get("firebase", {})
+        if not isinstance(firebase_config, dict):
+            return {}
+        return firebase_config
+
+    @staticmethod
+    def parse_string_list_config(value: Any) -> list[str]:
+        """文字列配列設定を安全に解釈する。"""
+        if not isinstance(value, list):
+            return []
+        return [str(item).strip() for item in value if str(item).strip()]
 
     @staticmethod
     def parse_int_config(value: Any, default: int, key_name: str, minimum: int = 1) -> int:
