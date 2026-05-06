@@ -205,8 +205,8 @@ class GoogleCalendarNotifier(BaseNotifier):
         """予定タイトルを生成する。"""
         mac = device_info.get("mac", "Unknown")
         hostname = device_info.get("hostname", "Unknown")
-        prefix = "未知端末" if is_unknown_device else "端末接続"
-        return f"{self.summary_prefix}: {prefix} {hostname} ({mac})"
+        unknown_prefix = "未知端末 " if is_unknown_device else ""
+        return f"{self.summary_prefix}: {unknown_prefix}{hostname} ({mac})"
 
     @staticmethod
     def _build_description(
@@ -215,7 +215,17 @@ class GoogleCalendarNotifier(BaseNotifier):
         started_at: datetime,
     ) -> str:
         """予定説明を生成する。"""
-        notification_type = "未知の端末（初回のみ通知）" if is_unknown_device else "新規WiFi接続"
+        raw_notification_type = str(device_info.get("_notification_type", "")).strip()
+        if is_unknown_device:
+            notification_type = "未知の端末（初回のみ通知）"
+        elif raw_notification_type == "repeat_known_device":
+            notification_type = "既知端末の再接続"
+        else:
+            notification_type = "新規WiFi接続"
+
+        vendor = str(device_info.get("vendor", "")).strip()
+        vendor_line = f"メーカー: {vendor}\n" if vendor else ""
+
         return (
             "WiFi接続通知\n\n"
             f"通知種別: {notification_type}\n"
@@ -223,7 +233,7 @@ class GoogleCalendarNotifier(BaseNotifier):
             f"MACアドレス: {device_info.get('mac', 'Unknown')}\n"
             f"IPアドレス: {device_info.get('ip', 'Unknown')}\n"
             f"ホスト名: {device_info.get('hostname', 'Unknown')}\n"
-            f"メーカー: {device_info.get('vendor', 'Unknown')}\n"
+            f"{vendor_line}"
         )
 
     @staticmethod
