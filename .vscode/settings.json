@@ -138,7 +138,11 @@
     ".venv/bin/pre-commit": true,
     "./scripts/run_quality_checks.sh": true,
     "./scripts/setup_git_hooks.sh": true,
-    "git config": true
+    "git config": true,
+    "/^bash -n deployment/setup_raspberrypi\\.sh && \\./scripts/run_quality_checks\\.sh$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
   },
   "cSpell.words": ["raspberrypi"]
 }
