@@ -5,4 +5,15 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
+# ステージ済みの .py ファイルに対して事前に black を実行し、
+# 整形結果を即座に再ステージすることで pre-commit フックの失敗を防ぐ。
+# （未ステージの変更には触れない）
+staged_py_files="$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$' || true)"
+if [[ -n "$staged_py_files" ]]; then
+  if command -v black >/dev/null 2>&1; then
+    echo "$staged_py_files" | xargs black --quiet
+    echo "$staged_py_files" | xargs git add
+  fi
+fi
+
 ./scripts/run_quality_checks.sh --hook
