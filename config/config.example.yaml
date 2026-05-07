@@ -34,9 +34,12 @@ arp:
 #   password: "your_router_password"  # 管理者パスワード
 
 # メール通知設定（任意）
-# Firebase や Google カレンダーだけで運用する場合は enabled: false にできます
+# enabled: true  → 常にメール通知を送信します
+# enabled: false → 通常はメールを送らず、google_calendar / firebase のいずれかで
+#                  エラーが発生した場合のみフォールバックとしてメールを送信します
+# メール設定自体を省略した場合はフォールバックも無効になります
 email:
-  enabled: true
+  enabled: false
   smtp_server: "smtp.gmail.com" # SMTPサーバーアドレス
   smtp_port: 587 # SMTPポート番号
   smtp_user: "your_email@gmail.com" # SMTP認証ユーザー名

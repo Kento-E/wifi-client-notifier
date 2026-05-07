@@ -27,6 +27,7 @@ class NotificationHandler:
         monitored_macs: Optional[set] = None,
         repeat_notification_macs: Optional[set] = None,
         notify_unknown_devices_once: bool = False,
+        fallback_email_notifier: Optional[object] = None,
     ):
         """初期化。
 
@@ -38,6 +39,7 @@ class NotificationHandler:
             monitored_macs: 監視対象MAC（None=全て、空集合=なし）
             repeat_notification_macs: 再通知対象MAC
             notify_unknown_devices_once: 未知端末の初回通知のみ有効化
+            fallback_email_notifier: gc/firebase エラー時のフォールバックメール通知
         """
         self.state_manager = state_manager
         self.notifiers = notifiers or []
@@ -46,6 +48,7 @@ class NotificationHandler:
         self.monitored_macs = monitored_macs or set()
         self.repeat_notification_macs = repeat_notification_macs or set()
         self.notify_unknown_devices_once = notify_unknown_devices_once
+        self.fallback_email_notifier = fallback_email_notifier
         # 分岐モードは repeat_notification_macs または notify_unknown_devices_once
         self.branch_notification_mode_enabled = (
             bool(self.repeat_notification_macs) or notify_unknown_devices_once
@@ -132,7 +135,7 @@ class NotificationHandler:
         Returns:
             通知成功時はTrue、全失敗時はFalse
         """
-        if not self.notifiers:
+        if not self.notifiers and self.fallback_email_notifier is None:
             logging.error("通知チャネルが設定されていません")
             return False
 
@@ -190,6 +193,30 @@ class NotificationHandler:
                     logging.warning("通知チャネルの送信に失敗しました: %s", notifier_name)
             except Exception as e:
                 logging.error("通知チャネル処理で例外が発生しました: %s (%s)", notifier_name, e)
+
+        # gc/firebase でエラーが発生した場合はフォールバックメール通知を送信
+        # （email.enabled が明示的に true でない場合のみ使用）
+        if channel_errors and self.fallback_email_notifier is not None and not email_notifiers:
+            notifier_name = self.fallback_email_notifier.__class__.__name__
+            try:
+                sent = self.fallback_email_notifier.send_notification(
+                    notification_payload,
+                    is_unknown_device=is_unknown_device,
+                    detected_at=detected_at,
+                )
+                if sent:
+                    success_count += 1
+                    logging.info(
+                        "フォールバックメール通知を送信しました（gc/firebase エラーのため）"
+                    )
+                else:
+                    logging.warning(
+                        "フォールバックメール通知の送信に失敗しました: %s", notifier_name
+                    )
+            except Exception as e:
+                logging.error(
+                    "フォールバックメール通知で例外が発生しました: %s (%s)", notifier_name, e
+                )
 
         if success_count == len(self.notifiers):
             return True

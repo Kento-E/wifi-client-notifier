@@ -89,23 +89,35 @@ class WiFiMonitor:
 
         # メール通知の初期化
         email_config = ConfigManager.get_email_config(self.config)
-        email_enabled = ConfigManager.parse_bool_config(
+        email_explicitly_enabled = ConfigManager.parse_bool_config(
             email_config.get("enabled"),
-            default=bool(email_config),
+            default=False,  # 明示的に enabled: true を設定した場合のみ有効
         )
-        if email_enabled:
-            validated_email_config = ConfigManager.validate_email_config(self.config)
-            email_notifier = EmailNotifier(
-                validated_email_config["smtp_server"],
-                validated_email_config["smtp_port"],
-                validated_email_config["smtp_user"],
-                validated_email_config["smtp_password"],
-                validated_email_config["sender_email"],
-                validated_email_config["recipient_emails"],
-                validated_email_config.get("use_tls", True),
-            )
-            self.notifiers.append(email_notifier)
-            logging.info("メール通知: 有効")
+        self.fallback_email_notifier = None
+        if email_config:
+            try:
+                validated_email_config = ConfigManager.validate_email_config(self.config)
+                email_notifier = EmailNotifier(
+                    validated_email_config["smtp_server"],
+                    validated_email_config["smtp_port"],
+                    validated_email_config["smtp_user"],
+                    validated_email_config["smtp_password"],
+                    validated_email_config["sender_email"],
+                    validated_email_config["recipient_emails"],
+                    validated_email_config.get("use_tls", True),
+                )
+                if email_explicitly_enabled:
+                    self.notifiers.append(email_notifier)
+                    logging.info("メール通知: 有効")
+                else:
+                    # gc/firebase エラー時のフォールバックとして保持
+                    self.fallback_email_notifier = email_notifier
+                    logging.info(
+                        "メール通知: 無効（gc/firebase エラー時はフォールバックとして送信）"
+                    )
+            except Exception as e:
+                logging.warning("メール通知の設定が不正なためフォールバックも無効です: %s", e)
+                logging.info("メール通知: 無効")
         else:
             logging.info("メール通知: 無効")
 
@@ -130,7 +142,7 @@ class WiFiMonitor:
         else:
             logging.info("Firebase通知: 無効")
 
-        if not self.notifiers:
+        if not self.notifiers and self.fallback_email_notifier is None:
             raise ValueError(
                 "有効な通知チャネルがありません。email.enabled、"
                 "google_calendar.enabled、firebase.enabled のいずれかを有効にしてください"
@@ -236,6 +248,7 @@ class WiFiMonitor:
             monitored_macs=self.monitored_macs,
             repeat_notification_macs=self.repeat_notification_macs,
             notify_unknown_devices_once=self.notify_unknown_devices_once,
+            fallback_email_notifier=self.fallback_email_notifier,
         )
         if self.notifier_init_errors:
             self.notification_handler.notifier_init_errors = list(self.notifier_init_errors)
