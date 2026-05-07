@@ -142,7 +142,8 @@
     "/^bash -n deployment/setup_raspberrypi\\.sh && \\./scripts/run_quality_checks\\.sh$/": {
       "approve": true,
       "matchCommandLine": true
-    }
+    },
+    "git add": true
   },
   "cSpell.words": ["raspberrypi"]
 }
