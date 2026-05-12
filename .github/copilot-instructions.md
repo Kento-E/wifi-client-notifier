@@ -18,6 +18,8 @@ GitHub Copilotに対する明確な指示を提供します。
   Issue作成・管理時の指示
 - [`instructions/config-sync.instructions.md`](instructions/config-sync.instructions.md)
   設定ファイル更新時の同期・整合性維持指示
+- [`instructions/implementation-quality.instructions.md`](instructions/implementation-quality.instructions.md)
+  実装時の品質チェック・整形・lint遵守指示
 
 ### 出力言語ルール
 
@@ -151,5 +153,11 @@ flake8 src/
 pip install pre-commit
 pre-commit install
 ```
+
+### Copilot向けの実装時ルール
+
+実装時の品質ルールは以下に分離しました。PythonやMarkdownを追加・更新する場合は必ず参照してください。
+
+- [`instructions/implementation-quality.instructions.md`](instructions/implementation-quality.instructions.md)
 
 このガイドラインに従って、すべての作業を日本語で実施してください。
