@@ -21,6 +21,7 @@ Firebase Cloud Messaging によるプッシュ通知を送ります。
 wifi-client-notifier/
 ├── src/                      # ソースコード
 │   ├── wifi_notifier.py      # メイン監視スクリプト
+│   ├── manage_registration_tokens.py  # Firebase登録トークン管理ツール
 │   ├── arp_scanner.py        # ARPスキャナー（Raspberry Pi向け）
 │   ├── html_parser.py        # HTML/JSONパーサー
 │   ├── test_config.py        # 設定テストツール
@@ -397,6 +398,58 @@ sudo systemctl status wifi-notifier
 
 ```bash
 sudo journalctl -u wifi-notifier -f
+```
+
+### Firebase登録トークン管理
+
+Firebase通知を使用する場合、`registration_tokens`は以下のコマンドで管理できます。
+
+#### トークンの一覧表示
+
+```bash
+python src/manage_registration_tokens.py config.yaml list
+```
+
+#### トークンの追加（デフォルト）
+
+既存のトークンに新しいトークンを追加します：
+
+```bash
+python src/manage_registration_tokens.py config.yaml add "<token1>" "<token2>" ...
+```
+
+例：
+
+```bash
+python src/manage_registration_tokens.py config.yaml add "eRZlMhJYQkmFzaZT..."
+```
+
+#### トークンの上書き（全置き換え）
+
+既存のトークンをすべて置き換える場合は`--overwrite`オプションを使用します：
+
+```bash
+python src/manage_registration_tokens.py config.yaml set --overwrite "<token1>" "<token2>" ...
+```
+
+例：
+
+```bash
+python src/manage_registration_tokens.py config.yaml set --overwrite "abc123..." "def456..."
+```
+
+#### トークンの削除
+
+特定のトークンを削除します：
+
+```bash
+python src/manage_registration_tokens.py config.yaml remove "<token1>" "<token2>" ...
+```
+
+例：
+
+```bash
+python src/manage_registration_tokens.py config.yaml remove "abc123..."
 ```
 
 ## ルータモデルごとのカスタマイズ（ルータAPIモード使用時）
