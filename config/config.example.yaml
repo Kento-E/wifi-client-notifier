@@ -128,7 +128,7 @@ notification_cool_down_minutes: 1440
 # この時間以上不在だった端末が再接続すると、クールダウン中でも通知を送ります
 # 0 の場合は無効（不在時間によるクールダウン強制解除をしない）
 # 例: 60 → 1時間以上ぶりの再接続は再通知する
-reconnect_notify_after_minutes: 60
+reconnect_notify_after_minutes: 120
 
 # ログレベル（DEBUG, INFO, WARNING, ERROR, CRITICAL）
 log_level: "INFO"
