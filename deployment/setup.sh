@@ -10,24 +10,38 @@ echo ""
 
 # Check Python version
 echo "Pythonバージョンを確認中..."
-python_version=$(python3 --version 2>&1 | awk '{print $2}')
-echo "検出されたバージョン: Python $python_version"
 
-# Check if Python version meets minimum requirements
-major=$(echo $python_version | cut -d. -f1)
-minor=$(echo $python_version | cut -d. -f2)
+find_compatible_python() {
+    for cmd in python3.13 python3.12 python3.11 python3; do
+        if command -v "$cmd" >/dev/null 2>&1; then
+            version=$("$cmd" --version 2>&1 | awk '{print $2}')
+            major=$(echo "$version" | cut -d. -f1)
+            minor=$(echo "$version" | cut -d. -f2)
 
-if [ "$major" -lt "$PYTHON_MIN_MAJOR" ] || ([ "$major" -eq "$PYTHON_MIN_MAJOR" ] && [ "$minor" -lt "$PYTHON_MIN_MINOR" ]); then
+            if [ "$major" -gt "$PYTHON_MIN_MAJOR" ] || ([ "$major" -eq "$PYTHON_MIN_MAJOR" ] && [ "$minor" -ge "$PYTHON_MIN_MINOR" ]); then
+                echo "$cmd"
+                return 0
+            fi
+        fi
+    done
+    return 1
+}
+
+if ! PYTHON_CMD=$(find_compatible_python); then
     echo "エラー: Python ${PYTHON_MIN_MAJOR}.${PYTHON_MIN_MINOR}以上が必要です"
+    echo "ヒント: macOS では 'brew install python@3.11' でインストールできます"
     exit 1
 fi
+
+python_version=$($PYTHON_CMD --version 2>&1 | awk '{print $2}')
+echo "使用するPython: $PYTHON_CMD ($python_version)"
 
 echo "✓ Pythonバージョン確認完了"
 echo ""
 
 # Install dependencies
 echo "依存パッケージをインストール中..."
-pip3 install -r requirements.txt
+$PYTHON_CMD -m pip install -r requirements.txt
 
 if [ $? -ne 0 ]; then
     echo "エラー: 依存パッケージのインストールに失敗しました"
@@ -57,12 +71,12 @@ if [ ! -f config.yaml ]; then
     echo ""
     echo "次のステップ:"
     echo "1. config.yaml を編集して、ルータとメールの設定を入力してください"
-    echo "2. python3 src/wifi_notifier.py config.yaml で実行してください"
+    echo "2. $PYTHON_CMD src/wifi_notifier.py config.yaml で実行してください"
 else
     echo "config.yaml は既に存在します"
     echo ""
     echo "次のステップ:"
-    echo "python3 src/wifi_notifier.py config.yaml で実行してください"
+    echo "$PYTHON_CMD src/wifi_notifier.py config.yaml で実行してください"
 fi
 
 echo ""
