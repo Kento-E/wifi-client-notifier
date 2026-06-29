@@ -4,8 +4,8 @@ Googleカレンダー通知処理モジュール
 Googleカレンダーへの予定登録通知を行う機能を提供します。
 """
 
-import time
 import logging
+import time
 from datetime import datetime
 from typing import Dict, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -77,10 +77,9 @@ class GoogleCalendarNotifier(BaseNotifier):
         )
         self.service = build("calendar", "v3", credentials=credentials, cache_discovery=False)
         self.service_account_email = getattr(credentials, "service_account_email", "")
-        self._validate_calendar_access()
 
     def _validate_calendar_access(self) -> None:
-        """初期化時に対象カレンダーへのアクセス可否を検証する。
+        """対象カレンダーへのアクセス可否を検証する。
 
         calendar.events スコープで利用可能な events.list を使って
         アクセス権を確認する（calendars.get は calendar.readonly 以上が必要なため使用しない）。
