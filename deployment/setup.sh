@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
+
 # Setup script for WiFi Client Notifier
 
 # Python version requirements
@@ -43,23 +45,28 @@ echo ""
 echo "依存パッケージをインストール中..."
 $PYTHON_CMD -m pip install -r requirements.txt
 
-if [ $? -ne 0 ]; then
-    echo "エラー: 依存パッケージのインストールに失敗しました"
-    exit 1
-fi
-
 echo "✓ 依存パッケージのインストール完了"
 echo ""
 
 # pre-commitフックをインストール（開発環境用）
-if command -v pre-commit &> /dev/null; then
+declare -a pre_commit_cmd=()
+
+if command -v pre-commit >/dev/null 2>&1 && pre-commit --version >/dev/null 2>&1; then
+    pre_commit_cmd=(pre-commit)
+elif "$PYTHON_CMD" -m pre_commit --version >/dev/null 2>&1; then
+    pre_commit_cmd=("$PYTHON_CMD" -m pre_commit)
+elif command -v python3 >/dev/null 2>&1 && python3 -m pre_commit --version >/dev/null 2>&1; then
+    pre_commit_cmd=(python3 -m pre_commit)
+fi
+
+if [[ ${#pre_commit_cmd[@]} -gt 0 ]]; then
     echo "pre-commitフックをインストール中..."
-    pre-commit install
-    if [ $? -eq 0 ]; then
-        echo "✓ pre-commitフックのインストール完了（コミット時に自動整形されます）"
-    else
-        echo "⚠ pre-commitフックのインストールに失敗しました（任意）"
-    fi
+    "${pre_commit_cmd[@]}" install
+    echo "✓ pre-commitフックのインストール完了（コミット時に自動整形されます）"
+    echo ""
+else
+    echo "⚠ pre-commit の実行環境が見つかりませんでした（任意）。"
+    echo "  必要に応じて '$PYTHON_CMD -m pip install -r requirements.txt' を再実行してください。"
     echo ""
 fi
 
