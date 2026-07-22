@@ -13,6 +13,8 @@ WATCHDOG_CONF_PATH="/etc/watchdog.conf"
 MODULES_LOAD_CONF="/etc/modules-load.d/bcm2835_wdt.conf"
 MARKER_BEGIN="# BEGIN wifi-client-notifier-watchdog"
 MARKER_END="# END wifi-client-notifier-watchdog"
+WATCHDOG_RESTART_REQUIRED=0
+
 
 usage() {
   cat <<'USAGE'
@@ -133,7 +135,7 @@ if [[ -z "${BOOT_CONFIG_PATH}" ]]; then
 fi
 
 TMP_BOOT_CFG="$(mktemp)"
-trap 'rm -f "${TMP_BOOT_CFG}" "${TMP_WATCHDOG_CFG:-}"' EXIT
+trap 'rm -f "${TMP_BOOT_CFG}" "${TMP_WATCHDOG_CFG:-}" "${TMP_CHECK_SCRIPT:-}"' EXIT
 
 run_root cat "${BOOT_CONFIG_PATH}" > "${TMP_BOOT_CFG}"
 if grep -Eq '^\s*dtparam=watchdog=on\s*$' "${TMP_BOOT_CFG}"; then
@@ -151,12 +153,25 @@ else
   fi
   run_root cp "${BOOT_CONFIG_PATH}" "${BOOT_CONFIG_PATH}.bak.$(date +%Y%m%d%H%M%S)"
   run_root install -m 644 "${TMP_BOOT_CFG}" "${BOOT_CONFIG_PATH}"
+  WATCHDOG_RESTART_REQUIRED=1
   echo "  反映しました: ${BOOT_CONFIG_PATH}"
 fi
 
 echo "[3/7] bcm2835_wdt モジュールをロード"
-run_root modprobe bcm2835_wdt
-printf '%s\n' "bcm2835_wdt" | run_root tee "${MODULES_LOAD_CONF}" >/dev/null
+if ! lsmod | awk '{print $1}' | grep -qx 'bcm2835_wdt'; then
+  run_root modprobe bcm2835_wdt
+  echo "  モジュールをロードしました"
+else
+  echo "  モジュールは既にロード済みです"
+fi
+
+if run_root test -f "${MODULES_LOAD_CONF}" && run_root grep -qx 'bcm2835_wdt' "${MODULES_LOAD_CONF}"; then
+  echo "  起動時ロード設定は既に反映済みです"
+else
+  printf '%s\n' "bcm2835_wdt" | run_root tee "${MODULES_LOAD_CONF}" >/dev/null
+  WATCHDOG_RESTART_REQUIRED=1
+  echo "  起動時ロード設定を反映しました"
+fi
 
 echo "[4/7] サービス監視スクリプトを配置"
 TMP_CHECK_SCRIPT="$(mktemp)"
@@ -196,7 +211,13 @@ fi
 logger -t wifi-notifier-watchdog "${SERVICE_NAME} が ${COUNT} 回連続で非稼働。Watchdog により再起動させます"
 exit 1
 EOS
-run_root install -m 755 "${TMP_CHECK_SCRIPT}" "${CHECK_SCRIPT_PATH}"
+if run_root test -f "${CHECK_SCRIPT_PATH}" && run_root cmp -s "${TMP_CHECK_SCRIPT}" "${CHECK_SCRIPT_PATH}"; then
+  echo "  監視スクリプトは変更なしです"
+else
+  run_root install -m 755 "${TMP_CHECK_SCRIPT}" "${CHECK_SCRIPT_PATH}"
+  WATCHDOG_RESTART_REQUIRED=1
+  echo "  監視スクリプトを更新しました"
+fi
 
 echo "[5/7] /etc/watchdog.conf を設定"
 TMP_WATCHDOG_CFG="$(mktemp)"
@@ -220,13 +241,23 @@ mv "${TMP_WATCHDOG_CFG}.clean" "${TMP_WATCHDOG_CFG}"
   echo "${MARKER_END}"
 } >> "${TMP_WATCHDOG_CFG}"
 
-run_root cp "${WATCHDOG_CONF_PATH}" "${WATCHDOG_CONF_PATH}.bak.$(date +%Y%m%d%H%M%S)"
-run_root install -m 644 "${TMP_WATCHDOG_CFG}" "${WATCHDOG_CONF_PATH}"
+if run_root cmp -s "${TMP_WATCHDOG_CFG}" "${WATCHDOG_CONF_PATH}"; then
+  echo "  watchdog.conf は変更なしです"
+else
+  run_root cp "${WATCHDOG_CONF_PATH}" "${WATCHDOG_CONF_PATH}.bak.$(date +%Y%m%d%H%M%S)"
+  run_root install -m 644 "${TMP_WATCHDOG_CFG}" "${WATCHDOG_CONF_PATH}"
+  WATCHDOG_RESTART_REQUIRED=1
+  echo "  watchdog.conf を更新しました"
+fi
 
 echo "[6/7] watchdog サービスを有効化・再起動"
-run_root systemctl daemon-reload
 run_root systemctl enable watchdog
-run_root systemctl restart watchdog
+if (( WATCHDOG_RESTART_REQUIRED == 1 )); then
+  run_root systemctl restart watchdog
+  echo "  設定変更を反映するため watchdog を再起動しました"
+else
+  echo "  設定変更がないため watchdog 再起動をスキップしました"
+fi
 
 echo "[7/7] 動作確認"
 run_root systemctl --no-pager --lines=20 status watchdog
