@@ -15,7 +15,6 @@ MARKER_BEGIN="# BEGIN wifi-client-notifier-watchdog"
 MARKER_END="# END wifi-client-notifier-watchdog"
 WATCHDOG_RESTART_REQUIRED=0
 
-
 usage() {
   cat <<'USAGE'
 使用方法:
@@ -40,6 +39,15 @@ USAGE
 
 is_positive_int() {
   [[ "$1" =~ ^[1-9][0-9]*$ ]]
+}
+
+validate_positive_int() {
+  local option_name="$1"
+  local option_value="$2"
+  if ! is_positive_int "${option_value}"; then
+    echo "${option_name} は 1 以上の整数を指定してください" >&2
+    exit 1
+  fi
 }
 
 run_root() {
@@ -80,20 +88,9 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if ! is_positive_int "${WATCHDOG_TIMEOUT}"; then
-  echo "--timeout は 1 以上の整数を指定してください" >&2
-  exit 1
-fi
-
-if ! is_positive_int "${CHECK_INTERVAL}"; then
-  echo "--interval は 1 以上の整数を指定してください" >&2
-  exit 1
-fi
-
-if ! is_positive_int "${FAILURE_THRESHOLD}"; then
-  echo "--failure-threshold は 1 以上の整数を指定してください" >&2
-  exit 1
-fi
+validate_positive_int "--timeout" "${WATCHDOG_TIMEOUT}"
+validate_positive_int "--interval" "${CHECK_INTERVAL}"
+validate_positive_int "--failure-threshold" "${FAILURE_THRESHOLD}"
 
 if ! command -v systemctl >/dev/null 2>&1; then
   echo "systemctl が見つかりません。systemd 環境で実行してください" >&2
@@ -169,7 +166,6 @@ if run_root test -f "${MODULES_LOAD_CONF}" && run_root grep -qx 'bcm2835_wdt' "$
   echo "  起動時ロード設定は既に反映済みです"
 else
   printf '%s\n' "bcm2835_wdt" | run_root tee "${MODULES_LOAD_CONF}" >/dev/null
-  WATCHDOG_RESTART_REQUIRED=1
   echo "  起動時ロード設定を反映しました"
 fi
 
@@ -251,7 +247,13 @@ else
 fi
 
 echo "[6/7] watchdog サービスを有効化・再起動"
-run_root systemctl enable watchdog
+if ! run_root systemctl is-enabled --quiet watchdog; then
+  run_root systemctl enable watchdog
+  echo "  watchdog サービスを有効化しました"
+else
+  echo "  watchdog サービスは既に有効化済みです"
+fi
+
 if (( WATCHDOG_RESTART_REQUIRED == 1 )); then
   run_root systemctl restart watchdog
   echo "  設定変更を反映するため watchdog を再起動しました"
