@@ -1,0 +1,244 @@
+name: RaspberryPi 生存確認
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      resume_monitoring:
+        description: "一時停止を解除して監視を再開する"
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: raspberrypi-alive-monitor
+  cancel-in-progress: false
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: 手動再開時のIssueを閉じる
+        if: github.event_name == 'workflow_dispatch' && inputs.resume_monitoring
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const { execSync } = require('child_process');
+            const statePath = '.github/rpi-healthcheck-state.json';
+
+            const defaultState = {
+              paused: false,
+              updated_at: null,
+              reason: '',
+              issue_number: null,
+              issue_url: null,
+              issue_error: null,
+            };
+
+            const state = fs.existsSync(statePath)
+              ? JSON.parse(fs.readFileSync(statePath, 'utf8'))
+              : { ...defaultState };
+
+            if (state.issue_number) {
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: state.issue_number,
+                state: 'closed',
+              });
+              core.info(`Issue #${state.issue_number} をクローズしました。`);
+            }
+
+            const nextState = {
+              ...defaultState,
+              paused: false,
+              updated_at: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
+              reason: '手動実行により再開',
+            };
+
+            fs.writeFileSync(statePath, JSON.stringify(nextState, null, 2) + '\n', 'utf8');
+
+            execSync('git config user.name "github-actions[bot]"');
+            execSync('git config user.email "41898282+github-actions[bot]@users.noreply.github.com"');
+            execSync(`git add ${statePath}`);
+
+            const staged = execSync(`git diff --cached --name-only -- ${statePath}`).toString().trim();
+            if (staged) {
+              execSync('git commit -m "chore: Raspberry Pi 監視を再開"');
+              execSync('git push');
+            }
+
+      - name: 到達確認の準備
+        env:
+          PI_SSH_HOST: ${{ secrets.PI_SSH_HOST }}
+          PI_SSH_USER: ${{ secrets.PI_SSH_USER }}
+          PI_SSH_PORT: ${{ secrets.PI_SSH_PORT }}
+          PI_SSH_PRIVATE_KEY: ${{ secrets.PI_SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${PI_SSH_HOST}" ]; then
+            echo "PI_SSH_HOST が未設定です。" >&2
+            exit 1
+          fi
+
+          if [ -z "${PI_SSH_USER}" ]; then
+            echo "PI_SSH_USER が未設定です。" >&2
+            exit 1
+          fi
+
+          if [ -z "${PI_SSH_PRIVATE_KEY}" ]; then
+            echo "PI_SSH_PRIVATE_KEY が未設定です。" >&2
+            exit 1
+          fi
+
+          PI_SSH_PORT="${PI_SSH_PORT:-22}"
+
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${PI_SSH_PRIVATE_KEY}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          {
+            echo "PI_SSH_HOST=${PI_SSH_HOST}"
+            echo "PI_SSH_USER=${PI_SSH_USER}"
+            echo "PI_SSH_PORT=${PI_SSH_PORT}"
+          } >> "${GITHUB_ENV}"
+
+      - name: 監視停止フラグを確認
+        run: |
+          set -euo pipefail
+
+          STATE_FILE=".github/rpi-healthcheck-state.json"
+
+          if [ ! -f "${STATE_FILE}" ]; then
+            printf '%s\n' '{' '  "paused": false,' '  "updated_at": null,' '  "reason": "",' '  "issue_number": null,' '  "issue_url": null,' '  "issue_error": null' '}' > "${STATE_FILE}"
+          fi
+
+          if python3 -c 'import json; from pathlib import Path; state = json.loads(Path(".github/rpi-healthcheck-state.json").read_text(encoding="utf-8")); raise SystemExit(0 if not state.get("paused", False) else 1)'
+          then
+            echo "監視は有効です。"
+          else
+            echo "監視は停止中です。手動実行で再開するまで確認をスキップします。" >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+
+      - name: Raspberry Pi の生存確認
+        run: |
+          set -euo pipefail
+
+          STATE_FILE=".github/rpi-healthcheck-state.json"
+
+          set +e
+          ssh -i ~/.ssh/id_rsa \
+            -p "${PI_SSH_PORT}" \
+            -o BatchMode=yes \
+            -o ConnectTimeout=10 \
+            -o ServerAliveInterval=5 \
+            -o ServerAliveCountMax=1 \
+            -o StrictHostKeyChecking=accept-new \
+            "${PI_SSH_USER}@${PI_SSH_HOST}" \
+            "printf 'Raspberry Pi は応答しています\\n'"
+          SSH_EXIT_CODE=$?
+          set -e
+
+          if [ "${SSH_EXIT_CODE}" -eq 0 ]; then
+            printf '### 結果\n\n- 対象: %s@%s:%s\n- 判定: 生存\n- 確認時刻: %s\n' \
+              "${PI_SSH_USER}" \
+              "${PI_SSH_HOST}" \
+              "${PI_SSH_PORT}" \
+              "$(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+
+          python3 -c 'import json; from datetime import datetime, timezone; from pathlib import Path; path = Path(".github/rpi-healthcheck-state.json"); state = json.loads(path.read_text(encoding="utf-8")); state["paused"] = True; state["updated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"); state["reason"] = "Raspberry Pi への SSH 到達確認に失敗したため自動停止"; path.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")'
+
+      - name: 通知用Issueを作成
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const { execSync } = require('child_process');
+            const statePath = '.github/rpi-healthcheck-state.json';
+            const state = JSON.parse(fs.readFileSync(statePath, 'utf8'));
+
+            if (state.issue_number) {
+              core.info(`既に Issue #${state.issue_number} が記録されているため、新規作成は行いません。`);
+              return;
+            }
+
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const title = 'Raspberry Pi が応答しません';
+            const body = [
+              'Raspberry Pi の SSH 到達確認に失敗しました。',
+              '',
+              `- 対象: ${process.env.PI_SSH_USER}@${process.env.PI_SSH_HOST}:${process.env.PI_SSH_PORT}`,
+              `- 確認時刻: ${new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')}`,
+              `- ワークフロー実行: ${runUrl}`,
+              '',
+              'このIssueが作成された時点で監視は一時停止します。',
+              '手動で workflow_dispatch を実行すると監視を再開し、このIssueはクローズされます。',
+            ].join('\n');
+
+            let issueNumber = null;
+            let issueUrl = null;
+            let issueError = null;
+
+            try {
+              const issue = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+              });
+              issueNumber = issue.data.number;
+              issueUrl = issue.data.html_url;
+              core.info(`Issue #${issueNumber} を作成しました。`);
+            } catch (error) {
+              issueError = error.message;
+              core.warning(`Issue の作成に失敗しました: ${issueError}`);
+            }
+
+            const nextState = {
+              paused: true,
+              updated_at: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
+              reason: 'Raspberry Pi への SSH 到達確認に失敗したため自動停止',
+              issue_number: issueNumber,
+              issue_url: issueUrl,
+              issue_error: issueError,
+            };
+
+            fs.writeFileSync(statePath, JSON.stringify(nextState, null, 2) + '\n', 'utf8');
+
+            execSync('git config user.name "github-actions[bot]"');
+            execSync('git config user.email "41898282+github-actions[bot]@users.noreply.github.com"');
+            execSync(`git add ${statePath}`);
+
+            const staged = execSync(`git diff --cached --name-only -- ${statePath}`).toString().trim();
+            if (staged) {
+              execSync('git commit -m "chore: Raspberry Pi 監視を停止"');
+              execSync('git push');
+            }
+
+      - name: 失敗時の補足情報
+        if: failure()
+        run: |
+          set -euo pipefail
+
+          python3 -c 'import json, os; from pathlib import Path; state = json.loads(Path(".github/rpi-healthcheck-state.json").read_text(encoding="utf-8")); lines = ["### 結果", "", f"- 対象: {os.environ[\"PI_SSH_USER\"]}@{os.environ[\"PI_SSH_HOST\"]}:{os.environ[\"PI_SSH_PORT\"]}", "- 判定: 応答なし", "- 動作: 監視を一時停止しました。次回の自動監視は手動実行で再開されるまで実行されません。"]; lines += [f"- 通知用Issue: #{state[\"issue_number\"]}"] if state.get("issue_number") else []; lines += [f"- Issue URL: {state[\"issue_url\"]}"] if state.get("issue_url") else []; lines += [f"- Issue作成エラー: {state[\"issue_error\"]}"] if state.get("issue_error") else []; Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a", encoding="utf-8").write("\n".join(lines) + "\n")'
+
+          exit 1
