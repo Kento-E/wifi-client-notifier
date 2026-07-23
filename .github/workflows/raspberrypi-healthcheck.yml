@@ -21,6 +21,7 @@ concurrency:
 
 jobs:
   health-check:
+    if: ${{ vars.HEALTH_CHECK_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
