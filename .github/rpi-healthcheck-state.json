@@ -1,8 +1,8 @@
 {
-  "paused": false,
-  "updated_at": null,
-  "reason": "",
-  "issue_number": null,
-  "issue_url": null,
+  "paused": true,
+  "updated_at": "2026-07-23T15:13:55Z",
+  "reason": "Raspberry Pi への SSH 到達確認に失敗したため自動停止",
+  "issue_number": 33,
+  "issue_url": "https://github.com/Kento-E/wifi-client-notifier/issues/33",
   "issue_error": null
 }
