@@ -9,6 +9,16 @@
         "user@raspberry-pi.local"
       ],
       "problemMatcher": []
+    },
+    {
+      "label": "Piで再通知を手動検証",
+      "type": "shell",
+      "command": "ssh",
+      "args": [
+        "user@raspberry-pi.local",
+        "set -e; cd /home/pi/work/wifi-client-notifier; sudo systemctl stop wifi-notifier; cp config/wifi_notifier_state.json config/wifi_notifier_state.json.manual-test.bak; trap 'cp config/wifi_notifier_state.json.manual-test.bak config/wifi_notifier_state.json; sudo systemctl start wifi-notifier' EXIT; /home/pi/work/wifi-client-notifier/.venv/bin/python3 -c 'import json,time; p=\"config/wifi_notifier_state.json\"; m=\"1e:b0:33:40:05:71\"; s=json.load(open(p,encoding=\"utf-8\")); s[\"known_devices\"]=[x for x in s.get(\"known_devices\",[]) if x.lower()!=m]; s.setdefault(\"missing_counts\",{}).pop(m,None); s.setdefault(\"disconnected_at\",{})[m]=time.time()-7200; json.dump(s,open(p,\"w\",encoding=\"utf-8\"),ensure_ascii=False,indent=2)'; /home/pi/work/wifi-client-notifier/.venv/bin/python3 src/wifi_notifier.py config/config.yaml --single-run"
+      ],
+      "problemMatcher": []
     }
   ]
 }
