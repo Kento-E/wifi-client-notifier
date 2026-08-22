@@ -1,0 +1,14 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Raspberry Piへ接続",
+      "type": "shell",
+      "command": "ssh",
+      "args": [
+        "user@raspberry-pi.local"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}
