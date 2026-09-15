@@ -5,8 +5,8 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
-# ステージ済みの .py ファイルに対して事前に black を実行し、
-# 整形結果を即座に再ステージすることで pre-commit フックの失敗を防ぐ。
+# ステージ済みの .py ファイルに対して事前にblackを実行し、
+# 整形結果を即座に再ステージすることでpre-commitフックの失敗を防ぐ。
 # （未ステージの変更には触れない）
 staged_py_files="$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$' || true)"
 if [[ -n "$staged_py_files" ]]; then
@@ -16,4 +16,27 @@ if [[ -n "$staged_py_files" ]]; then
   fi
 fi
 
-./scripts/run_quality_checks.sh --hook
+staged_files=()
+while IFS= read -r file; do
+  [[ -n "$file" ]] && staged_files+=("$file")
+done < <(git diff --cached --name-only --diff-filter=ACM)
+if ! ./scripts/run_quality_checks.sh --hook; then
+  # hookが自動修正したファイルを再ステージして、同じcommit内で再検証する。
+  # 同じファイルに未ステージ変更がある場合は、その変更を意図せず含めないため停止する。
+  restage_allowed=1
+  for file in "${staged_files[@]}"; do
+    if ! git diff --quiet -- "$file"; then
+      restage_allowed=0
+      break
+    fi
+  done
+
+  if [[ ${restage_allowed} -eq 1 && ${#staged_files[@]} -gt 0 ]]; then
+    git add -- "${staged_files[@]}"
+    ./scripts/run_quality_checks.sh --hook
+  else
+    echo "自動修正を検出しましたが、未ステージ変更を保護するためcommitを停止しました。" >&2
+    echo "修正内容を確認してgit add後に再度commitしてください。" >&2
+    exit 1
+  fi
+fi
