@@ -290,8 +290,30 @@ cd ~/work/wifi-client-notifier
 .venv/bin/python3 src/wifi_notifier.py config/config.yaml
 ```
 
+### 9. 通知プロセスの再起動
+
+通常の再起動では、systemdが管理するサービスだけを再起動します。
+
+```bash
+./deployment/restart_wifi_notifier.sh
+```
+
+systemd管理外で起動した古い通知プロセスが残っている場合に限り、明示的に復旧モードを使用します。
+このモードは対象を`wifi_notifier.py`と`config/config.yaml`を使うプロセスに限定して停止した後、systemdサービスを再起動します。
+
+```bash
+./deployment/restart_wifi_notifier.sh --recover-unmanaged
+```
+
+サービス定義を変更した場合は、`--daemon-reload`も指定してください。
+
+```bash
+./deployment/restart_wifi_notifier.sh --daemon-reload
+```
+
 ### 補足
 
 - ARP スキャンは root 権限が必須です。
 - `arp.interface` は Raspberry Pi Zero 2 W を想定して `wlan0` を設定しています。
-- サブネットは自動検出で `/24` を仮定するため、異なるサブネットマスク環境では `config/config.yaml` の `arp.subnet` を明示してください。
+- サブネットは自動検出で `/24` を仮定します。異なるサブネットマスク環境では
+  `config/config.yaml` の `arp.subnet` を明示してください。

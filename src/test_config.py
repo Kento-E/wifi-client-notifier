@@ -63,10 +63,20 @@ def test_arp_scanner(config):
         timeout = arp_config.get("timeout", 2)
         devices = scanner.scan(timeout=timeout)
         print(f"✓ ARPスキャン成功: {len(devices)}台のデバイスを検出しました")
-        for dev in devices[:5]:  # 最大5件を表示
-            print(f"  - IP: {dev['ip']}, MAC: {dev['mac']}, hostname: {dev['hostname']}")
-        if len(devices) > 5:
-            print(f"  ... 他 {len(devices) - 5} 台")
+        for dev in devices:
+            print(
+                "  - IP: {ip}, MAC: {mac}, hostname: {hostname}, "
+                "vendor: {vendor}, DHCP hostname: {dhcp_hostname}, "
+                "mDNS: {mdns_name}, NetBIOS: {netbios_name}".format(
+                    ip=dev.get("ip", ""),
+                    mac=dev.get("mac", ""),
+                    hostname=dev.get("hostname", ""),
+                    vendor=dev.get("vendor", ""),
+                    dhcp_hostname=dev.get("dhcp_hostname", ""),
+                    mdns_name=dev.get("mdns_name", ""),
+                    netbios_name=dev.get("netbios_name", ""),
+                )
+            )
         return True
     except PermissionError:
         print("✗ エラー: ARPスキャンにはroot権限が必要です")
