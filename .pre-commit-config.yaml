@@ -22,3 +22,4 @@ repos:
     rev: v0.14.0
     hooks:
       - id: markdownlint-cli2
+        args: [--fix]
