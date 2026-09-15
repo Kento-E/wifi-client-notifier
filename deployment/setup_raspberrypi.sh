@@ -148,6 +148,12 @@ python3 -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
+  mkdir -p ""$HOME"/bin"
+  install -m 0755 scripts/pi_devices.sh ""$HOME"/bin/pi-devices"
+  path_line='export PATH=""$HOME"/bin:"$PATH""'
+  for shell_profile in ""$HOME"/.profile" ""$HOME"/.bashrc"; do
+    touch ""$shell_profile""
+    grep -qxF ""$path_line"" ""$shell_profile"" || printf '\\n%s\\n' ""$path_line"" >> ""$shell_profile""
 '"
 
 if [[ ${COPY_CONFIG} -eq 1 ]]; then
