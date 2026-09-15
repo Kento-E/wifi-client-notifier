@@ -111,6 +111,7 @@ PI_HOST=user@hostname.local ./deployment/setup_raspberrypi.sh \
 - `config/config.yaml` 転送（デフォルト）
 - ARPモード設定補完（`detection_method: arp`, `interface: wlan0`）
 - Firebase有効時は `--firebase-credentials` で指定したJSONパスを実行時とsystemdへ反映
+- `scripts/pi_devices.sh`を`~/bin/pi-devices`へ配置し、ログイン後に接続中端末を確認できるようPATHを設定
 - `test_config.py` 実行
 - `wifi_notifier.py --single-run` 実行
 - `systemd` サービスのインストール、有効化、起動確認
@@ -194,6 +195,14 @@ p.write_text(yaml.dump(cfg, allow_unicode=True, sort_keys=False), encoding="utf-
 print("updated")
 PY
 '
+```
+
+### Piの接続中端末を確認
+
+セットアップ後は、Raspberry PiへSSH接続して以下のコマンドを実行できます。
+
+```bash
+pi-devices
 ```
 
 ### 5. 設定テストを実行
