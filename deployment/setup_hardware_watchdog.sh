@@ -2,7 +2,8 @@
 set -euo pipefail
 
 # Raspberry Pi のハードウェア Watchdog を有効化し、
-# 対象サービスの非稼働が継続した場合に自動再起動させるセットアップスクリプト。
+# 対象サービスの非稼働や外部接続（ゲートウェイ/インターネット）切断が
+# 継続した場合に自動再起動させるセットアップスクリプト。
 
 SERVICE_NAME="wifi-notifier.service"
 WATCHDOG_TIMEOUT="15"
@@ -14,6 +15,9 @@ MODULES_LOAD_CONF="/etc/modules-load.d/bcm2835_wdt.conf"
 MARKER_BEGIN="# BEGIN wifi-client-notifier-watchdog"
 MARKER_END="# END wifi-client-notifier-watchdog"
 WATCHDOG_RESTART_REQUIRED=0
+PING_ENABLED=1
+PING_TARGET=""
+PING_COUNT="3"
 
 usage() {
   cat <<'USAGE'
@@ -29,11 +33,21 @@ usage() {
                           デフォルト: 5
   --failure-threshold <n> 何回連続で非稼働なら再起動扱いにするか
                           デフォルト: 3
+  --ping-target <ip>      外部接続監視で ping する宛先IP
+                          デフォルト: 現在のデフォルトゲートウェイを自動検出
+  --ping-count <n>        ping 失敗と判定するまでの連続失敗回数
+                          デフォルト: 3
+  --no-ping               外部接続（ping）監視を無効化し、サービス監視のみ行う
   -h, --help              このヘルプを表示
 
 例:
   sudo ./deployment/setup_hardware_watchdog.sh
   sudo ./deployment/setup_hardware_watchdog.sh --service wifi-notifier.service --timeout 20 --interval 5 --failure-threshold 4
+  sudo ./deployment/setup_hardware_watchdog.sh --ping-target 8.8.8.8 --ping-count 5
+
+補足:
+  --ping-target を省略するとデフォルトゲートウェイ（ルータ）への疎通を監視します。
+  外部（インターネット）への疎通まで監視したい場合は --ping-target 8.8.8.8 のように指定してください。
 USAGE
 }
 
@@ -76,6 +90,18 @@ while [[ $# -gt 0 ]]; do
       FAILURE_THRESHOLD="$2"
       shift 2
       ;;
+    --ping-target)
+      PING_TARGET="$2"
+      shift 2
+      ;;
+    --ping-count)
+      PING_COUNT="$2"
+      shift 2
+      ;;
+    --no-ping)
+      PING_ENABLED=0
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -91,6 +117,16 @@ done
 validate_positive_int "--timeout" "${WATCHDOG_TIMEOUT}"
 validate_positive_int "--interval" "${CHECK_INTERVAL}"
 validate_positive_int "--failure-threshold" "${FAILURE_THRESHOLD}"
+if (( PING_ENABLED == 1 )); then
+  validate_positive_int "--ping-count" "${PING_COUNT}"
+  if [[ -z "${PING_TARGET}" ]]; then
+    PING_TARGET="$(ip route show default 2>/dev/null | awk '{for (i=1;i<=NF;i++) if ($i=="via") {print $(i+1); exit}}')"
+  fi
+  if [[ -z "${PING_TARGET}" ]]; then
+    echo "--ping-target が未指定で、デフォルトゲートウェイも自動検出できませんでした。--ping-target で明示指定するか --no-ping を指定してください" >&2
+    exit 1
+  fi
+fi
 
 if ! command -v systemctl >/dev/null 2>&1; then
   echo "systemctl が見つかりません。systemd 環境で実行してください" >&2
@@ -112,6 +148,11 @@ echo "監視サービス: ${SERVICE_NAME}"
 echo "watchdog-timeout: ${WATCHDOG_TIMEOUT} 秒"
 echo "チェック間隔: ${CHECK_INTERVAL} 秒"
 echo "連続失敗閾値: ${FAILURE_THRESHOLD} 回"
+if (( PING_ENABLED == 1 )); then
+  echo "外部接続監視 ping 宛先: ${PING_TARGET} (連続失敗 ${PING_COUNT} 回で再起動)"
+else
+  echo "外部接続監視 (ping): 無効"
+fi
 
 echo "[1/7] watchdog パッケージをインストール"
 run_root apt-get update
@@ -234,6 +275,10 @@ mv "${TMP_WATCHDOG_CFG}.clean" "${TMP_WATCHDOG_CFG}"
   echo "interval = ${CHECK_INTERVAL}"
   echo "max-load-1 = 24"
   echo "test-binary = ${CHECK_SCRIPT_PATH} ${SERVICE_NAME} ${FAILURE_THRESHOLD}"
+  if (( PING_ENABLED == 1 )); then
+    echo "ping = ${PING_TARGET}"
+    echo "ping-count = ${PING_COUNT}"
+  fi
   echo "${MARKER_END}"
 } >> "${TMP_WATCHDOG_CFG}"
 
@@ -273,6 +318,13 @@ cat <<EOF
 補足:
 - ${SERVICE_NAME} が ${FAILURE_THRESHOLD} 回連続で非稼働になると、
   watchdog がフィードを停止し自動再起動が実行されます。
+$(if (( PING_ENABLED == 1 )); then
+  cat <<PING_EOF
+- 外部接続監視: 有効（ping 宛先 ${PING_TARGET}、連続失敗 ${PING_COUNT} 回で自動再起動）
+PING_EOF
+else
+  echo "- 外部接続監視: 無効（--no-ping 指定）"
+fi)
 - 次回起動時にも有効化するため、${BOOT_CONFIG_PATH} と ${MODULES_LOAD_CONF} を更新済みです。
 - すぐにブート設定反映を確実にしたい場合は再起動してください: sudo reboot
 EOF
