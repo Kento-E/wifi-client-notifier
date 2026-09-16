@@ -14,6 +14,7 @@ import time
 import os
 import logging
 import sys
+import fcntl
 from typing import Dict, List, Optional, Set
 
 try:
@@ -532,6 +533,34 @@ class WiFiMonitor:
             logging.error("新しいデバイスのチェック中にエラーが発生しました: %s", e)
 
 
+def _acquire_single_instance_lock(config_file: str):
+    """
+    同一設定ファイルに対する多重起動を防止する。
+
+    system/userの両systemdユニットが二重登録された場合など、複数プロセスが
+    同時に同一デバイスへ通知してしまう事故を防ぐため、設定ファイルごとに
+    排他ロックを取得する。取得できない場合は既に別プロセスが実行中とみなす。
+
+    Returns:
+        ロックを保持し続けるためのファイルオブジェクト（GCされないよう呼び出し元で保持する）
+    """
+    lock_path = os.path.abspath(config_file) + ".lock"
+    lock_file = open(lock_path, "w")
+    try:
+        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        lock_file.close()
+        print(
+            f"Error: 既に同じ設定ファイル（{config_file}）でwifi_notifier.pyが実行中です。"
+            " 二重起動は多重通知の原因になるため終了します。"
+            " systemdユニットが system/user 双方に登録されていないか確認してください。"
+        )
+        sys.exit(1)
+    lock_file.write(str(os.getpid()))
+    lock_file.flush()
+    return lock_file
+
+
 def main():
     """メインエントリーポイント。"""
     if len(sys.argv) < 2:
@@ -542,6 +571,9 @@ def main():
 
     config_file = sys.argv[1]
     single_run = "--single-run" in sys.argv
+
+    # 多重起動防止ロック（プロセス終了までファイルオブジェクトを保持する必要がある）
+    _lock_file = _acquire_single_instance_lock(config_file)  # noqa: F841
 
     try:
         monitor = WiFiMonitor(config_file)

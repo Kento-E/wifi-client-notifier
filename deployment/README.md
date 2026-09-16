@@ -310,6 +310,21 @@ cd ~/work/wifi-client-notifier
 systemd管理外で起動した古い通知プロセスが残っている場合に限り、明示的に復旧モードを使用します。
 このモードは対象を`wifi_notifier.py`と`config/config.yaml`を使うプロセスに限定して停止した後、systemdサービスを再起動します。
 
+### 10. 多重起動・多重通知の防止について
+
+`wifi-notifier.service` は必ず**システムレベル**（`/etc/systemd/system/`配下）にのみ登録してください。
+`systemctl --user enable wifi-notifier` のようにユーザーレベル（`~/.config/systemd/user/`配下）へ誤って登録すると、
+system側とuser側の2プロセスが同時に稼働し、同一デバイスへの通知が二重に送信されます。
+
+以下のコマンドで、ユーザーレベルに重複登録されていないか定期的に確認できます。
+
+```bash
+ssh "$PI_HOST" "systemctl --user list-units --all | grep -i wifi-notifier"
+```
+
+なお`src/wifi_notifier.py`自体にも設定ファイル単位の多重起動防止ロックを実装済みのため、
+万一二重登録されても2つ目のプロセスは起動時にエラー終了し、二重通知には至りません。
+
 ```bash
 ./deployment/restart_wifi_notifier.sh --recover-unmanaged
 ```
