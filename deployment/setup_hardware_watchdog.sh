@@ -18,6 +18,11 @@ WATCHDOG_RESTART_REQUIRED=0
 PING_ENABLED=1
 PING_TARGET=""
 PING_COUNT="3"
+# 起動直後はWi-Fi再接続（WPA認証+DHCP）が完了しておらずping監視が誤検知しやすいため、
+# watchdogデーモンの起動をこの秒数だけ遅らせ、起動直後のリブートループを防止する
+STARTUP_DELAY_SECONDS="90"
+DROPIN_DIR="/etc/systemd/system/watchdog.service.d"
+DROPIN_PATH="${DROPIN_DIR}/wifi-client-notifier-startup-delay.conf"
 
 usage() {
   cat <<'USAGE'
@@ -38,16 +43,22 @@ usage() {
   --ping-count <n>        ping 失敗と判定するまでの連続失敗回数
                           デフォルト: 3
   --no-ping               外部接続（ping）監視を無効化し、サービス監視のみ行う
+  --startup-delay <sec>   起動直後にwatchdogデーモンの監視開始を遅らせる秒数
+                          （Wi-Fi再接続が完了する前のping誤検知によるリブートループを防止）
+                          デフォルト: 90 / 0 を指定すると遅延を無効化
   -h, --help              このヘルプを表示
 
 例:
   sudo ./deployment/setup_hardware_watchdog.sh
   sudo ./deployment/setup_hardware_watchdog.sh --service wifi-notifier.service --timeout 20 --interval 5 --failure-threshold 4
   sudo ./deployment/setup_hardware_watchdog.sh --ping-target 8.8.8.8 --ping-count 5
+  sudo ./deployment/setup_hardware_watchdog.sh --startup-delay 120
 
 補足:
   --ping-target を省略するとデフォルトゲートウェイ（ルータ）への疎通を監視します。
   外部（インターネット）への疎通まで監視したい場合は --ping-target 8.8.8.8 のように指定してください。
+  電源断後の起動直後はWi-Fi再接続に時間がかかりping監視が誤反応してリブートループに陥ることがあるため、
+  --startup-delay で猶予時間を確保することを推奨します。
 USAGE
 }
 
@@ -102,6 +113,10 @@ while [[ $# -gt 0 ]]; do
       PING_ENABLED=0
       shift
       ;;
+    --startup-delay)
+      STARTUP_DELAY_SECONDS="$2"
+      shift 2
+      ;;
     -h|--help)
       usage
       exit 0
@@ -113,6 +128,11 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if ! [[ "${STARTUP_DELAY_SECONDS}" =~ ^[0-9]+$ ]]; then
+  echo "--startup-delay は 0 以上の整数を指定してください" >&2
+  exit 1
+fi
 
 validate_positive_int "--timeout" "${WATCHDOG_TIMEOUT}"
 validate_positive_int "--interval" "${CHECK_INTERVAL}"
@@ -153,12 +173,17 @@ if (( PING_ENABLED == 1 )); then
 else
   echo "外部接続監視 (ping): 無効"
 fi
+if (( STARTUP_DELAY_SECONDS > 0 )); then
+  echo "起動時の監視開始遅延: ${STARTUP_DELAY_SECONDS} 秒（Wi-Fi再接続の猶予）"
+else
+  echo "起動時の監視開始遅延: 無効"
+fi
 
-echo "[1/7] watchdog パッケージをインストール"
+echo "[1/8] watchdog パッケージをインストール"
 run_root apt-get update
 run_root apt-get install -y watchdog
 
-echo "[2/7] dtparam=watchdog=on を有効化"
+echo "[2/8] dtparam=watchdog=on を有効化"
 BOOT_CONFIG_PATH=""
 for candidate in /boot/firmware/config.txt /boot/config.txt; do
   if run_root test -f "${candidate}"; then
@@ -195,7 +220,7 @@ else
   echo "  反映しました: ${BOOT_CONFIG_PATH}"
 fi
 
-echo "[3/7] bcm2835_wdt モジュールをロード"
+echo "[3/8] bcm2835_wdt モジュールをロード"
 if ! lsmod | awk '{print $1}' | grep -qx 'bcm2835_wdt'; then
   run_root modprobe bcm2835_wdt
   echo "  モジュールをロードしました"
@@ -210,7 +235,7 @@ else
   echo "  起動時ロード設定を反映しました"
 fi
 
-echo "[4/7] サービス監視スクリプトを配置"
+echo "[4/8] サービス監視スクリプトを配置"
 TMP_CHECK_SCRIPT="$(mktemp)"
 cat > "${TMP_CHECK_SCRIPT}" <<'EOS'
 #!/usr/bin/env bash
@@ -256,7 +281,7 @@ else
   echo "  監視スクリプトを更新しました"
 fi
 
-echo "[5/7] /etc/watchdog.conf を設定"
+echo "[5/8] /etc/watchdog.conf を設定"
 TMP_WATCHDOG_CFG="$(mktemp)"
 run_root cat "${WATCHDOG_CONF_PATH}" > "${TMP_WATCHDOG_CFG}"
 
@@ -291,7 +316,34 @@ else
   echo "  watchdog.conf を更新しました"
 fi
 
-echo "[6/7] watchdog サービスを有効化・再起動"
+echo "[6/8] 起動時の監視開始遅延（systemd drop-in）を設定"
+if (( STARTUP_DELAY_SECONDS > 0 )); then
+  run_root mkdir -p "${DROPIN_DIR}"
+  TMP_DROPIN="$(mktemp)"
+  {
+    echo "[Service]"
+    echo "ExecStartPre=/bin/sleep ${STARTUP_DELAY_SECONDS}"
+  } > "${TMP_DROPIN}"
+  if run_root test -f "${DROPIN_PATH}" && run_root cmp -s "${TMP_DROPIN}" "${DROPIN_PATH}"; then
+    echo "  drop-in は変更なしです: ${DROPIN_PATH}"
+  else
+    run_root install -m 644 "${TMP_DROPIN}" "${DROPIN_PATH}"
+    WATCHDOG_RESTART_REQUIRED=1
+    echo "  drop-in を配置しました: ${DROPIN_PATH}"
+  fi
+  rm -f "${TMP_DROPIN}"
+else
+  if run_root test -f "${DROPIN_PATH}"; then
+    run_root rm -f "${DROPIN_PATH}"
+    WATCHDOG_RESTART_REQUIRED=1
+    echo "  drop-in を削除しました（起動遅延を無効化）: ${DROPIN_PATH}"
+  else
+    echo "  起動遅延は無効設定のため drop-in は配置しません"
+  fi
+fi
+run_root systemctl daemon-reload
+
+echo "[7/8] watchdog サービスを有効化・再起動"
 if ! run_root systemctl is-enabled --quiet watchdog; then
   run_root systemctl enable watchdog
   echo "  watchdog サービスを有効化しました"
@@ -306,7 +358,7 @@ else
   echo "  設定変更がないため watchdog 再起動をスキップしました"
 fi
 
-echo "[7/7] 動作確認"
+echo "[8/8] 動作確認"
 run_root systemctl --no-pager --lines=20 status watchdog
 
 cat <<EOF
@@ -324,6 +376,11 @@ $(if (( PING_ENABLED == 1 )); then
 PING_EOF
 else
   echo "- 外部接続監視: 無効（--no-ping 指定）"
+fi)
+$(if (( STARTUP_DELAY_SECONDS > 0 )); then
+  echo "- 起動時の監視開始遅延: ${STARTUP_DELAY_SECONDS} 秒（Wi-Fi再接続が完了する前のping誤検知による再起動ループを防止）"
+else
+  echo "- 起動時の監視開始遅延: 無効（--startup-delay 0 指定）"
 fi)
 - 次回起動時にも有効化するため、${BOOT_CONFIG_PATH} と ${MODULES_LOAD_CONF} を更新済みです。
 - すぐにブート設定反映を確実にしたい場合は再起動してください: sudo reboot
