@@ -11,6 +11,26 @@
       "problemMatcher": []
     },
     {
+      "label": "PiのUSB接続を確認",
+      "type": "shell",
+      "command": "zsh",
+      "args": [
+        "-c",
+        "print -r -- \"===== USBデバイス =====\"; system_profiler SPUSBDataType | grep -i -C 3 -E \"raspberry|linux|ethernet|rndis|cdc|gadget\" || true; print -r -- \"===== ネットワークインターフェース =====\"; ifconfig -a | grep -E \"^(en|bridge)[0-9]+:|inet \" || true; print -r -- \"===== Raspberry PiのARPエントリ =====\"; arp -a | grep -i -E \"raspberry|b8:27:eb|dc:a6:32|e4:5f:01|d8:3a:dd|28:cd:c1|2c:cf:67\" || true"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Piの接続中端末情報を確認",
+      "type": "shell",
+      "command": "ssh",
+      "args": [
+        "pi@raspberrypi.local",
+        "set -e; cd /home/pi/wifi-client-notifier; sudo /home/pi/wifi-client-notifier/.venv/bin/python3 -c \"import json,yaml; from src.arp_scanner import ARPScanner; c=yaml.safe_load(open('config/config.yaml',encoding='utf-8')); a=c.get('arp',{}); devices=ARPScanner(subnet=a.get('subnet'),interface=a.get('interface')).scan(timeout=a.get('timeout',2)); print(json.dumps(devices,ensure_ascii=False,indent=2,sort_keys=True))\""
+      ],
+      "problemMatcher": []
+    },
+    {
       "label": "Piで再通知を手動検証",
       "type": "shell",
       "command": "ssh",
