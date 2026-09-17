@@ -11,6 +11,16 @@
       "problemMatcher": []
     },
     {
+      "label": "Piのwifi-client-notifierを更新",
+      "type": "shell",
+      "command": "ssh",
+      "args": [
+        "pi@raspberrypi.local",
+        "cd ~/wifi-client-notifier && git pull"
+      ],
+      "problemMatcher": []
+    },
+    {
       "label": "PiのUSB接続を確認",
       "type": "shell",
       "command": "zsh",
