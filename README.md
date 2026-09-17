@@ -159,8 +159,7 @@ cp config/config.example.yaml config.yaml
 通知制御の主な設定:
 
 - `repeat_notification_devices`: この一覧に入れたMACアドレスだけ再通知対象にする
-- `notify_unknown_devices_once`: 上記以外の端末を「未知の端末」として初回のみ通知する
-- `monitored_devices`: 旧来の単純フィルタ設定。上記2項目を使わない場合のみ利用
+- 上記以外の端末は「未知の端末」として初回のみ通知する
 
 Googleカレンダー通知の主な設定（任意）:
 
@@ -508,7 +507,7 @@ python src/manage_registration_tokens.py config.yaml remove "abc123..."
 ### 再通知の条件を調整したい
 
 - `repeat_notification_devices` に再通知したいMACアドレスを設定
-- `notify_unknown_devices_once: true` で、それ以外を未知端末として初回のみ通知
+- 上記以外の端末は自動的に未知端末として初回のみ通知されます
 - `notification_cool_down_minutes` と `reconnect_notify_after_minutes` で再通知の間隔を調整
 
 ## 免責事項

@@ -26,7 +26,6 @@ class NotificationHandler:
         reconnect_notify_after_seconds: int = 3600,
         monitored_macs: Optional[set] = None,
         repeat_notification_macs: Optional[set] = None,
-        notify_unknown_devices_once: bool = False,
         fallback_email_notifier: Optional[object] = None,
     ):
         """初期化。
@@ -38,7 +37,6 @@ class NotificationHandler:
             reconnect_notify_after_seconds: 再接続通知の閾値（秒）
             monitored_macs: 監視対象MAC（None=全て、空集合=なし）
             repeat_notification_macs: 再通知対象MAC
-            notify_unknown_devices_once: 未知端末の初回通知のみ有効化
             fallback_email_notifier: gc/firebase エラー時のフォールバックメール通知
         """
         self.state_manager = state_manager
@@ -47,12 +45,8 @@ class NotificationHandler:
         self.reconnect_notify_after_seconds = reconnect_notify_after_seconds
         self.monitored_macs = monitored_macs or set()
         self.repeat_notification_macs = repeat_notification_macs or set()
-        self.notify_unknown_devices_once = notify_unknown_devices_once
         self.fallback_email_notifier = fallback_email_notifier
-        # 分岐モードは repeat_notification_macs または notify_unknown_devices_once
-        self.branch_notification_mode_enabled = (
-            bool(self.repeat_notification_macs) or notify_unknown_devices_once
-        )
+        self.branch_notification_mode_enabled = True
         self.notifier_init_errors: List[str] = []
 
     def should_notify_device(self, mac: str) -> Tuple[bool, bool]:
@@ -67,10 +61,7 @@ class NotificationHandler:
         if self.branch_notification_mode_enabled:
             if mac in self.repeat_notification_macs:
                 return True, False
-            if (
-                self.notify_unknown_devices_once
-                and mac not in self.state_manager.unknown_notified_macs
-            ):
+            if mac not in self.state_manager.unknown_notified_macs:
                 return True, True
             return False, False
 
@@ -237,8 +228,7 @@ class NotificationHandler:
         Args:
             current_macs: 現在接続中のMAC集合
         """
-        if self.notify_unknown_devices_once:
-            baseline_unknown_devices = {
-                mac for mac in current_macs if mac not in self.repeat_notification_macs
-            }
-            self.state_manager.unknown_notified_macs.update(baseline_unknown_devices)
+        baseline_unknown_devices = {
+            mac for mac in current_macs if mac not in self.repeat_notification_macs
+        }
+        self.state_manager.unknown_notified_macs.update(baseline_unknown_devices)

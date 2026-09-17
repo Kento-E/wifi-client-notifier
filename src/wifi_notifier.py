@@ -59,7 +59,6 @@ class WiFiMonitor:
         self.disconnect_grace_scans: int = 3
         self.notification_cooldown_seconds: int = 0
         self.reconnect_notify_after_seconds: int = 3600
-        self.notify_unknown_devices_once: bool = False
         self.notification_handler: Optional[NotificationHandler] = None
         self.notifier_init_errors: List[str] = []
 
@@ -166,27 +165,12 @@ class WiFiMonitor:
             if isinstance(mac, str) and mac.strip()
         }
 
-        self.notify_unknown_devices_once = ConfigManager.parse_bool_config(
-            self.config.get("notify_unknown_devices_once"),
-            default=False,
+        logging.info(
+            "通知分岐モード: 有効（再通知対象MAC %s件 / 未知端末初回のみ通知）",
+            len(self.repeat_notification_macs),
         )
-
-        branch_mode = bool(self.repeat_notification_macs) or (
-            "notify_unknown_devices_once" in self.config
-        )
-
-        if branch_mode:
-            logging.info(
-                "通知分岐モード: 有効（再通知対象MAC %s件 / 未知端末初回のみ通知: %s）",
-                len(self.repeat_notification_macs),
-                "有効" if self.notify_unknown_devices_once else "無効",
-            )
-            if self.monitored_macs:
-                logging.info("通知分岐モードが有効のため monitored_devices は無視されます")
-        elif self.monitored_macs:
-            logging.info("通知フィルタ: monitored_devices %s件", len(self.monitored_macs))
-        else:
-            logging.info("通知フィルタ: なし")
+        if self.monitored_macs:
+            logging.info("通知分岐モードが有効のため monitored_devices は無視されます")
 
         # 切断判定の猶予回数
         self.disconnect_grace_scans = ConfigManager.parse_int_config(
@@ -248,7 +232,6 @@ class WiFiMonitor:
             reconnect_notify_after_seconds=self.reconnect_notify_after_seconds,
             monitored_macs=self.monitored_macs,
             repeat_notification_macs=self.repeat_notification_macs,
-            notify_unknown_devices_once=self.notify_unknown_devices_once,
             fallback_email_notifier=self.fallback_email_notifier,
         )
         if self.notifier_init_errors:
