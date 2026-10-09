@@ -41,6 +41,17 @@
       "problemMatcher": []
     },
     {
+      "label": "Piのwifi-notifierを再起動",
+      "type": "shell",
+      "command": "ssh",
+      "args": [
+        "-t",
+        "raspberrypi",
+        "sudo systemctl restart wifi-notifier"
+      ],
+      "problemMatcher": []
+    },
+    {
       "label": "Piで再通知を手動検証",
       "type": "shell",
       "command": "ssh",
