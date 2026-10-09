@@ -3,45 +3,67 @@
 set -euo pipefail
 
 # GUI経由のgit commitではPATHが最小化されることがあるため、
-# pre-commitのNode系フックが同一世代のnode/npmを参照できるよう補正する。
+# PATH上のNodeが実行できない場合は既知のインストール先も確認する。
+declare -a node_candidates=()
+if command -v node >/dev/null 2>&1; then
+  node_candidates+=("$(command -v node)")
+fi
 for candidate_dir in \
   "$HOME/.nodebrew/current/bin" \
   "/opt/homebrew/bin" \
   "/usr/local/bin"
 do
-  if [[ -d "$candidate_dir" ]]; then
-    case ":$PATH:" in
-      *":$candidate_dir:"*) ;;
-      *) PATH="$PATH:$candidate_dir" ;;
-    esac
+  if [[ -x "$candidate_dir/node" ]]; then
+    node_candidates+=("$candidate_dir/node")
   fi
 done
 
-if ! command -v node >/dev/null 2>&1; then
-  echo "node が見つかりません。Node.js をインストールし、PATHを確認してください。" >&2
-  exit 1
-fi
+node_bin=""
+for candidate in "${node_candidates[@]}"; do
+  node_major="$("$candidate" -p 'Number(process.versions.node.split(".")[0])' 2>/dev/null)" || continue
+  if [[ "$node_major" =~ ^[0-9]+$ ]] && [[ "$node_major" -ge 16 ]]; then
+    node_bin="$candidate"
+    break
+  fi
+done
 
-node_major="$(node -p 'Number(process.versions.node.split(".")[0])' 2>/dev/null || echo 0)"
-if [[ "$node_major" -lt 16 ]]; then
-  echo "node のバージョンが古すぎます（検出: $(node -v 2>/dev/null || echo unknown)）。16以上を使用してください。" >&2
+if [[ -z "$node_bin" ]]; then
+  echo "Node.js 16以上の実行可能なバイナリが見つかりません。Node.js をインストールし、PATHを確認してください。" >&2
   exit 1
 fi
+PATH="$(dirname "$node_bin"):$PATH"
+export PATH
 
 declare -a pre_commit_cmd=()
 
 if command -v pre-commit >/dev/null 2>&1 && pre-commit --version >/dev/null 2>&1; then
   pre_commit_cmd=(pre-commit)
-elif command -v python3 >/dev/null 2>&1 && python3 -m pre_commit --version >/dev/null 2>&1; then
-  # 壊れたグローバルpre-commitを避け、Python環境のpre_commitモジュールを利用する。
-  pre_commit_cmd=(python3 -m pre_commit)
-elif command -v python >/dev/null 2>&1 && python -m pre_commit --version >/dev/null 2>&1; then
-  pre_commit_cmd=(python -m pre_commit)
 else
-  echo "pre-commit の実行環境が見つかりません。" >&2
-  echo "推奨: pip install -r requirements.txt を実行して pre-commit を再セットアップしてください。" >&2
-  echo "Homebrew版が壊れている場合は brew reinstall python@3.14 pre-commit で復旧できます。" >&2
-  exit 1
+  declare -a python_candidates=()
+  for python_command in python3 python; do
+    if command -v "$python_command" >/dev/null 2>&1; then
+      python_candidates+=("$(command -v "$python_command")")
+    fi
+  done
+  for candidate in \
+    "$PWD/.venv/bin/python" \
+    "$HOME"/.pyenv/versions/*/bin/python
+  do
+    [[ -x "$candidate" ]] && python_candidates+=("$candidate")
+  done
+
+  for python_bin in "${python_candidates[@]}"; do
+    if "$python_bin" -m pre_commit --version >/dev/null 2>&1; then
+      pre_commit_cmd=("$python_bin" -m pre_commit)
+      break
+    fi
+  done
+
+  if [[ ${#pre_commit_cmd[@]} -eq 0 ]]; then
+    echo "pre-commit の実行環境が見つかりません。" >&2
+    echo "推奨: pip install -r requirements.txt を実行して pre-commit を再セットアップしてください。" >&2
+    exit 1
+  fi
 fi
 
 if [[ "${1:-}" == "--hook" ]]; then
