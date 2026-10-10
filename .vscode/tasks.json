@@ -41,6 +41,15 @@
       "problemMatcher": []
     },
     {
+      "label": "Piへ設定と認証情報を配置して再起動",
+      "type": "shell",
+      "command": "${workspaceFolder}/deployment/deploy_config_to_pi.sh",
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Piのwifi-notifierを再起動",
       "type": "shell",
       "command": "ssh",
