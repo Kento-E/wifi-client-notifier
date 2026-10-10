@@ -88,7 +88,7 @@ if [[ "${SKIP_RESTART}" == "1" ]]; then
   exit 0
 fi
 
-echo "[3/3] wifi-notifier を再起動（sudoのパスワードを求められます）"
+echo "[3/3] wifi-notifier を再起動"
 ssh -t "${PI_HOST}" '
 set -e
 since="$(date "+%Y-%m-%d %H:%M:%S")"
