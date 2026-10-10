@@ -6,6 +6,7 @@
 
 - `setup.sh` - 自動セットアップスクリプト
 - `setup_raspberrypi.sh` - Raspberry Piへのリモート自動セットアップスクリプト
+- `register_rpi_connect.sh` - Raspberry Pi Connectへのリモート登録スクリプト
 - `Dockerfile` - Dockerイメージのビルド設定
 - `docker-compose.yml` - Docker Composeの設定
 
@@ -334,6 +335,19 @@ ssh "$PI_HOST" "systemctl --user list-units --all | grep -i wifi-notifier"
 ```bash
 ./deployment/restart_wifi_notifier.sh --daemon-reload
 ```
+
+### 11. Raspberry Pi Connect への登録
+
+[Raspberry Pi Connect](https://connect.raspberrypi.com/) の認証キー（auth key）を使い、ブラウザ操作なしでPiを登録します。
+認証キーはConnectの **Settings** ページで発行します（個人用は `rpuak_` で始まり、作成から6時間で失効・1回限り・1台に1つ）。
+
+```bash
+PI_HOST=pi@raspberrypi.local ./deployment/register_rpi_connect.sh
+```
+
+キーは対話入力のほか、環境変数 `RPI_CONNECT_AUTH_KEY` または `--auth-key-file <path>` でも渡せます。
+スクリプトは `rpi-connect-lite` が無ければ導入し、ログインしていなくても動くよう `loginctl enable-linger` を有効化します。
+既にサインイン済みの場合は登録をスキップします。
 
 ### 補足
 
