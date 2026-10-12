@@ -50,6 +50,19 @@
       "problemMatcher": []
     },
     {
+      "label": "PiをRaspberry Pi Connectへ登録",
+      "type": "shell",
+      "command": "${workspaceFolder}/deployment/register_rpi_connect.sh",
+      "args": [
+        "--host",
+        "pi@raspberrypi.local"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "Piのwifi-notifierを再起動",
       "type": "shell",
       "command": "ssh",

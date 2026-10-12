@@ -62,16 +62,19 @@ echo "[1/4] SSH接続確認"
 ssh -o BatchMode=yes -o ConnectTimeout=8 "${PI_HOST}" "echo 'SSH接続OK'"
 
 echo "[2/4] rpi-connect-lite導入・常駐設定"
-ssh "${PI_HOST}" bash -s <<'EOF'
+# sudoがパスワードを尋ねられるよう-tで端末を割り当てる（導入・設定済みならsudoは呼ばない）
+# Connectはユーザーサービスのため、ログインしていなくても動くようにlingerを有効化する
+ssh -t "${PI_HOST}" '
 set -e
 if ! command -v rpi-connect >/dev/null 2>&1; then
   sudo apt-get update
   sudo apt-get install -y rpi-connect-lite
 fi
-# Connectはユーザーサービスのため、ログインしていなくても動くようにlingerを有効化する
-sudo loginctl enable-linger "$(id -un)"
+if [ ! -e "/var/lib/systemd/linger/$(id -un)" ]; then
+  sudo loginctl enable-linger "$(id -un)"
+fi
 rpi-connect on
-EOF
+'
 
 if ssh "${PI_HOST}" "rpi-connect status" | grep -q "Signed in: yes"; then
   echo "[3/4] 既にサインイン済みのため登録をスキップ"
