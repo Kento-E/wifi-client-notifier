@@ -9,6 +9,7 @@ set -euo pipefail
 PI_HOST="${PI_HOST:-}"
 AUTH_KEY="${RPI_CONNECT_AUTH_KEY:-}"
 AUTH_KEY_FILE=""
+AUTH_KEY_URL="https://connect.raspberrypi.com/settings#secret"
 
 usage() {
   cat <<'USAGE'
@@ -18,7 +19,8 @@ usage() {
 オプション:
   --host <user@host>       SSH接続先（環境変数 PI_HOST より優先）
   --auth-key-file <path>   認証キーを書いたローカルファイル
-                           （未指定時は環境変数 RPI_CONNECT_AUTH_KEY、それも無ければ入力を求める）
+                           （未指定時は環境変数 RPI_CONNECT_AUTH_KEY、それも無ければ
+                           発行ページをブラウザで開いて入力を求める）
   -h, --help               ヘルプを表示
 
 例:
@@ -83,6 +85,13 @@ else
     AUTH_KEY="$(tr -d '[:space:]' < "${AUTH_KEY_FILE}")"
   fi
   if [[ -z "${AUTH_KEY}" ]]; then
+    # キーの発行ページを既定のブラウザで開く（開けない環境ではURLの表示のみ）
+    echo "認証キーの発行ページ: ${AUTH_KEY_URL}"
+    if command -v open >/dev/null 2>&1; then
+      open "${AUTH_KEY_URL}" || true
+    elif command -v xdg-open >/dev/null 2>&1; then
+      xdg-open "${AUTH_KEY_URL}" >/dev/null 2>&1 || true
+    fi
     read -r -s -p "認証キー（rpuak_... / rpoak_...）を入力してください: " AUTH_KEY
     echo ""
   fi
