@@ -5,9 +5,8 @@ WiFi通知ツール通知制御モジュール
 通知の判定（クールダウン、再接続閾値）と送信を担当する。
 """
 
-import time
 import logging
-from typing import Dict, List, Optional, Tuple
+import time
 
 try:
     from src.state_manager import StateManager
@@ -21,12 +20,12 @@ class NotificationHandler:
     def __init__(
         self,
         state_manager: StateManager,
-        notifiers: List[object],
+        notifiers: list[object],
         notification_cooldown_seconds: int = 0,
         reconnect_notify_after_seconds: int = 3600,
-        monitored_macs: Optional[set] = None,
-        repeat_notification_macs: Optional[set] = None,
-        fallback_email_notifier: Optional[object] = None,
+        monitored_macs: set | None = None,
+        repeat_notification_macs: set | None = None,
+        fallback_email_notifier: object | None = None,
     ):
         """初期化。
 
@@ -47,9 +46,9 @@ class NotificationHandler:
         self.repeat_notification_macs = repeat_notification_macs or set()
         self.fallback_email_notifier = fallback_email_notifier
         self.branch_notification_mode_enabled = True
-        self.notifier_init_errors: List[str] = []
+        self.notifier_init_errors: list[str] = []
 
-    def should_notify_device(self, mac: str) -> Tuple[bool, bool]:
+    def should_notify_device(self, mac: str) -> tuple[bool, bool]:
         """対象MACを通知すべきか、未知端末通知かどうかを判定する。
 
         Args:
@@ -88,7 +87,7 @@ class NotificationHandler:
         remaining = self.notification_cooldown_seconds - elapsed
         return max(0, remaining)
 
-    def should_force_notify_by_reconnect(self, mac: str) -> Tuple[bool, Optional[float]]:
+    def should_force_notify_by_reconnect(self, mac: str) -> tuple[bool, float | None]:
         """再接続により通知をスキップすべきクールダウンを無視すべきか判定する。
 
         Args:
@@ -110,9 +109,9 @@ class NotificationHandler:
 
     def send_notifications(
         self,
-        device_info: Dict[str, str],
+        device_info: dict[str, str],
         is_unknown_device: bool = False,
-        detected_at: Optional[float] = None,
+        detected_at: float | None = None,
     ) -> bool:
         """有効な通知チャネルへ順番に通知する。
 
@@ -136,7 +135,7 @@ class NotificationHandler:
             from notifiers import EmailNotifier
 
         notification_payload = dict(device_info)
-        channel_errors: List[str] = []
+        channel_errors: list[str] = []
 
         if self.notifier_init_errors:
             channel_errors.extend(self.notifier_init_errors)
