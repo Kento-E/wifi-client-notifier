@@ -233,58 +233,18 @@ sudo env FIREBASE_CREDENTIALS_FILE=/home/pi/secrets/firebase-service-account.jso
 ### 7. systemdサービスとして常駐実行
 
 `setup_raspberrypi.sh` は `--skip-service-install` を指定しない限り自動で実行します。
-手動で行う場合の手順は以下のとおりです。
+手動で行う場合は、Raspberry Pi 上で `deployment/install_service.sh` を実行します。
+サービス定義は `deployment/wifi-notifier.service.template` に一本化されており、
+ユーザー・パス・認証情報の環境変数は `config/config.yaml` とオプションから自動で埋め込まれます。
 
 ```bash
 ssh "$PI_HOST" '
-set -e
 cd ~/work/wifi-client-notifier
-REMOTE_PROJECT_PATH="$(pwd)"
-SERVICE_USER="$(id -un)"
-SERVICE_GROUP="$(id -gn)"
-# .venv/bin/python3 は 1 段リンクのため systemd でも解決できる（python は 2 段でNG）
-PYTHON_BIN="${REMOTE_PROJECT_PATH}/.venv/bin/python3"
-FIREBASE_ENV_NAME="FIREBASE_CREDENTIALS_FILE"
-FIREBASE_ENV_VALUE="/home/pi/secrets/firebase-service-account.json"
-# sudo で直接実行したことがある場合は root 所有になったログを修正
-if [ -f "${REMOTE_PROJECT_PATH}/wifi_notifier.log" ]; then
-  sudo chown "${SERVICE_USER}:${SERVICE_GROUP}" "${REMOTE_PROJECT_PATH}/wifi_notifier.log"
-fi
-sudo tee /etc/systemd/system/wifi-notifier.service >/dev/null <<EOF
-[Unit]
-Description=WiFi Client Notifier
-After=network.target network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=${SERVICE_USER}
-Group=${SERVICE_GROUP}
-WorkingDirectory=${REMOTE_PROJECT_PATH}
-Environment=${FIREBASE_ENV_NAME}=${FIREBASE_ENV_VALUE}
-ExecStart=${PYTHON_BIN} ${REMOTE_PROJECT_PATH}/src/wifi_notifier.py ${REMOTE_PROJECT_PATH}/config/config.yaml
-Restart=on-failure
-RestartSec=30
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=read-only
-ReadWritePaths=${REMOTE_PROJECT_PATH}
-AmbientCapabilities=CAP_NET_RAW
-CapabilityBoundingSet=CAP_NET_RAW
-StandardOutput=journal
-StandardError=journal
-SyslogIdentifier=wifi-notifier
-
-[Install]
-WantedBy=multi-user.target
-EOF
-sudo systemctl daemon-reload
-sudo systemctl enable wifi-notifier
-sudo systemctl start wifi-notifier
-sudo systemctl status wifi-notifier
+./deployment/install_service.sh --firebase-credentials /home/pi/secrets/firebase-service-account.json
 '
 ```
+
+サービスファイルを生成するだけで systemd へ登録しない場合は `--output <file>` を指定します。
 
 ログ確認:
 

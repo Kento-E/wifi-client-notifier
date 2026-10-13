@@ -1,0 +1,33 @@
+# wifi-notifier.service の唯一の定義元です。
+# @...@ は deployment/install_service.sh が置換します。直接編集して配置しないでください。
+[Unit]
+Description=WiFi Client Notifier
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@USER@
+Group=@GROUP@
+WorkingDirectory=@PROJECT_PATH@
+@ENV_LINES@
+ExecStart=@PYTHON_BIN@ @PROJECT_PATH@/src/wifi_notifier.py @PROJECT_PATH@/config/config.yaml
+Restart=on-failure
+RestartSec=30
+
+# ARPスキャン（scapy）に必要な CAP_NET_RAW のみを付与し、それ以外の権限は制限する
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+# プロジェクトや認証情報が /home 配下にあるため read-only とし、書き込みは ReadWritePaths のみ許可する
+ProtectHome=read-only
+ReadWritePaths=@PROJECT_PATH@
+AmbientCapabilities=CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_RAW
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=wifi-notifier
+
+[Install]
+WantedBy=multi-user.target

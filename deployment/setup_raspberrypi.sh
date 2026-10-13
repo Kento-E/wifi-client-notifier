@@ -315,98 +315,12 @@ remote_project="$1"
 firebase_credentials_remote="$2"
 cd "$remote_project"
 
-get_config_value() {
-  python3 - "$1" "$2" <<'PY'
-import sys
-import yaml
-from pathlib import Path
-
-section = sys.argv[1]
-key = sys.argv[2]
-cfg = yaml.safe_load(Path("config/config.yaml").read_text(encoding="utf-8")) or {}
-value = cfg.get(section, {})
-if not isinstance(value, dict):
-    value = {}
-value = value.get(key, "")
-if isinstance(value, bool):
-    print("1" if value else "")
-elif value is None:
-    print("")
-else:
-    print(str(value).strip())
-PY
-}
-
-remote_project_path="$(pwd)"
-service_user="$(id -un)"
-service_group="$(id -gn)"
-python_bin="${remote_project_path}/.venv/bin/python3"
-gcal_env_name="$(get_config_value google_calendar credentials_file_env)"
-gcal_env_value="$(get_config_value google_calendar credentials_file)"
-firebase_enabled="$(get_config_value firebase enabled)"
-firebase_env_name="$(get_config_value firebase credentials_file_env)"
-
-service_env_lines=()
-if [[ -n "${gcal_env_name}" && -n "${gcal_env_value}" ]]; then
-  service_env_lines+=("Environment=${gcal_env_name}=${gcal_env_value}")
+args=()
+if [[ -n "${firebase_credentials_remote}" ]]; then
+  args+=(--firebase-credentials "${firebase_credentials_remote}")
 fi
-if [[ -n "${firebase_enabled}" ]]; then
-  if [[ -z "${firebase_env_name}" ]]; then
-    echo "エラー: firebase.enabled=true ですが credentials_file_env が未設定です" >&2
-    exit 1
-  fi
-  if [[ -z "${firebase_credentials_remote}" ]]; then
-    echo "エラー: firebase.enabled=true ですが --firebase-credentials が未指定です" >&2
-    exit 1
-  fi
-  service_env_lines+=("Environment=${firebase_env_name}=${firebase_credentials_remote}")
-fi
-
-if [[ -f "${remote_project_path}/wifi_notifier.log" ]]; then
-  sudo chown "${service_user}:${service_group}" "${remote_project_path}/wifi_notifier.log"
-fi
-
-{
-  cat <<EOF2
-[Unit]
-Description=WiFi Client Notifier
-After=network.target network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=${service_user}
-Group=${service_group}
-WorkingDirectory=${remote_project_path}
-EOF2
-  for service_env_line in "${service_env_lines[@]}"; do
-    printf '%s\n' "${service_env_line}"
-  done
-  cat <<EOF2
-ExecStart=${python_bin} ${remote_project_path}/src/wifi_notifier.py ${remote_project_path}/config/config.yaml
-Restart=on-failure
-RestartSec=30
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=read-only
-ReadWritePaths=${remote_project_path}
-AmbientCapabilities=CAP_NET_RAW
-CapabilityBoundingSet=CAP_NET_RAW
-StandardOutput=journal
-StandardError=journal
-SyslogIdentifier=wifi-notifier
-
-[Install]
-WantedBy=multi-user.target
-EOF2
-} | sudo tee /etc/systemd/system/wifi-notifier.service >/dev/null
-
-sudo systemctl daemon-reload
-sudo systemctl enable wifi-notifier
-sudo systemctl restart wifi-notifier
-sleep 4
-sudo systemctl --no-pager --lines=20 status wifi-notifier
+# サービス定義は deployment/wifi-notifier.service.template に一本化している
+bash deployment/install_service.sh "${args[@]}"
 EOF
 else
   echo "[6/6] systemdサービスのインストールをスキップ"

@@ -29,12 +29,13 @@ wifi-client-notifier/
 ├── docs/                     # ドキュメント
 │   └── CUSTOMIZATION.md      # カスタマイズガイド
 ├── config/                   # 設定ファイル
-│   ├── config.example.yaml   # 設定例
-│   └── wifi-notifier.service # systemdサービスファイル
+│   └── config.example.yaml   # 設定例
 ├── deployment/               # デプロイ関連
 │   ├── Dockerfile            # Dockerイメージ
 │   ├── docker-compose.yml    # Docker Compose設定
-│   └── setup.sh              # セットアップスクリプト
+│   ├── setup.sh              # セットアップスクリプト
+│   ├── wifi-notifier.service.template # systemdサービス定義（唯一の定義元）
+│   └── install_service.sh    # サービスファイル生成・systemd登録
 └── .github/                  # GitHub設定
     ├── workflows/            # CI/自動化ワークフロー
     └── instructions/         # Copilot用途別指示書
@@ -366,34 +367,25 @@ docker-compose down
 
 ### systemdサービスとして実行（Linux / Raspberry Pi）
 
-1. サービスファイルをカスタマイズ:
+1. サービスファイルを生成して systemd に登録:
 
-`config/wifi-notifier.service`ファイルを編集し、以下を実際の値に置き換えます：
+```bash
+./deployment/install_service.sh
+```
 
-- `<YOUR_USER>`: 実行ユーザー名（専用の非rootユーザーを推奨）
-- `<YOUR_GROUP>`: 実行グループ名
-- `/path/to/wifi-client-notifier`: このリポジトリのパス
+実行ユーザー・パスは自動で埋め込まれ、`config/config.yaml` の認証情報環境変数も反映されます。
+Firebase を使う場合は `--firebase-credentials <path>` を指定してください。
+サービス定義は `deployment/wifi-notifier.service.template` に一本化されています。
 
 ARPスキャンモードでは `AmbientCapabilities=CAP_NET_RAW` が設定済みのため、rootユーザーは不要です。
 
-`ExecStart` は仮想環境の Python と `config/config.yaml` を指すように設定してください。
-
-2. サービスファイルをコピー:
+2. 状態を確認:
 
 ```bash
-sudo cp config/wifi-notifier.service /etc/systemd/system/
-```
-
-3. サービスを有効化して起動:
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable wifi-notifier
-sudo systemctl start wifi-notifier
 sudo systemctl status wifi-notifier
 ```
 
-4. ログを確認:
+3. ログを確認:
 
 ```bash
 sudo journalctl -u wifi-notifier -f
