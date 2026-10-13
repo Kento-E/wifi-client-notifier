@@ -111,6 +111,11 @@ check_interval: 60
 # ARP検出の一時的な揺らぎで再通知が増える場合は 3〜5 程度に調整してください
 disconnect_grace_scans: 3
 
+# スキャン失敗の許容回数（ARP方式）
+# ゲートウェイがARPに応答しないスキャンは失敗扱いとし、切断判定をスキップします
+# この回数連続で失敗するとプロセスを終了し、systemd（Restart=on-failure）に再起動させます
+max_consecutive_scan_failures: 3
+
 # 同一端末の再通知を抑止する時間（分）
 # 0 の場合は無効です。ARP環境で誤再通知が多い場合は 60〜1440 を推奨します
 notification_cool_down_minutes: 1440

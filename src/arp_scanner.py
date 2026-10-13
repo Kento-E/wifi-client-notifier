@@ -7,16 +7,16 @@ ARPスキャンを使用して接続中のデバイスを検出します。
 scapyライブラリを使用し、root権限またはCAP_NET_RAWケーパビリティが必要です。
 """
 
+import glob
+import ipaddress
 import logging
 import os
-import glob
 import re
 import socket
 import subprocess
-from typing import Dict, List, Optional, Tuple
 
 try:
-    from scapy.all import ARP, Ether, srp  # type: ignore
+    from scapy.all import ARP, Ether, conf, srp  # type: ignore
 
     SCAPY_AVAILABLE = True
 except ImportError:
@@ -28,6 +28,10 @@ try:
     MAC_VENDOR_AVAILABLE = True
 except ImportError:
     MAC_VENDOR_AVAILABLE = False
+
+
+class UnreliableScanError(Exception):
+    """スキャン結果を信頼できない（ゲートウェイが応答しない等）ことを示す例外。"""
 
 
 def _require_scapy() -> None:
@@ -89,7 +93,7 @@ class ARPScanner:
     実行にはroot権限が必要です（sudo python または systemdサービスでroot実行）。
     """
 
-    def __init__(self, subnet: Optional[str] = None, interface: Optional[str] = None):
+    def __init__(self, subnet: str | None = None, interface: str | None = None):
         """
         ARPスキャナーを初期化する。
 
@@ -103,7 +107,7 @@ class ARPScanner:
         self.subnet = subnet
         self.interface = interface
         # MACアドレスからベンダー名を取得するためのルックアップテーブルを初期化
-        self._mac_lookup: Optional[MacLookup] = None
+        self._mac_lookup: MacLookup | None = None
         if MAC_VENDOR_AVAILABLE:
             try:
                 self._mac_lookup = MacLookup()
@@ -170,7 +174,7 @@ class ARPScanner:
         logging.warning("ローカルIPアドレスの取得に失敗しました。デフォルト値を使用します")
         return "192.168.1.1"
 
-    def scan(self, timeout: int = 2) -> List[Dict[str, str]]:
+    def scan(self, timeout: int = 2) -> list[dict[str, str]]:
         """
         ARPスキャンを実行してネットワーク上のデバイスを検出する。
 
@@ -185,6 +189,11 @@ class ARPScanner:
             PermissionError: root権限またはCAP_NET_RAWケーパビリティがない場合
         """
         _require_network_raw_capability()
+        # scapyはimport時にインターフェース一覧とルーティング表をキャッシュする。
+        # wlan0が存在しない状態で起動した場合などに古い情報で送信元IP/MACが決まり、
+        # 応答を一切受信できなくなるため、スキャンのたびに再読み込みする。
+        conf.ifaces.reload()
+        conf.route.resync()
         subnet = self.subnet or self._detect_subnet()
         logging.debug(f"ARPスキャンを実行します: subnet={subnet}, timeout={timeout}s")
 
@@ -194,7 +203,7 @@ class ARPScanner:
             broadcast = Ether(dst="ff:ff:ff:ff:ff:ff")
             arp_request_broadcast = broadcast / arp_request
 
-            kwargs: Dict = {"timeout": timeout, "verbose": 0}
+            kwargs: dict = {"timeout": timeout, "verbose": 0}
             if self.interface:
                 kwargs["iface"] = self.interface
 
@@ -260,15 +269,45 @@ class ARPScanner:
                 )
 
             logging.info(f"ARPスキャン完了: {len(devices)}台のデバイスを検出しました")
+            self._verify_gateway_responded(subnet, devices)
             return devices
 
-        except PermissionError:
-            # scapyが投げたPermissionErrorは呼び出し元まで伝播させる
+        except (PermissionError, UnreliableScanError):
+            # 権限エラーと信頼できない結果は呼び出し元まで伝播させる
             raise
         except Exception as e:
             logging.error(f"ARPスキャン中にエラーが発生しました: {e}")
             # 例外を再スローして呼び出し元で失敗を正確に検知できるようにする
             raise
+
+    @staticmethod
+    def _verify_gateway_responded(subnet: str, devices: list[dict[str, str]]) -> None:
+        """
+        デフォルトゲートウェイがARPに応答したか確認する。
+
+        Piがネットワークに接続していればゲートウェイは必ず応答するため、
+        応答がない場合はスキャン自体が機能していないとみなす。
+        他の端末が0台であること自体は正常としてよい。
+
+        Raises:
+            UnreliableScanError: デフォルトルートがない、またはゲートウェイが応答しない場合
+        """
+        _, _, gateway_ip = conf.route.route("0.0.0.0", verbose=0)
+        if gateway_ip == "0.0.0.0":
+            raise UnreliableScanError(
+                "デフォルトゲートウェイが見つかりません（ネットワーク未接続）"
+            )
+        if ipaddress.ip_address(gateway_ip) not in ipaddress.ip_network(subnet, strict=False):
+            logging.debug(
+                "ゲートウェイ %s がスキャン対象 %s の外にあるため応答確認を省略します",
+                gateway_ip,
+                subnet,
+            )
+            return
+        if not any(device["ip"] == gateway_ip for device in devices):
+            raise UnreliableScanError(
+                f"ゲートウェイ {gateway_ip} がARPに応答しませんでした（スキャン結果を破棄します）"
+            )
 
     @staticmethod
     def _resolve_hostname(ip: str, timeout: float = 1.0) -> str:
@@ -295,7 +334,7 @@ class ARPScanner:
         try:
             hostname = socket.gethostbyaddr(ip)[0]
             return hostname
-        except (socket.herror, socket.gaierror, socket.timeout, OSError):
+        except (TimeoutError, socket.herror, socket.gaierror, OSError):
             return ip
         finally:
             socket.setdefaulttimeout(old_timeout)
@@ -321,10 +360,10 @@ class ARPScanner:
             return ""
 
     @staticmethod
-    def _load_dhcp_hostname_map() -> Dict[str, str]:
+    def _load_dhcp_hostname_map() -> dict[str, str]:
         """ローカルDHCPリース情報から MAC/IP -> ホスト名の対応表を作成する。"""
-        result: Dict[str, str] = {}
-        candidates: List[str] = []
+        result: dict[str, str] = {}
+        candidates: list[str] = []
         for pattern in (
             "/var/lib/misc/dnsmasq.leases",
             "/var/lib/NetworkManager/dnsmasq-*.leases",
@@ -355,14 +394,14 @@ class ARPScanner:
         return result
 
     @staticmethod
-    def _lookup_dhcp_hostname(mac: str, ip: str, dhcp_hostname_map: Dict[str, str]) -> str:
+    def _lookup_dhcp_hostname(mac: str, ip: str, dhcp_hostname_map: dict[str, str]) -> str:
         """DHCPリース情報からホスト名を取得する。"""
         mac_key = f"mac:{mac.lower()}"
         ip_key = f"ip:{ip}"
         return dhcp_hostname_map.get(mac_key, dhcp_hostname_map.get(ip_key, ""))
 
     @staticmethod
-    def _run_command(command: List[str], timeout: float = 1.5) -> str:
+    def _run_command(command: list[str], timeout: float = 1.5) -> str:
         """外部コマンドを短時間実行し、標準出力を返す。"""
         try:
             completed = subprocess.run(
@@ -416,7 +455,7 @@ class ARPScanner:
         dhcp_hostname: str,
         mdns_name: str,
         netbios_name: str,
-    ) -> Tuple[str, str]:
+    ) -> tuple[str, str]:
         """端末種別とOS推定をベストエフォートで返す。"""
         combined = " ".join([hostname, vendor, dhcp_hostname, mdns_name, netbios_name]).lower()
 

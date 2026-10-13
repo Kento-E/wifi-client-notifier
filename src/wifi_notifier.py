@@ -10,25 +10,28 @@ WiFi接続通知ツール
   - "router" : ルータ管理画面のAPIを使用した接続監視
 """
 
-import time
-import os
-import logging
-import sys
 import fcntl
-from typing import Dict, List, Optional, Set
+import logging
+import os
+import sys
+import time
 
 try:
-    from src.router import WiFiRouter
-    from src.notifiers import EmailNotifier, FirebaseNotifier, GoogleCalendarNotifier
     from src.config_manager import ConfigManager
-    from src.state_manager import StateManager
     from src.notification_handler import NotificationHandler
+    from src.notifiers import EmailNotifier, FirebaseNotifier, GoogleCalendarNotifier
+    from src.router import WiFiRouter
+    from src.state_manager import StateManager
 except ModuleNotFoundError:
-    from router import WiFiRouter
-    from notifiers import EmailNotifier, FirebaseNotifier, GoogleCalendarNotifier
     from config_manager import ConfigManager
-    from state_manager import StateManager
     from notification_handler import NotificationHandler
+    from notifiers import EmailNotifier, FirebaseNotifier, GoogleCalendarNotifier
+    from router import WiFiRouter
+    from state_manager import StateManager
+
+
+class ScanFailureLimitError(Exception):
+    """スキャン失敗が規定回数連続したことを示す例外（systemdでの再起動を促す）。"""
 
 
 class WiFiMonitor:
@@ -45,22 +48,24 @@ class WiFiMonitor:
         self.config_dir = os.path.dirname(os.path.abspath(config_path))
         ConfigManager.setup_logging(self.config)
 
-        self.router: Optional[WiFiRouter] = None
+        self.router: WiFiRouter | None = None
         self.arp_scanner = None
-        self.notifiers: List[object] = []
+        self.notifiers: list[object] = []
 
         # 状態管理の初期化
         state_file_path = ConfigManager.get_state_file_path(self.config, config_path)
         self.state_manager = StateManager(state_file_path)
 
         # 設定値の初期化
-        self.monitored_macs: Set[str] = set()
-        self.repeat_notification_macs: Set[str] = set()
+        self.monitored_macs: set[str] = set()
+        self.repeat_notification_macs: set[str] = set()
         self.disconnect_grace_scans: int = 3
+        self.max_consecutive_scan_failures: int = 3
+        self.consecutive_scan_failures: int = 0
         self.notification_cooldown_seconds: int = 0
         self.reconnect_notify_after_seconds: int = 3600
-        self.notification_handler: Optional[NotificationHandler] = None
-        self.notifier_init_errors: List[str] = []
+        self.notification_handler: NotificationHandler | None = None
+        self.notifier_init_errors: list[str] = []
 
         self._initialize_components()
 
@@ -183,6 +188,17 @@ class WiFiMonitor:
             self.disconnect_grace_scans,
         )
 
+        # スキャン失敗の許容回数
+        self.max_consecutive_scan_failures = ConfigManager.parse_int_config(
+            self.config.get("max_consecutive_scan_failures", 3),
+            default=3,
+            key_name="max_consecutive_scan_failures",
+        )
+        logging.info(
+            "スキャン失敗の許容回数: %s回（連続で失敗した場合はプロセスを終了）",
+            self.max_consecutive_scan_failures,
+        )
+
         # 通知クールダウン
         raw_cooldown_minutes = self.config.get(
             "notification_cool_down_minutes",
@@ -239,7 +255,7 @@ class WiFiMonitor:
 
         logging.info("コンポーネントの初期化が完了しました")
 
-    def _initialize_google_calendar(self, calendar_config: Dict) -> None:
+    def _initialize_google_calendar(self, calendar_config: dict) -> None:
         """Google Calendar通知を初期化する。
 
         Args:
@@ -293,7 +309,7 @@ class WiFiMonitor:
                 e,
             )
 
-    def _initialize_firebase(self, firebase_config: Dict) -> None:
+    def _initialize_firebase(self, firebase_config: dict) -> None:
         """Firebase 通知を初期化する。"""
         try:
             credentials_file_env = str(firebase_config.get("credentials_file_env", "")).strip()
@@ -347,8 +363,13 @@ class WiFiMonitor:
                 e,
             )
 
-    def _get_current_devices(self) -> List[Dict[str, str]]:
-        """現在の検出方式を使用して接続中デバイスのリストを取得する。"""
+    def _get_current_devices(self) -> list[dict[str, str]] | None:
+        """
+        現在の検出方式を使用して接続中デバイスのリストを取得する。
+
+        Returns:
+            デバイス情報のリスト。スキャン結果を信頼できない場合はNone
+        """
         if self.arp_scanner is not None:
             arp_config = self.config.get("arp", {})
             timeout = arp_config.get("timeout", 2)
@@ -356,7 +377,7 @@ class WiFiMonitor:
                 return self.arp_scanner.scan(timeout=timeout)
             except Exception as e:
                 logging.error(f"ARPスキャンに失敗しました: {e}")
-                return []
+                return None
         elif self.router is not None:
             return self.router.get_connected_devices()
         else:
@@ -376,6 +397,11 @@ class WiFiMonitor:
         self.state_manager.load()
         if not self.state_manager.state_loaded:
             initial_devices = self._get_current_devices()
+            if initial_devices is None:
+                # 空のベースラインで始めると全端末を新規扱いしてしまうため起動をやり直す
+                raise ScanFailureLimitError(
+                    "初回スキャンに失敗したためベースラインを登録できません"
+                )
             initial_macs = {dev["mac"].lower() for dev in initial_devices}
             for mac in initial_macs:
                 self.state_manager.add_known_device(mac)
@@ -401,13 +427,29 @@ class WiFiMonitor:
                 time.sleep(check_interval)
         except KeyboardInterrupt:
             logging.info("WiFiモニターを停止しています")
+        except ScanFailureLimitError:
+            # 異常終了させてsystemd（Restart=on-failure）に再起動させる
+            raise
         except Exception as e:
             logging.error("モニターでエラーが発生しました: %s", e)
 
     def _check_for_new_devices(self):
         """新しいデバイス接続をチェックする。"""
+        current_devices = self._get_current_devices()
+        if current_devices is None:
+            self.consecutive_scan_failures += 1
+            logging.warning(
+                "スキャン結果を信頼できないため切断判定をスキップしました（連続%s回目）",
+                self.consecutive_scan_failures,
+            )
+            if self.consecutive_scan_failures >= self.max_consecutive_scan_failures:
+                raise ScanFailureLimitError(
+                    f"スキャンが{self.consecutive_scan_failures}回連続で失敗したため終了します"
+                )
+            return
+        self.consecutive_scan_failures = 0
+
         try:
-            current_devices = self._get_current_devices()
             current_macs = {dev["mac"].lower() for dev in current_devices}
             new_macs = current_macs - self.state_manager.known_devices
 
@@ -497,7 +539,7 @@ class WiFiMonitor:
                     self.state_manager.clear_missing_count(mac)
 
             disconnected_candidates = self.state_manager.known_devices - current_macs
-            disconnected: Set[str] = set()
+            disconnected: set[str] = set()
             for mac in disconnected_candidates:
                 miss_count = self.state_manager.increment_missing_count(mac)
                 if miss_count >= self.disconnect_grace_scans:
@@ -562,6 +604,7 @@ def main():
         monitor = WiFiMonitor(config_file)
         monitor.start(single_run=single_run)
     except Exception as e:
+        logging.error("異常終了します: %s", e)
         print(f"Error: {e}")
         sys.exit(1)
 
