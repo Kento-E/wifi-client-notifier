@@ -7,7 +7,6 @@ FCM HTTP v1 API を利用して Android 端末へプッシュ通知を送信す�
 import json
 import logging
 from datetime import datetime
-from typing import Dict, List, Optional
 
 import requests
 
@@ -30,7 +29,7 @@ class FirebaseNotifier(BaseNotifier):
         self,
         project_id: str,
         credentials_file: str,
-        registration_tokens: List[str],
+        registration_tokens: list[str],
         notification_title_prefix: str = "WiFi通知",
         timeout_seconds: int = 10,
     ):
@@ -56,9 +55,9 @@ class FirebaseNotifier(BaseNotifier):
 
     def send_notification(
         self,
-        device_info: Dict[str, str],
+        device_info: dict[str, str],
         is_unknown_device: bool = False,
-        detected_at: Optional[float] = None,
+        detected_at: float | None = None,
     ) -> bool:
         """対象端末へプッシュ通知を送信する。"""
         access_token = self._get_access_token()
@@ -131,7 +130,7 @@ class FirebaseNotifier(BaseNotifier):
 
         return credentials.token
 
-    def _build_title(self, device_info: Dict[str, str], is_unknown_device: bool) -> str:
+    def _build_title(self, device_info: dict[str, str], is_unknown_device: bool) -> str:
         """通知タイトルを組み立てる。"""
         if is_unknown_device:
             event_label = "未知端末を検出"
@@ -141,18 +140,25 @@ class FirebaseNotifier(BaseNotifier):
             event_label = "新しいWiFi接続"
 
         device_label = (
-            str(device_info.get("hostname", "")).strip()
+            FirebaseNotifier._real_hostname(device_info)
             or str(device_info.get("vendor", "")).strip()
+            or str(device_info.get("mac", "Unknown"))
         )
-        if not device_label:
-            device_label = str(device_info.get("mac", "Unknown"))
         return f"{self.notification_title_prefix}: {event_label} - {device_label}"
 
     @staticmethod
+    def _real_hostname(device_info: dict[str, str]) -> str:
+        """IPの逆引きに失敗した際のIPフォールバック値を除いたホスト名を返す。"""
+        hostname = str(device_info.get("hostname", "")).strip()
+        if hostname == str(device_info.get("ip", "")).strip():
+            return ""
+        return hostname
+
+    @staticmethod
     def _build_body(
-        device_info: Dict[str, str],
+        device_info: dict[str, str],
         is_unknown_device: bool,
-        detected_at: Optional[float],
+        detected_at: float | None,
     ) -> str:
         """通知本文を組み立てる。"""
         detected_at_text = "Unknown"
@@ -166,17 +172,18 @@ class FirebaseNotifier(BaseNotifier):
         else:
             event_label = "新規接続"
 
-        hostname = device_info.get("hostname", "Unknown")
+        hostname = FirebaseNotifier._real_hostname(device_info)
         mac = device_info.get("mac", "Unknown")
         ip_address = device_info.get("ip", "Unknown")
-        return f"{event_label}: {hostname} / {mac} / {ip_address} / {detected_at_text}"
+        parts = [hostname, mac, ip_address, detected_at_text]
+        return f"{event_label}: " + " / ".join(p for p in parts if p)
 
     @staticmethod
     def _build_data_payload(
-        device_info: Dict[str, str],
+        device_info: dict[str, str],
         is_unknown_device: bool,
-        detected_at: Optional[float],
-    ) -> Dict[str, str]:
+        detected_at: float | None,
+    ) -> dict[str, str]:
         """アプリ側で参照できる data ペイロードを組み立てる。"""
         payload = {
             "mac": str(device_info.get("mac", "")),
