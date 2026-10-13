@@ -10,6 +10,7 @@ WORK_DIR="~/work"
 REPO_URL="https://github.com/Kento-E/wifi-client-notifier.git"
 LOCAL_CONFIG="config/config.yaml"
 FIREBASE_CREDENTIALS_REMOTE="${FIREBASE_CREDENTIALS_REMOTE:-}"
+GOOGLE_CREDENTIALS_REMOTE="${GOOGLE_CREDENTIALS_REMOTE:-}"
 COPY_CONFIG=1
 RUN_TEST=1
 RUN_SINGLE=1
@@ -37,6 +38,8 @@ usage() {
   --config <path>          ローカル設定ファイルのパス（デフォルト: config/config.yaml）
   --firebase-credentials <path>
                            Raspberry Pi上のFirebaseサービスアカウントJSONパス
+  --google-credentials <path>
+                           Raspberry Pi上のGoogle CalendarサービスアカウントJSONパス
   --no-config-copy         設定ファイル転送をスキップ
   --skip-test              test_config.py の実行をスキップ
   --skip-single-run        wifi_notifier.py --single-run の実行をスキップ
@@ -74,6 +77,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --firebase-credentials)
       FIREBASE_CREDENTIALS_REMOTE="$2"
+      shift 2
+      ;;
+    --google-credentials)
+      GOOGLE_CREDENTIALS_REMOTE="$2"
       shift 2
       ;;
     --no-config-copy)
@@ -116,6 +123,9 @@ echo "=== Raspberry Pi セットアップ開始 ==="
 echo "接続先: ${PI_HOST}"
 echo "ブランチ: ${BRANCH}"
 echo "作業ディレクトリ: ${WORK_DIR}"
+if [[ -n "${GOOGLE_CREDENTIALS_REMOTE}" ]]; then
+  echo "Google Calendar認証情報: ${GOOGLE_CREDENTIALS_REMOTE}"
+fi
 if [[ -n "${FIREBASE_CREDENTIALS_REMOTE}" ]]; then
   echo "Firebase認証情報: ${FIREBASE_CREDENTIALS_REMOTE}"
 fi
@@ -197,10 +207,11 @@ fi
 
 if [[ ${RUN_TEST} -eq 1 ]]; then
   echo "[5/6] 設定テスト実行"
-  ssh "${PI_HOST}" bash -s -- "${REMOTE_PROJECT}" "${FIREBASE_CREDENTIALS_REMOTE}" <<'EOF'
+  ssh "${PI_HOST}" bash -s -- "${REMOTE_PROJECT}" "${FIREBASE_CREDENTIALS_REMOTE}" "${GOOGLE_CREDENTIALS_REMOTE}" <<'EOF'
 set -e
 remote_project="$1"
 firebase_credentials_remote="$2"
+google_credentials_remote="$3"
 cd "$remote_project"
 
 get_config_value() {
@@ -226,13 +237,12 @@ PY
 }
 
 gcal_env_name="$(get_config_value google_calendar credentials_file_env)"
-gcal_env_value="$(get_config_value google_calendar credentials_file)"
 firebase_enabled="$(get_config_value firebase enabled)"
 firebase_env_name="$(get_config_value firebase credentials_file_env)"
 
 env_args=()
-if [[ -n "${gcal_env_name}" && -n "${gcal_env_value}" ]]; then
-  env_args+=("${gcal_env_name}=${gcal_env_value}")
+if [[ -n "${gcal_env_name}" && -n "${google_credentials_remote}" ]]; then
+  env_args+=("${gcal_env_name}=${google_credentials_remote}")
 fi
 if [[ -n "${firebase_enabled}" ]]; then
   if [[ -z "${firebase_env_name}" ]]; then
@@ -254,10 +264,11 @@ fi
 
 if [[ ${RUN_SINGLE} -eq 1 ]]; then
   echo "[追加確認] single-run 実行"
-  ssh "${PI_HOST}" bash -s -- "${REMOTE_PROJECT}" "${FIREBASE_CREDENTIALS_REMOTE}" <<'EOF'
+  ssh "${PI_HOST}" bash -s -- "${REMOTE_PROJECT}" "${FIREBASE_CREDENTIALS_REMOTE}" "${GOOGLE_CREDENTIALS_REMOTE}" <<'EOF'
 set -e
 remote_project="$1"
 firebase_credentials_remote="$2"
+google_credentials_remote="$3"
 cd "$remote_project"
 
 get_config_value() {
@@ -283,13 +294,12 @@ PY
 }
 
 gcal_env_name="$(get_config_value google_calendar credentials_file_env)"
-gcal_env_value="$(get_config_value google_calendar credentials_file)"
 firebase_enabled="$(get_config_value firebase enabled)"
 firebase_env_name="$(get_config_value firebase credentials_file_env)"
 
 env_args=()
-if [[ -n "${gcal_env_name}" && -n "${gcal_env_value}" ]]; then
-  env_args+=("${gcal_env_name}=${gcal_env_value}")
+if [[ -n "${gcal_env_name}" && -n "${google_credentials_remote}" ]]; then
+  env_args+=("${gcal_env_name}=${google_credentials_remote}")
 fi
 if [[ -n "${firebase_enabled}" ]]; then
   if [[ -z "${firebase_env_name}" ]]; then
@@ -309,13 +319,17 @@ fi
 
 if [[ ${INSTALL_SERVICE} -eq 1 ]]; then
   echo "[6/6] systemdサービスをインストールして起動"
-  ssh "${PI_HOST}" bash -s -- "${REMOTE_PROJECT}" "${FIREBASE_CREDENTIALS_REMOTE}" <<'EOF'
+  ssh "${PI_HOST}" bash -s -- "${REMOTE_PROJECT}" "${FIREBASE_CREDENTIALS_REMOTE}" "${GOOGLE_CREDENTIALS_REMOTE}" <<'EOF'
 set -e
 remote_project="$1"
 firebase_credentials_remote="$2"
+google_credentials_remote="$3"
 cd "$remote_project"
 
 args=()
+if [[ -n "${google_credentials_remote}" ]]; then
+  args+=(--google-credentials "${google_credentials_remote}")
+fi
 if [[ -n "${firebase_credentials_remote}" ]]; then
   args+=(--firebase-credentials "${firebase_credentials_remote}")
 fi

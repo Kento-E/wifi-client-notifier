@@ -14,6 +14,7 @@ SERVICE_GROUP="$(id -gn)"
 PYTHON_BIN=""
 CONFIG_FILE=""
 FIREBASE_CREDENTIALS="${FIREBASE_CREDENTIALS_REMOTE:-}"
+GOOGLE_CREDENTIALS="${GOOGLE_CREDENTIALS_REMOTE:-}"
 OUTPUT=""
 INSTALL=1
 
@@ -28,6 +29,7 @@ usage() {
   --group <name>                 実行グループ（デフォルト: 現在のグループ）
   --python-bin <path>            Python実行ファイル（デフォルト: <project>/.venv/bin/python3）
   --config <path>                設定ファイル（デフォルト: <project>/config/config.yaml）
+  --google-credentials <path>    Google Calendarサービスアカウント JSON のパス
   --firebase-credentials <path>  Firebaseサービスアカウント JSON のパス
   --output <file>                指定先にサービスファイルを書き出すだけで、systemdへの登録は行わない
   -h, --help                     ヘルプを表示
@@ -41,6 +43,7 @@ while [[ $# -gt 0 ]]; do
     --group) SERVICE_GROUP="$2"; shift 2 ;;
     --python-bin) PYTHON_BIN="$2"; shift 2 ;;
     --config) CONFIG_FILE="$2"; shift 2 ;;
+    --google-credentials) GOOGLE_CREDENTIALS="$2"; shift 2 ;;
     --firebase-credentials) FIREBASE_CREDENTIALS="$2"; shift 2 ;;
     --output) OUTPUT="$2"; INSTALL=0; shift 2 ;;
     -h|--help) usage; exit 0 ;;
@@ -59,13 +62,13 @@ fi
 # config.yaml から Environment 行を組み立ててテンプレートを置換し、標準出力へ書き出す
 render() {
   python3 - "${TEMPLATE}" "${CONFIG_FILE}" "${SERVICE_USER}" "${SERVICE_GROUP}" \
-    "${PROJECT_PATH}" "${PYTHON_BIN}" "${FIREBASE_CREDENTIALS}" <<'PY'
+    "${PROJECT_PATH}" "${PYTHON_BIN}" "${GOOGLE_CREDENTIALS}" "${FIREBASE_CREDENTIALS}" <<'PY'
 import sys
 from pathlib import Path
 
 import yaml
 
-template, config, user, group, project, python_bin, firebase_credentials = sys.argv[1:]
+template, config, user, group, project, python_bin, google_credentials, firebase_credentials = sys.argv[1:]
 cfg = yaml.safe_load(Path(config).read_text(encoding="utf-8")) or {}
 
 
@@ -76,8 +79,12 @@ def section(name):
 
 env_lines = []
 gcal = section("google_calendar")
-if gcal.get("credentials_file_env") and gcal.get("credentials_file"):
-    env_lines.append(f"Environment={gcal['credentials_file_env']}={gcal['credentials_file']}")
+if gcal.get("enabled") and google_credentials:
+    if not gcal.get("credentials_file_env"):
+        sys.exit("エラー: google_calendar.enabled=true ですが credentials_file_env が未設定です")
+    env_lines.append(f"Environment={gcal['credentials_file_env']}={google_credentials}")
+elif gcal.get("enabled"):
+    print("警告: --google-credentials が未指定のため Google Calendar の認証情報は設定されません", file=sys.stderr)
 
 firebase = section("firebase")
 if firebase.get("enabled"):

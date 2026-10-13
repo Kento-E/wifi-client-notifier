@@ -374,7 +374,8 @@ docker-compose down
 ```
 
 実行ユーザー・パスは自動で埋め込まれ、`config/config.yaml` の認証情報環境変数も反映されます。
-Firebase を使う場合は `--firebase-credentials <path>` を指定してください。
+認証情報のパスは `--google-credentials <path>`（Google Calendar）と
+`--firebase-credentials <path>`（Firebase）で指定してください。
 サービス定義は `deployment/wifi-notifier.service.template` に一本化されています。
 
 ARPスキャンモードでは `AmbientCapabilities=CAP_NET_RAW` が設定済みのため、rootユーザーは不要です。

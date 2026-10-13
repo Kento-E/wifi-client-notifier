@@ -100,6 +100,7 @@ docker-compose down
 
 ```bash
 PI_HOST=user@hostname.local ./deployment/setup_raspberrypi.sh \
+  --google-credentials /home/pi/secrets/google-service-account.json \
   --firebase-credentials /home/pi/secrets/firebase-service-account.json
 ```
 
@@ -111,7 +112,7 @@ PI_HOST=user@hostname.local ./deployment/setup_raspberrypi.sh \
 - `.venv` 作成と `requirements.txt` インストール
 - `config/config.yaml` 転送（デフォルト）
 - ARPモード設定補完（`detection_method: arp`, `interface: wlan0`）
-- Firebase有効時は `--firebase-credentials` で指定したJSONパスを実行時とsystemdへ反映
+- `--google-credentials` / `--firebase-credentials`（Firebase有効時）で指定したJSONパスを実行時とsystemdへ反映
 - `scripts/pi_devices.sh`を`~/bin/pi-devices`へ配置し、ログイン後に接続中端末を確認できるようPATHを設定
 - `test_config.py` 実行
 - `wifi_notifier.py --single-run` 実行
@@ -240,7 +241,9 @@ sudo env FIREBASE_CREDENTIALS_FILE=/home/pi/secrets/firebase-service-account.jso
 ```bash
 ssh "$PI_HOST" '
 cd ~/work/wifi-client-notifier
-./deployment/install_service.sh --firebase-credentials /home/pi/secrets/firebase-service-account.json
+./deployment/install_service.sh \
+  --google-credentials /home/pi/secrets/google-service-account.json \
+  --firebase-credentials /home/pi/secrets/firebase-service-account.json
 '
 ```
 
