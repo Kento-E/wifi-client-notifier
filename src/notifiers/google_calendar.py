@@ -205,7 +205,7 @@ class GoogleCalendarNotifier(BaseNotifier):
         mac = device_info.get("mac", "Unknown")
         hostname = device_info.get("hostname", "Unknown")
         unknown_prefix = "未知端末 " if is_unknown_device else ""
-        return f"{self.summary_prefix}: {unknown_prefix}{hostname} ({mac})"
+        return f"{self.summary_prefix} {unknown_prefix}{hostname} ({mac})"
 
     @staticmethod
     def _build_description(
