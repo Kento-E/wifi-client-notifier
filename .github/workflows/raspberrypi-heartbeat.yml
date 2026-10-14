@@ -1,8 +1,8 @@
 name: RaspberryPi ハートビート監視
 
 on:
-  schedule:
-    - cron: "*/15 * * * *"
+  # schedule:
+    # - cron: "*/15 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -28,11 +28,28 @@ jobs:
 
       - name: ハートビートを確認
         env:
-          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          GOOGLE_SA_PRIVATE_KEY: ${{ secrets.GOOGLE_SA_PRIVATE_KEY }}
+          GOOGLE_SA_PRIVATE_KEY_ID: ${{ secrets.GOOGLE_SA_PRIVATE_KEY_ID }}
+          GOOGLE_SA_PROJECT_ID: ${{ secrets.GOOGLE_SA_PROJECT_ID }}
+          GOOGLE_SA_CLIENT_EMAIL: ${{ secrets.GOOGLE_SA_CLIENT_EMAIL }}
+          GOOGLE_SA_CLIENT_ID: ${{ secrets.GOOGLE_SA_CLIENT_ID }}
           FIREBASE_REGISTRATION_TOKENS: ${{ secrets.FIREBASE_REGISTRATION_TOKENS }}
           HEARTBEAT_TIMEOUT_MINUTES: ${{ vars.HEARTBEAT_TIMEOUT_MINUTES || '30' }}
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
         run: |
+          # raspberrypi-image と同じ分離Secretsからサービスアカウント JSON を組み立てる
           umask 077
-          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/sa.json"
-          FIREBASE_CREDENTIALS_FILE="$RUNNER_TEMP/sa.json" python scripts/check_heartbeat.py
+          key_file="$RUNNER_TEMP/google-service-account.json"
+          jq -n '{
+            type: "service_account",
+            project_id: env.GOOGLE_SA_PROJECT_ID,
+            private_key_id: env.GOOGLE_SA_PRIVATE_KEY_ID,
+            private_key: env.GOOGLE_SA_PRIVATE_KEY,
+            client_email: env.GOOGLE_SA_CLIENT_EMAIL,
+            client_id: env.GOOGLE_SA_CLIENT_ID,
+            auth_uri: "https://accounts.google.com/o/oauth2/auth",
+            token_uri: "https://oauth2.googleapis.com/token",
+            universe_domain: "googleapis.com"
+          }' > "$key_file"
+          FIREBASE_CREDENTIALS_FILE="$key_file" \
+          FIREBASE_PROJECT_ID="$GOOGLE_SA_PROJECT_ID" \
+          python scripts/check_heartbeat.py
