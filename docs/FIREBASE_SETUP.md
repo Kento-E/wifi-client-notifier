@@ -117,6 +117,26 @@ sudo systemctl restart wifi-notifier
 sudo systemctl status wifi-notifier
 ```
 
+## 9. 死活監視（ハートビート）を設定する
+
+Pi はスキャン成功のたびに Firestore の `heartbeats/<ホスト名>` へ `last_seen` を書き込みます。
+GitHub Actions（`.github/workflows/raspberrypi-heartbeat.yml`、15分間隔）が途絶を検知し、
+FCM で通知します。復帰時は復帰通知を送ります。外向き HTTPS のみで動作します。
+
+1. Firebase コンソールの「Firestore Database」でデータベース（`(default)`）を作成する
+2. サービスアカウントに Firestore の読み書き権限（IAM ロール `Cloud Datastore User`）を付与する
+3. GitHub リポジトリの Secrets に以下を登録する
+   - `FIREBASE_SERVICE_ACCOUNT_JSON`: サービスアカウント JSON の中身
+   - `FIREBASE_PROJECT_ID`: Firebase プロジェクト ID
+   - `FIREBASE_REGISTRATION_TOKENS`: 通知先 token（カンマ区切り）
+4. 必要に応じて Variables に `HEARTBEAT_TIMEOUT_MINUTES`（既定 30）を設定する
+
+注意:
+
+- GitHub Actions の cron は混雑時に遅延・スキップされるため、通知は数十分遅れることがある
+- 旧 SSH ベースの `raspberrypi-healthcheck.yml` と、関連する Secrets/Variables
+  （`HEALTH_CHECK_ENABLED` など）は不要なので削除してよい
+
 ## トラブルシュート
 
 - `環境変数 FIREBASE_CREDENTIALS_FILE が未設定です`

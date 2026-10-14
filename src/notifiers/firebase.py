@@ -6,7 +6,7 @@ FCM HTTP v1 API を利用して Android 端末へプッシュ通知を送信す�
 
 import json
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 import requests
 
@@ -24,6 +24,7 @@ class FirebaseNotifier(BaseNotifier):
     """Firebase Cloud Messaging による通知を処理する。"""
 
     SCOPE = "https://www.googleapis.com/auth/firebase.messaging"
+    FIRESTORE_SCOPE = "https://www.googleapis.com/auth/datastore"
 
     def __init__(
         self,
@@ -50,7 +51,7 @@ class FirebaseNotifier(BaseNotifier):
         self.timeout_seconds = max(1, int(timeout_seconds))
         self._credentials = service_account.Credentials.from_service_account_file(
             self.credentials_file,
-            scopes=[self.SCOPE],
+            scopes=[self.SCOPE, self.FIRESTORE_SCOPE],
         )
 
     def send_notification(
@@ -60,14 +61,19 @@ class FirebaseNotifier(BaseNotifier):
         detected_at: float | None = None,
     ) -> bool:
         """対象端末へプッシュ通知を送信する。"""
+        title = self._build_title(device_info, is_unknown_device)
+        body = self._build_body(device_info, is_unknown_device, detected_at)
+        data = self._build_data_payload(device_info, is_unknown_device, detected_at)
+        return self.send_message(title, body, data)
+
+    def send_message(self, title: str, body: str, data: dict[str, str] | None = None) -> bool:
+        """任意のタイトル・本文で全登録端末へプッシュ通知を送信する。"""
         access_token = self._get_access_token()
         headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json; charset=utf-8",
         }
-        title = self._build_title(device_info, is_unknown_device)
-        body = self._build_body(device_info, is_unknown_device, detected_at)
-        data = self._build_data_payload(device_info, is_unknown_device, detected_at)
+        data = data or {}
         endpoint = f"https://fcm.googleapis.com/v1/projects/{self.project_id}/messages:send"
 
         success_count = 0
@@ -117,6 +123,32 @@ class FirebaseNotifier(BaseNotifier):
             )
             return True
 
+        return False
+
+    def send_heartbeat(self, host: str) -> bool:
+        """Firestore の heartbeats/<host> に last_seen（現在時刻）を書き込む。"""
+        url = (
+            "https://firestore.googleapis.com/v1/projects/"
+            f"{self.project_id}/databases/(default)/documents/heartbeats/{host}"
+        )
+        now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+        try:
+            response = requests.patch(
+                url,
+                params={"updateMask.fieldPaths": "last_seen"},
+                headers={"Authorization": f"Bearer {self._get_access_token()}"},
+                json={"fields": {"last_seen": {"timestampValue": now}}},
+                timeout=self.timeout_seconds,
+            )
+            if response.ok:
+                return True
+            logging.error(
+                "ハートビートの送信に失敗しました: status=%s body=%s",
+                response.status_code,
+                response.text,
+            )
+        except Exception as e:
+            logging.error("ハートビートの送信中に例外が発生しました: %s", e)
         return False
 
     def _get_access_token(self) -> str:

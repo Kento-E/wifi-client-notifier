@@ -13,6 +13,7 @@ WiFi接続通知ツール
 import fcntl
 import logging
 import os
+import socket
 import sys
 import time
 
@@ -431,6 +432,12 @@ class WiFiMonitor:
         except Exception as e:
             logging.error("モニターでエラーが発生しました: %s", e)
 
+    def _send_heartbeat(self) -> None:
+        """スキャン成功時に Firestore へハートビートを送信する（失敗しても監視は継続）。"""
+        for notifier in self.notifiers:
+            if isinstance(notifier, FirebaseNotifier):
+                notifier.send_heartbeat(socket.gethostname())
+
     def _check_for_new_devices(self):
         """新しいデバイス接続をチェックする。"""
         current_devices = self._get_current_devices()
@@ -446,6 +453,7 @@ class WiFiMonitor:
                 )
             return
         self.consecutive_scan_failures = 0
+        self._send_heartbeat()
 
         try:
             current_macs = {dev["mac"].lower() for dev in current_devices}

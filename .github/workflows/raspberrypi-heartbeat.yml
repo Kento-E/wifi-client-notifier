@@ -1,0 +1,38 @@
+name: RaspberryPi ハートビート監視
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: raspberrypi-heartbeat
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 依存パッケージをインストール
+        run: pip install requests google-auth
+
+      - name: ハートビートを確認
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_REGISTRATION_TOKENS: ${{ secrets.FIREBASE_REGISTRATION_TOKENS }}
+          HEARTBEAT_TIMEOUT_MINUTES: ${{ vars.HEARTBEAT_TIMEOUT_MINUTES || '30' }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          umask 077
+          printf '%s' "$FIREBASE_SERVICE_ACCOUNT_JSON" > "$RUNNER_TEMP/sa.json"
+          FIREBASE_CREDENTIALS_FILE="$RUNNER_TEMP/sa.json" python scripts/check_heartbeat.py
