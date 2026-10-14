@@ -90,7 +90,7 @@ firebase:
   project_id: ""
 
   # 通知タイトルの先頭文字列
-  notification_title_prefix: "WiFi通知"
+  notification_title_prefix: "🛜"
 
   # FCM API タイムアウト（秒）
   timeout_seconds: 10

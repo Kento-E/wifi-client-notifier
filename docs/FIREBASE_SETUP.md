@@ -86,24 +86,6 @@ Environment="FIREBASE_CREDENTIALS_FILE=/home/pi/secrets/firebase-service-account
 
 ## 6. config/config.yaml を更新する
 
-例:
-
-```yaml
-firebase:
-  enabled: true
-  credentials_file_env: FIREBASE_CREDENTIALS_FILE
-  project_id: your-firebase-project-id
-  notification_title_prefix: WiFi通知
-  timeout_seconds: 10
-  registration_tokens:
-    - your_android_device_registration_token
-```
-
-補足:
-
-- メール通知も使うなら `email.enabled: true` のままでよい
-- Firebase のみで運用するなら `email.enabled: false` にできる
-
 ## 7. 設定テストを実行する
 
 ```bash

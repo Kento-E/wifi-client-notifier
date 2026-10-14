@@ -30,7 +30,7 @@ class FirebaseNotifier(BaseNotifier):
         project_id: str,
         credentials_file: str,
         registration_tokens: list[str],
-        notification_title_prefix: str = "WiFi通知",
+        notification_title_prefix: str = "🛜",
         timeout_seconds: int = 10,
     ):
         """Firebase 通知機能を初期化する。"""
@@ -45,7 +45,7 @@ class FirebaseNotifier(BaseNotifier):
         self.credentials_file = credentials_file
         self.registration_tokens = normalized_tokens
         self.notification_title_prefix = (
-            notification_title_prefix.strip() if notification_title_prefix else "WiFi通知"
+            notification_title_prefix.strip() if notification_title_prefix else "🛜"
         )
         self.timeout_seconds = max(1, int(timeout_seconds))
         self._credentials = service_account.Credentials.from_service_account_file(

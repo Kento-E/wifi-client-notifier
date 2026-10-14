@@ -345,9 +345,7 @@ class WiFiMonitor:
                 project_id=project_id,
                 credentials_file=credentials_file,
                 registration_tokens=registration_tokens,
-                notification_title_prefix=firebase_config.get(
-                    "notification_title_prefix", "WiFi通知"
-                ),
+                notification_title_prefix=firebase_config.get("notification_title_prefix", "🛜"),
                 timeout_seconds=firebase_config.get("timeout_seconds", 10),
             )
             self.notifiers.append(firebase_notifier)
@@ -596,9 +594,6 @@ def main():
 
     config_file = sys.argv[1]
     single_run = "--single-run" in sys.argv
-
-    # 多重起動防止ロック（プロセス終了までファイルオブジェクトを保持する必要がある）
-    _lock_file = _acquire_single_instance_lock(config_file)  # noqa: F841
 
     try:
         monitor = WiFiMonitor(config_file)
