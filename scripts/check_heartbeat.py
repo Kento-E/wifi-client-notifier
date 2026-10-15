@@ -25,6 +25,43 @@ from src.notifiers import FirebaseNotifier  # noqa: E402
 TIMEOUT = 10
 
 
+def _explain_firestore_error(response: requests.Response, project_id: str) -> str:
+    """Firestore のエラー応答から、次に行う操作を示すメッセージを組み立てる。"""
+    try:
+        error = response.json().get("error", {})
+    except ValueError:
+        error = {}
+    reasons = {
+        d.get("reason"): d.get("metadata", {})
+        for d in error.get("details", [])
+        if d.get("@type", "").endswith("ErrorInfo")
+    }
+
+    if "SERVICE_DISABLED" in reasons:
+        url = reasons["SERVICE_DISABLED"].get(
+            "activationUrl",
+            "https://console.developers.google.com/apis/api/"
+            f"firestore.googleapis.com/overview?project={project_id}",
+        )
+        return (
+            "Cloud Firestore API が有効化されていません。次のURLで「有効にする」を押し、"
+            f"数分待ってから再実行してください: {url}"
+        )
+    if response.status_code == 404:
+        return (
+            "Firestore の (default) データベースが未作成です。次のURLで作成してください"
+            "（ネイティブモード）: "
+            f"https://console.firebase.google.com/project/{project_id}/firestore"
+        )
+    if response.status_code == 403:
+        return (
+            "サービスアカウントに Firestore の権限がありません。次のURLで該当アカウントに"
+            "ロール「Cloud Datastore User」を付与してください: "
+            f"https://console.cloud.google.com/iam-admin/iam?project={project_id}"
+        )
+    return f"Firestore の取得に失敗しました: status={response.status_code} body={response.text}"
+
+
 def _parse_time(value: str) -> datetime:
     return datetime.fromisoformat(value)
 
@@ -49,8 +86,8 @@ def main() -> int:
 
     response = requests.get(base, headers=headers, timeout=TIMEOUT)
     if not response.ok:
-        logging.error("Firestore 取得失敗: status=%s body=%s", response.status_code, response.text)
-        response.raise_for_status()
+        logging.error("%s", _explain_firestore_error(response, project_id))
+        return 1
     documents = response.json().get("documents", [])
     if not documents:
         logging.warning("heartbeats ドキュメントがありません")
