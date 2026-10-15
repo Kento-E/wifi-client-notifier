@@ -48,13 +48,14 @@ jobs:
           [ "$missing" -eq 0 ] || exit 1
 
           # raspberrypi-image と同じ分離Secretsからサービスアカウント JSON を組み立てる
+          # （private_key は JSON の文字列ごと貼られて改行が \n 文字になっていても復元する）
           umask 077
           key_file="$RUNNER_TEMP/google-service-account.json"
           jq -n '{
             type: "service_account",
             project_id: env.GOOGLE_SA_PROJECT_ID,
             private_key_id: env.GOOGLE_SA_PRIVATE_KEY_ID,
-            private_key: env.GOOGLE_SA_PRIVATE_KEY,
+            private_key: (env.GOOGLE_SA_PRIVATE_KEY | gsub("\\\\n"; "\n")),
             client_email: env.GOOGLE_SA_CLIENT_EMAIL,
             client_id: env.GOOGLE_SA_CLIENT_ID,
             auth_uri: "https://accounts.google.com/o/oauth2/auth",
