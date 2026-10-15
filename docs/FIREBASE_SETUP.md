@@ -125,10 +125,22 @@ FCM で通知します。復帰時は復帰通知を送ります。外向き HTT
 
 1. Firebase コンソールの「Firestore Database」でデータベース（`(default)`）を作成する
 2. サービスアカウントに Firestore の読み書き権限（IAM ロール `Cloud Datastore User`）を付与する
-3. GitHub リポジトリの Secrets に以下を登録する
-   - `FIREBASE_SERVICE_ACCOUNT_JSON`: サービスアカウント JSON の中身
-   - `FIREBASE_PROJECT_ID`: Firebase プロジェクト ID
+3. GitHub リポジトリの Secrets に以下を登録する。サービスアカウント JSON は
+   JSON ごとではなく項目ごとに分けて登録する（`raspberrypi-image` と同じ構成）
+   - `GOOGLE_SA_PRIVATE_KEY`: `private_key`（PEM）
+   - `GOOGLE_SA_PRIVATE_KEY_ID`: `private_key_id`
+   - `GOOGLE_SA_PROJECT_ID`: `project_id`（Firebase プロジェクト ID としても使用）
+   - `GOOGLE_SA_CLIENT_EMAIL`: `client_email`
+   - `GOOGLE_SA_CLIENT_ID`: `client_id`
    - `FIREBASE_REGISTRATION_TOKENS`: 通知先 token（カンマ区切り）
+
+   ```bash
+   key=/path/to/service-account.json
+   for item in private_key private_key_id project_id client_email client_id; do
+     jq -j ".$item" "$key" | gh secret set "GOOGLE_SA_$(echo "$item" | tr a-z A-Z)"
+   done
+   ```
+
 4. 必要に応じて Variables に `HEARTBEAT_TIMEOUT_MINUTES`（既定 30）を設定する
 
 注意:
