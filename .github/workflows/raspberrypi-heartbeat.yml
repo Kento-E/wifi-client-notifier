@@ -36,6 +36,17 @@ jobs:
           FIREBASE_REGISTRATION_TOKENS: ${{ secrets.FIREBASE_REGISTRATION_TOKENS }}
           HEARTBEAT_TIMEOUT_MINUTES: ${{ vars.HEARTBEAT_TIMEOUT_MINUTES || '30' }}
         run: |
+          # 未登録の Secrets を、原因が分かるエラーで早期に検出する
+          missing=0
+          for var in GOOGLE_SA_PRIVATE_KEY GOOGLE_SA_PRIVATE_KEY_ID GOOGLE_SA_PROJECT_ID \
+                     GOOGLE_SA_CLIENT_EMAIL GOOGLE_SA_CLIENT_ID FIREBASE_REGISTRATION_TOKENS; do
+            if [ -z "${!var}" ]; then
+              echo "::error::Secret ${var} が未登録または空です（docs/FIREBASE_SETUP.md 参照）"
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ] || exit 1
+
           # raspberrypi-image と同じ分離Secretsからサービスアカウント JSON を組み立てる
           umask 077
           key_file="$RUNNER_TEMP/google-service-account.json"
