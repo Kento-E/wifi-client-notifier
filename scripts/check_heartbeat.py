@@ -48,7 +48,9 @@ def main() -> int:
     )
 
     response = requests.get(base, headers=headers, timeout=TIMEOUT)
-    response.raise_for_status()
+    if not response.ok:
+        logging.error("Firestore 取得失敗: status=%s body=%s", response.status_code, response.text)
+        response.raise_for_status()
     documents = response.json().get("documents", [])
     if not documents:
         logging.warning("heartbeats ドキュメントがありません")
