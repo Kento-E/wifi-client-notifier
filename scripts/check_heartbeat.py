@@ -9,6 +9,7 @@ heartbeats/<host> ドキュメントに保存し、連続通知を防ぐ。
   FIREBASE_PROJECT_ID        Firebase プロジェクトID
   FIREBASE_REGISTRATION_TOKENS  通知先 registration token（カンマ区切り）
   HEARTBEAT_TIMEOUT_MINUTES  途絶とみなす分数（省略時 30）
+  HEARTBEAT_HOSTS            監視対象ホスト名（カンマ区切り）。ドキュメントが無いホストも途絶とみなす
 """
 
 import logging
@@ -71,6 +72,7 @@ def main() -> int:
     project_id = os.environ["FIREBASE_PROJECT_ID"]
     tokens = [t for t in os.environ["FIREBASE_REGISTRATION_TOKENS"].split(",") if t.strip()]
     timeout_minutes = int(os.getenv("HEARTBEAT_TIMEOUT_MINUTES", "30"))
+    expected_hosts = {h.strip() for h in os.getenv("HEARTBEAT_HOSTS", "").split(",") if h.strip()}
 
     notifier = FirebaseNotifier(
         project_id=project_id,
@@ -88,28 +90,40 @@ def main() -> int:
     if not response.ok:
         logging.error("%s", _explain_firestore_error(response, project_id))
         return 1
-    documents = response.json().get("documents", [])
-    if not documents:
-        logging.warning("heartbeats ドキュメントがありません")
+    fields_by_host = {
+        doc["name"].rsplit("/", 1)[-1]: doc.get("fields", {})
+        for doc in response.json().get("documents", [])
+    }
+    hosts = expected_hosts | set(fields_by_host)
+    if not hosts:
+        # 監視対象が1つも無い状態は監視が機能していないので、成功扱いにしない
+        logging.error(
+            "監視対象がありません。Variables の HEARTBEAT_HOSTS を設定し、"
+            "Pi がハートビートを送信しているか確認してください"
+        )
+        return 1
 
     now = datetime.now(UTC)
     failed = False
-    for doc in documents:
-        host = doc["name"].rsplit("/", 1)[-1]
-        fields = doc.get("fields", {})
+    for host in sorted(hosts):
+        fields = fields_by_host.get(host, {})
         last_seen_raw = fields.get("last_seen", {}).get("timestampValue")
-        if not last_seen_raw:
-            continue
-        last_seen = _parse_time(last_seen_raw)
         alerted = fields.get("alerted", {}).get("booleanValue", False)
-        stale = now - last_seen > timedelta(minutes=timeout_minutes)
+        # 一度もハートビートが届いていないホストも途絶とみなす
+        stale = last_seen_raw is None or now - _parse_time(last_seen_raw) > timedelta(
+            minutes=timeout_minutes
+        )
         logging.info("%s: last_seen=%s stale=%s alerted=%s", host, last_seen_raw, stale, alerted)
 
         if stale and not alerted:
-            minutes = int((now - last_seen).total_seconds() // 60)
+            if last_seen_raw is None:
+                body = "ハートビートを一度も受信していません（Pi のコードが古い可能性があります）"
+            else:
+                minutes = int((now - _parse_time(last_seen_raw)).total_seconds() // 60)
+                body = f"最終確認: {last_seen_raw}（{minutes}分前）"
             ok = notifier.send_message(
                 f"🚨: {host} のハートビートが途絶しました",
-                f"最終確認: {last_seen_raw}（{minutes}分前）",
+                body,
                 {"notification_type": "heartbeat_lost", "host": host},
             )
             new_alerted = True

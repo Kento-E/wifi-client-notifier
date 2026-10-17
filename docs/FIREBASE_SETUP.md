@@ -141,7 +141,10 @@ FCM で通知します。復帰時は復帰通知を送ります。外向き HTT
    done
    ```
 
-4. 必要に応じて Variables に `HEARTBEAT_TIMEOUT_MINUTES`（既定 30）を設定する
+4. 必要に応じて Variables を設定する
+   - `HEARTBEAT_TIMEOUT_MINUTES`: 途絶とみなす分数（既定 30）
+   - `HEARTBEAT_HOSTS`: 監視対象の Pi のホスト名（カンマ区切り、既定 `raspberrypi`）。
+     ハートビートが一度も届いていないホストも途絶として通知する
 
 注意:
 

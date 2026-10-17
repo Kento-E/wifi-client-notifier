@@ -35,6 +35,7 @@ jobs:
           GOOGLE_SA_CLIENT_ID: ${{ secrets.GOOGLE_SA_CLIENT_ID }}
           FIREBASE_REGISTRATION_TOKENS: ${{ secrets.FIREBASE_REGISTRATION_TOKENS }}
           HEARTBEAT_TIMEOUT_MINUTES: ${{ vars.HEARTBEAT_TIMEOUT_MINUTES || '30' }}
+          HEARTBEAT_HOSTS: ${{ vars.HEARTBEAT_HOSTS || 'raspberrypi' }}
         run: |
           # 未登録の Secrets を、原因が分かるエラーで早期に検出する
           missing=0
