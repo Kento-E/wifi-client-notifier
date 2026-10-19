@@ -48,6 +48,7 @@ wifi-client-notifier/
 - 新規WiFi接続の検出とSMTPメール通知
 - Firebase Cloud Messaging による特定 Android 端末向けプッシュ通知
 - Googleカレンダーへの予定自動登録通知（任意）
+- Googleカレンダーへの接続断時間の記録（再接続時に終了時刻を更新）
 - 特定MACアドレスの再通知制御と未知端末の初回通知
 - ログ出力（ファイル＋コンソール）
 
@@ -169,6 +170,11 @@ Googleカレンダー通知の主な設定（任意）:
 - `google_calendar.calendar_id`: 登録先カレンダーID（専用カレンダー推奨）
 - `google_calendar.max_retries` / `retry_delay_seconds`: API失敗時のリトライ制御
 - `google_calendar.dedupe_window_minutes`: 重複登録防止の検索時間幅
+
+Googleカレンダー通知が有効な場合、端末の切断確定時に「接続断」予定を登録し、
+再接続を検知した時刻を予定の終了時刻に設定します。再接続まではGoogle Calendar
+APIで必須の終了時刻として1分後を仮設定し、再接続時に実際の時刻へ更新します。
+切断は `disconnect_grace_scans` 回連続で端末を検出できなかった時点で確定します。
 
 Firebase通知の主な設定（任意）:
 
