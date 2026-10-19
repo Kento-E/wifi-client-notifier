@@ -52,7 +52,6 @@ class WiFiMonitor:
         self.router: WiFiRouter | None = None
         self.arp_scanner = None
         self.notifiers: list[object] = []
-        self.google_calendar_notifier: GoogleCalendarNotifier | None = None
 
         # 状態管理の初期化
         state_file_path = ConfigManager.get_state_file_path(self.config, config_path)
@@ -298,7 +297,6 @@ class WiFiMonitor:
                 retry_delay_seconds=calendar_config.get("retry_delay_seconds", 3),
                 dedupe_window_minutes=calendar_config.get("dedupe_window_minutes", 10),
             )
-            self.google_calendar_notifier = calendar_notifier
             self.notifiers.append(calendar_notifier)
             logging.info(
                 "Googleカレンダー通知: 有効（カレンダーID: %s, summary_prefix: %s）",
@@ -540,6 +538,7 @@ class WiFiMonitor:
 
                     self.state_manager.add_known_device(mac)
                     self.state_manager.clear_missing_count(mac)
+                    self.state_manager.disconnected_at.pop(mac, None)
 
             for mac in current_macs:
                 if mac in self.state_manager.known_devices:
@@ -561,49 +560,8 @@ class WiFiMonitor:
                     self.state_manager.remove_known_device(mac)
                     self.state_manager.mark_device_disconnected(mac, time.time())
 
-            self._sync_disconnect_calendar_schedules(current_macs)
-
         except Exception as e:
             logging.error("新しいデバイスのチェック中にエラーが発生しました: %s", e)
-
-    def _sync_disconnect_calendar_schedules(self, current_macs: set[str]) -> None:
-        """切断時に予定を作成し、再接続時に終了時刻を更新する。"""
-        if self.google_calendar_notifier is None:
-            for mac in current_macs:
-                self.state_manager.clear_disconnect_tracking(mac)
-            return
-
-        pending_reconnects = False
-        for mac in current_macs:
-            if (
-                mac in self.state_manager.disconnected_at
-                and mac not in self.state_manager.disconnect_reconnected_at
-            ):
-                self.state_manager.mark_device_reconnected(mac, time.time())
-                pending_reconnects = True
-
-        if pending_reconnects:
-            self.state_manager.save()
-
-        for mac, disconnected_at in list(self.state_manager.disconnected_at.items()):
-            if mac in current_macs:
-                reconnected_at = self.state_manager.disconnect_reconnected_at[mac]
-                completed = self.google_calendar_notifier.end_disconnect_schedule(
-                    mac,
-                    disconnected_at,
-                    reconnected_at,
-                    self.state_manager.disconnected_calendar_event_ids.get(mac),
-                )
-                if completed:
-                    self.state_manager.clear_disconnect_tracking(mac)
-            elif mac not in self.state_manager.disconnected_calendar_event_ids:
-                self.state_manager.save()
-                event_id = self.google_calendar_notifier.create_disconnect_schedule(
-                    mac,
-                    disconnected_at,
-                )
-                if event_id is not None:
-                    self.state_manager.mark_disconnect_calendar_event(mac, event_id)
 
 
 def _acquire_single_instance_lock(config_file: str):

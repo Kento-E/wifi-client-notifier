@@ -5,10 +5,11 @@ WiFi通知ツール状態管理モジュール
 既知デバイス、未知デバイス通知履歴、デバイス切断情報などを管理する。
 """
 
+import os
 import json
 import logging
-import os
 import tempfile
+from typing import Dict, Set
 
 
 class StateManager:
@@ -21,13 +22,11 @@ class StateManager:
             state_file: 状態ファイルのパス
         """
         self.state_file = state_file
-        self.known_devices: set[str] = set()
-        self.unknown_notified_macs: set[str] = set()
-        self.missing_counts: dict[str, int] = {}
-        self.last_notified_at: dict[str, float] = {}
-        self.disconnected_at: dict[str, float] = {}
-        self.disconnected_calendar_event_ids: dict[str, str] = {}
-        self.disconnect_reconnected_at: dict[str, float] = {}
+        self.known_devices: Set[str] = set()
+        self.unknown_notified_macs: Set[str] = set()
+        self.missing_counts: Dict[str, int] = {}
+        self.last_notified_at: Dict[str, float] = {}
+        self.disconnected_at: Dict[str, float] = {}
         self.state_loaded: bool = False
 
     def load(self) -> bool:
@@ -43,8 +42,6 @@ class StateManager:
             self.missing_counts = {}
             self.last_notified_at = {}
             self.disconnected_at = {}
-            self.disconnected_calendar_event_ids = {}
-            self.disconnect_reconnected_at = {}
             return False
 
         try:
@@ -125,26 +122,6 @@ class StateManager:
                     except (TypeError, ValueError):
                         continue
 
-            raw_event_ids = state.get("disconnected_calendar_event_ids", {})
-            self.disconnected_calendar_event_ids = {}
-            if isinstance(raw_event_ids, dict):
-                for mac, event_id in raw_event_ids.items():
-                    if isinstance(mac, str) and isinstance(event_id, str) and event_id:
-                        self.disconnected_calendar_event_ids[mac.lower()] = event_id
-
-            raw_reconnected_at = state.get("disconnect_reconnected_at", {})
-            self.disconnect_reconnected_at = {}
-            if isinstance(raw_reconnected_at, dict):
-                for mac, timestamp in raw_reconnected_at.items():
-                    if not isinstance(mac, str):
-                        continue
-                    try:
-                        parsed_timestamp = float(timestamp)
-                        if parsed_timestamp >= 0:
-                            self.disconnect_reconnected_at[mac.lower()] = parsed_timestamp
-                    except (TypeError, ValueError):
-                        continue
-
             self.state_loaded = True
             logging.info(
                 "状態ファイルを読み込みました: known=%s (%s)",
@@ -161,8 +138,6 @@ class StateManager:
             self.missing_counts = {}
             self.last_notified_at = {}
             self.disconnected_at = {}
-            self.disconnected_calendar_event_ids = {}
-            self.disconnect_reconnected_at = {}
             return False
 
     def save(self) -> None:
@@ -180,14 +155,6 @@ class StateManager:
                 },
                 "disconnected_at": {
                     mac: self.disconnected_at[mac] for mac in sorted(self.disconnected_at)
-                },
-                "disconnected_calendar_event_ids": {
-                    mac: self.disconnected_calendar_event_ids[mac]
-                    for mac in sorted(self.disconnected_calendar_event_ids)
-                },
-                "disconnect_reconnected_at": {
-                    mac: self.disconnect_reconnected_at[mac]
-                    for mac in sorted(self.disconnect_reconnected_at)
                 },
             }
             state_dir = os.path.dirname(self.state_file)
@@ -247,21 +214,6 @@ class StateManager:
             timestamp: 切断時刻（Unix時刻）
         """
         self.disconnected_at[mac.lower()] = timestamp
-
-    def mark_disconnect_calendar_event(self, mac: str, event_id: str) -> None:
-        """切断予定のGoogleカレンダーIDを記録する。"""
-        self.disconnected_calendar_event_ids[mac.lower()] = event_id
-
-    def mark_device_reconnected(self, mac: str, timestamp: float) -> None:
-        """再接続を検知した時刻を記録する。"""
-        self.disconnect_reconnected_at[mac.lower()] = timestamp
-
-    def clear_disconnect_tracking(self, mac: str) -> None:
-        """切断予定を完了し、関連する状態を削除する。"""
-        mac_lower = mac.lower()
-        self.disconnected_at.pop(mac_lower, None)
-        self.disconnected_calendar_event_ids.pop(mac_lower, None)
-        self.disconnect_reconnected_at.pop(mac_lower, None)
 
     def clear_missing_count(self, mac: str) -> None:
         """デバイスの見失い回数をクリアする。

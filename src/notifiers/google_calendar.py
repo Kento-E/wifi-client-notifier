@@ -6,7 +6,8 @@ Googleカレンダーへの予定登録通知を行う機能を提供します�
 
 import logging
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
+from typing import Dict, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 try:
@@ -106,9 +107,9 @@ class GoogleCalendarNotifier(BaseNotifier):
 
     def send_notification(
         self,
-        device_info: dict[str, str],
+        device_info: Dict[str, str],
         is_unknown_device: bool = False,
-        detected_at: float | None = None,
+        detected_at: Optional[float] = None,
     ) -> bool:
         """検出デバイス情報をGoogleカレンダー予定として登録する。"""
         detected_ts = detected_at if detected_at is not None else time.time()
@@ -162,154 +163,6 @@ class GoogleCalendarNotifier(BaseNotifier):
 
         return False
 
-    def create_disconnect_schedule(self, mac: str, disconnected_at: float) -> str | None:
-        """切断中の予定を作成し、予定IDを返す。"""
-        started_at = datetime.fromtimestamp(disconnected_at, tz=self.timezone)
-        dedupe_key = self._build_disconnect_dedupe_key(mac, disconnected_at)
-        existing_event = self._find_disconnect_event(dedupe_key, started_at)
-        if existing_event is not None:
-            event_id = existing_event.get("id")
-            if event_id:
-                return str(event_id)
-
-        ended_at = started_at + timedelta(minutes=1)
-        event = {
-            "summary": f"{self.summary_prefix} 接続断 {mac}",
-            "description": (
-                "WiFi接続断\n\n"
-                f"MACアドレス: {mac}\n"
-                f"切断検知時刻: {started_at.strftime('%Y-%m-%d %H:%M:%S %Z')}\n"
-                "再接続時に終了時刻を更新します。"
-            ),
-            "start": {
-                "dateTime": started_at.isoformat(),
-                "timeZone": str(self.timezone),
-            },
-            "end": {
-                "dateTime": ended_at.isoformat(),
-                "timeZone": str(self.timezone),
-            },
-            "extendedProperties": {
-                "private": {
-                    "wifi_notifier_key": dedupe_key,
-                }
-            },
-        }
-
-        for attempt in range(1, self.max_retries + 1):
-            try:
-                result = (
-                    self.service.events().insert(calendarId=self.calendar_id, body=event).execute()
-                )
-                event_id = result.get("id")
-                if not event_id:
-                    logging.error("Googleカレンダー切断予定の登録結果に予定IDがありません")
-                    return None
-                logging.info("Googleカレンダーへ切断予定を登録しました: %s", mac)
-                return str(event_id)
-            except Exception as e:
-                if attempt >= self.max_retries:
-                    logging.error("Googleカレンダー切断予定の登録に失敗しました: %s", e)
-                    return None
-                logging.warning(
-                    "Googleカレンダー切断予定の登録に失敗したためリトライします " "(%s/%s): %s",
-                    attempt,
-                    self.max_retries,
-                    e,
-                )
-                time.sleep(self.retry_delay_seconds)
-
-        return None
-
-    def end_disconnect_schedule(
-        self,
-        mac: str,
-        disconnected_at: float,
-        reconnected_at: float,
-        event_id: str | None = None,
-    ) -> bool:
-        """再接続時刻で切断予定を終了する。"""
-        started_at = datetime.fromtimestamp(disconnected_at, tz=self.timezone)
-        ended_at = datetime.fromtimestamp(reconnected_at, tz=self.timezone)
-        dedupe_key = self._build_disconnect_dedupe_key(mac, disconnected_at)
-
-        if event_id is None:
-            event_id = self.create_disconnect_schedule(mac, disconnected_at)
-        if event_id is None:
-            return False
-
-        body = {
-            "summary": f"{self.summary_prefix} 接続断 {mac}",
-            "description": (
-                "WiFi接続断\n\n"
-                f"MACアドレス: {mac}\n"
-                f"切断検知時刻: {started_at.strftime('%Y-%m-%d %H:%M:%S %Z')}\n"
-                f"再接続検知時刻: {ended_at.strftime('%Y-%m-%d %H:%M:%S %Z')}"
-            ),
-            "end": {
-                "dateTime": ended_at.isoformat(),
-                "timeZone": str(self.timezone),
-            },
-            "extendedProperties": {
-                "private": {
-                    "wifi_notifier_key": dedupe_key,
-                }
-            },
-        }
-
-        for attempt in range(1, self.max_retries + 1):
-            try:
-                self.service.events().patch(
-                    calendarId=self.calendar_id,
-                    eventId=event_id,
-                    body=body,
-                ).execute()
-                logging.info("Googleカレンダー切断予定を再接続時刻で終了しました: %s", mac)
-                return True
-            except Exception as e:
-                if attempt >= self.max_retries:
-                    logging.error("Googleカレンダー切断予定の更新に失敗しました: %s", e)
-                    return False
-                logging.warning(
-                    "Googleカレンダー切断予定の更新に失敗したためリトライします " "(%s/%s): %s",
-                    attempt,
-                    self.max_retries,
-                    e,
-                )
-                time.sleep(self.retry_delay_seconds)
-
-        return False
-
-    def _find_disconnect_event(
-        self,
-        dedupe_key: str,
-        started_at: datetime,
-    ) -> dict | None:
-        """切断予定の重複を確認し、既存予定を返す。"""
-        try:
-            result = (
-                self.service.events()
-                .list(
-                    calendarId=self.calendar_id,
-                    timeMin=(started_at - timedelta(minutes=1)).isoformat(),
-                    timeMax=(started_at + timedelta(minutes=2)).isoformat(),
-                    singleEvents=True,
-                    maxResults=5,
-                    privateExtendedProperty=[f"wifi_notifier_key={dedupe_key}"],
-                )
-                .execute()
-            )
-            items = result.get("items", [])
-            return items[0] if items else None
-        except Exception as e:
-            logging.warning("切断予定の重複確認に失敗しました: %s", e)
-            return None
-
-    @staticmethod
-    def _build_disconnect_dedupe_key(mac: str, disconnected_at: float) -> str:
-        """切断予定を一意に識別するキーを生成する。"""
-        return f"disconnect:{mac.lower()}:{int(disconnected_at)}"
-
     def _event_already_exists(self, dedupe_key: str, started_at: datetime) -> bool:
         """同一重複キーを持つ予定が既にあるか確認する。"""
         time_min = datetime.fromtimestamp(
@@ -347,7 +200,7 @@ class GoogleCalendarNotifier(BaseNotifier):
             return getattr(error.resp, "status", None) == 409
         return "409" in str(error)
 
-    def _build_summary(self, device_info: dict[str, str], is_unknown_device: bool) -> str:
+    def _build_summary(self, device_info: Dict[str, str], is_unknown_device: bool) -> str:
         """予定タイトルを生成する。"""
         mac = device_info.get("mac", "Unknown")
         hostname = device_info.get("hostname", "Unknown")
@@ -356,7 +209,7 @@ class GoogleCalendarNotifier(BaseNotifier):
 
     @staticmethod
     def _build_description(
-        device_info: dict[str, str],
+        device_info: Dict[str, str],
         is_unknown_device: bool,
         started_at: datetime,
     ) -> str:
@@ -384,7 +237,7 @@ class GoogleCalendarNotifier(BaseNotifier):
 
     @staticmethod
     def _build_dedupe_key(
-        device_info: dict[str, str],
+        device_info: Dict[str, str],
         is_unknown_device: bool,
         detected_ts: float,
     ) -> str:
