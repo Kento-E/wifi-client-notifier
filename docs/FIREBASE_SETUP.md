@@ -119,7 +119,8 @@ sudo systemctl status wifi-notifier
 
 ## 9. 死活監視（ハートビート）を設定する
 
-Pi はスキャン成功のたびに Firestore の `heartbeats/<ホスト名>` へ `last_seen` を書き込みます。
+Pi はスキャン成功のたびに Firestore の `heartbeats/<ホスト名>` へ `last_seen` と、
+接続が途切れた後に復帰した時刻 `online_since` を書き込みます。
 GitHub Actions（`.github/workflows/raspberrypi-heartbeat.yml`、15分間隔）が途絶を検知し、
 FCM で通知します。復帰時は復帰通知を送ります。外向き HTTPS のみで動作します。
 
@@ -145,6 +146,23 @@ FCM で通知します。復帰時は復帰通知を送ります。外向き HTT
    - `HEARTBEAT_TIMEOUT_MINUTES`: 途絶とみなす分数（既定 30）
    - `HEARTBEAT_HOSTS`: 監視対象の Pi のホスト名（カンマ区切り、既定 `raspberrypi`）。
      ハートビートが一度も届いていないホストも途絶として通知する
+
+5. Pi の接続断を Google カレンダーに予定として残す場合は、Secrets に `GOOGLE_CALENDAR_ID`
+   （登録先カレンダーID）を登録する。未登録なら予定登録は行わない。
+   カレンダーには、上記サービスアカウントの `client_email` を「予定の変更」権限で共有しておく
+
+   ```bash
+   printf '%s' "<カレンダーID>" | gh secret set GOOGLE_CALENDAR_ID
+   ```
+
+Pi の接続断は、次のとおり 1 件の予定として記録されます。
+
+- 途絶を検知すると、最後にハートビートを確認できた時刻を開始とする
+  「🛜 Pi接続断 (ホスト名)」を登録する（終了は検知時刻の仮置き）
+- 復帰を検知すると、その予定の終了時刻を Pi が再接続した時刻（`online_since`）に更新する。
+  予定は「接続が切れていた時間」になる
+- 登録・更新に失敗した場合は、次回の実行で再試行する
+- 途絶と判定するのは `HEARTBEAT_TIMEOUT_MINUTES` を超えた場合のため、それより短い断は記録されない
 
 注意:
 

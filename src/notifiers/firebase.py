@@ -6,6 +6,7 @@ FCM HTTP v1 API を利用して Android 端末へプッシュ通知を送信す�
 
 import json
 import logging
+import time
 from datetime import UTC, datetime
 
 import requests
@@ -25,6 +26,8 @@ class FirebaseNotifier(BaseNotifier):
 
     SCOPE = "https://www.googleapis.com/auth/firebase.messaging"
     FIRESTORE_SCOPE = "https://www.googleapis.com/auth/datastore"
+    # この秒数を超えてハートビートが成功しなかった場合を「途切れた」とみなす
+    HEARTBEAT_GAP_SECONDS = 300
 
     def __init__(
         self,
@@ -49,6 +52,8 @@ class FirebaseNotifier(BaseNotifier):
             notification_title_prefix.strip() if notification_title_prefix else "🛜"
         )
         self.timeout_seconds = max(1, int(timeout_seconds))
+        self._last_heartbeat_ok_at: float | None = None
+        self._online_since: str | None = None
         self._credentials = service_account.Credentials.from_service_account_file(
             self.credentials_file,
             scopes=[self.SCOPE, self.FIRESTORE_SCOPE],
@@ -126,21 +131,35 @@ class FirebaseNotifier(BaseNotifier):
         return False
 
     def send_heartbeat(self, host: str) -> bool:
-        """Firestore の heartbeats/<host> に last_seen（現在時刻）を書き込む。"""
+        """Firestore の heartbeats/<host> に last_seen（現在時刻）を書き込む。
+
+        送信が途切れた後の最初の成功時刻を online_since として併せて記録する。
+        途絶からの復帰時刻を、監視側の確認タイミングに依存せず特定するために使う。
+        """
         url = (
             "https://firestore.googleapis.com/v1/projects/"
             f"{self.project_id}/databases/(default)/documents/heartbeats/{host}"
         )
         now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+        gap_detected = (
+            self._last_heartbeat_ok_at is None
+            or time.monotonic() - self._last_heartbeat_ok_at > self.HEARTBEAT_GAP_SECONDS
+        )
+        online_since = now if gap_detected else self._online_since
+        fields = {"last_seen": {"timestampValue": now}}
+        if online_since is not None:
+            fields["online_since"] = {"timestampValue": online_since}
         try:
             response = requests.patch(
                 url,
-                params={"updateMask.fieldPaths": "last_seen"},
+                params={"updateMask.fieldPaths": list(fields)},
                 headers={"Authorization": f"Bearer {self._get_access_token()}"},
-                json={"fields": {"last_seen": {"timestampValue": now}}},
+                json={"fields": fields},
                 timeout=self.timeout_seconds,
             )
             if response.ok:
+                self._last_heartbeat_ok_at = time.monotonic()
+                self._online_since = online_since
                 return True
             logging.error(
                 "ハートビートの送信に失敗しました: status=%s body=%s",

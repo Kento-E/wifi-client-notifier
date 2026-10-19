@@ -24,7 +24,7 @@ jobs:
           python-version: "3.12"
 
       - name: 依存パッケージをインストール
-        run: pip install requests google-auth
+        run: pip install requests google-auth google-api-python-client
 
       - name: ハートビートを確認
         env:
@@ -34,6 +34,7 @@ jobs:
           GOOGLE_SA_CLIENT_EMAIL: ${{ secrets.GOOGLE_SA_CLIENT_EMAIL }}
           GOOGLE_SA_CLIENT_ID: ${{ secrets.GOOGLE_SA_CLIENT_ID }}
           FIREBASE_REGISTRATION_TOKENS: ${{ secrets.FIREBASE_REGISTRATION_TOKENS }}
+          GOOGLE_CALENDAR_ID: ${{ secrets.GOOGLE_CALENDAR_ID }}
           HEARTBEAT_TIMEOUT_MINUTES: ${{ vars.HEARTBEAT_TIMEOUT_MINUTES || '30' }}
           HEARTBEAT_HOSTS: ${{ vars.HEARTBEAT_HOSTS || 'raspberrypi' }}
         run: |

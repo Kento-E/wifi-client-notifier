@@ -6,8 +6,7 @@ Googleカレンダーへの予定登録通知を行う機能を提供します�
 
 import logging
 import time
-from datetime import datetime
-from typing import Dict, Optional
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 try:
@@ -107,9 +106,9 @@ class GoogleCalendarNotifier(BaseNotifier):
 
     def send_notification(
         self,
-        device_info: Dict[str, str],
+        device_info: dict[str, str],
         is_unknown_device: bool = False,
-        detected_at: Optional[float] = None,
+        detected_at: float | None = None,
     ) -> bool:
         """検出デバイス情報をGoogleカレンダー予定として登録する。"""
         detected_ts = detected_at if detected_at is not None else time.time()
@@ -163,6 +162,144 @@ class GoogleCalendarNotifier(BaseNotifier):
 
         return False
 
+    def create_outage_schedule(
+        self,
+        host: str,
+        started_ts: float,
+        ended_ts: float | None = None,
+    ) -> str | None:
+        """Pi（ホスト）の接続断を予定として登録し、予定IDを返す。
+
+        終了時刻が未確定の間は ended_ts（省略時は開始の1分後）を仮の終了時刻にする。
+        同じ開始時刻の予定が既にある場合は新規登録せず、その予定IDを返す。
+        """
+        started_at = datetime.fromtimestamp(started_ts, tz=self.timezone)
+        dedupe_key = self._build_outage_key(host, started_ts)
+        existing = self._find_outage_event(dedupe_key, started_at)
+        if existing is not None and existing.get("id"):
+            return str(existing["id"])
+
+        ended_at = datetime.fromtimestamp(ended_ts, tz=self.timezone) if ended_ts else started_at
+        if ended_at <= started_at:
+            ended_at = started_at + timedelta(minutes=1)
+
+        event = self._build_outage_event(host, started_at, ended_at, dedupe_key, resolved=False)
+        try:
+            result = self._execute_with_retry(
+                lambda: self.service.events().insert(calendarId=self.calendar_id, body=event)
+            )
+        except Exception as e:
+            logging.error("Googleカレンダーへの接続断予定の登録に失敗しました: %s", e)
+            return None
+
+        event_id = result.get("id")
+        if not event_id:
+            logging.error("Googleカレンダーの接続断予定に予定IDがありません")
+            return None
+        logging.info("Googleカレンダーへ接続断予定を登録しました: %s", host)
+        return str(event_id)
+
+    def end_outage_schedule(
+        self,
+        host: str,
+        started_ts: float,
+        ended_ts: float,
+        event_id: str | None = None,
+    ) -> bool:
+        """接続断予定の終了時刻を再接続時刻に更新する。予定が無ければ作成してから更新する。"""
+        started_at = datetime.fromtimestamp(started_ts, tz=self.timezone)
+        ended_at = datetime.fromtimestamp(ended_ts, tz=self.timezone)
+        if ended_at <= started_at:
+            ended_at = started_at + timedelta(minutes=1)
+
+        if event_id is None:
+            event_id = self.create_outage_schedule(host, started_ts, ended_ts)
+        if event_id is None:
+            return False
+
+        dedupe_key = self._build_outage_key(host, started_ts)
+        body = self._build_outage_event(host, started_at, ended_at, dedupe_key, resolved=True)
+        try:
+            self._execute_with_retry(
+                lambda: self.service.events().patch(
+                    calendarId=self.calendar_id, eventId=event_id, body=body
+                )
+            )
+        except Exception as e:
+            logging.error("Googleカレンダーの接続断予定の更新に失敗しました: %s", e)
+            return False
+
+        logging.info("Googleカレンダーの接続断予定を再接続時刻で終了しました: %s", host)
+        return True
+
+    def _execute_with_retry(self, build_request):
+        """API呼び出しをリトライ付きで実行する。上限に達したら例外を送出する。"""
+        for attempt in range(1, self.max_retries + 1):
+            try:
+                return build_request().execute()
+            except Exception as e:
+                if attempt >= self.max_retries:
+                    raise
+                logging.warning(
+                    "Googleカレンダー操作に失敗したためリトライします (%s/%s): %s",
+                    attempt,
+                    self.max_retries,
+                    e,
+                )
+                time.sleep(self.retry_delay_seconds)
+
+    def _build_outage_event(
+        self,
+        host: str,
+        started_at: datetime,
+        ended_at: datetime,
+        dedupe_key: str,
+        resolved: bool,
+    ) -> dict:
+        """接続断予定の本文を生成する。"""
+        lines = [
+            f"{host} の接続断",
+            "",
+            f"切断前の最終確認: {started_at.strftime('%Y-%m-%d %H:%M:%S %Z')}",
+        ]
+        if resolved:
+            lines.append(f"再接続: {ended_at.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+        else:
+            lines.append("再接続を確認すると終了時刻を更新します")
+        return {
+            "summary": f"{self.summary_prefix} Pi接続断 ({host})",
+            "description": "\n".join(lines),
+            "start": {"dateTime": started_at.isoformat(), "timeZone": str(self.timezone)},
+            "end": {"dateTime": ended_at.isoformat(), "timeZone": str(self.timezone)},
+            "extendedProperties": {"private": {"wifi_notifier_key": dedupe_key}},
+        }
+
+    def _find_outage_event(self, dedupe_key: str, started_at: datetime) -> dict | None:
+        """同一キーの接続断予定を検索する。"""
+        try:
+            result = (
+                self.service.events()
+                .list(
+                    calendarId=self.calendar_id,
+                    timeMin=(started_at - timedelta(minutes=1)).isoformat(),
+                    timeMax=(started_at + timedelta(days=7)).isoformat(),
+                    singleEvents=True,
+                    maxResults=5,
+                    privateExtendedProperty=[f"wifi_notifier_key={dedupe_key}"],
+                )
+                .execute()
+            )
+        except Exception as e:
+            logging.warning("接続断予定の重複確認に失敗したため登録を継続します: %s", e)
+            return None
+        items = result.get("items", [])
+        return items[0] if items else None
+
+    @staticmethod
+    def _build_outage_key(host: str, started_ts: float) -> str:
+        """接続断予定を一意に識別するキーを生成する。"""
+        return f"outage:{host}:{int(started_ts)}"
+
     def _event_already_exists(self, dedupe_key: str, started_at: datetime) -> bool:
         """同一重複キーを持つ予定が既にあるか確認する。"""
         time_min = datetime.fromtimestamp(
@@ -200,7 +337,7 @@ class GoogleCalendarNotifier(BaseNotifier):
             return getattr(error.resp, "status", None) == 409
         return "409" in str(error)
 
-    def _build_summary(self, device_info: Dict[str, str], is_unknown_device: bool) -> str:
+    def _build_summary(self, device_info: dict[str, str], is_unknown_device: bool) -> str:
         """予定タイトルを生成する。"""
         mac = device_info.get("mac", "Unknown")
         hostname = device_info.get("hostname", "Unknown")
@@ -209,7 +346,7 @@ class GoogleCalendarNotifier(BaseNotifier):
 
     @staticmethod
     def _build_description(
-        device_info: Dict[str, str],
+        device_info: dict[str, str],
         is_unknown_device: bool,
         started_at: datetime,
     ) -> str:
@@ -237,7 +374,7 @@ class GoogleCalendarNotifier(BaseNotifier):
 
     @staticmethod
     def _build_dedupe_key(
-        device_info: Dict[str, str],
+        device_info: dict[str, str],
         is_unknown_device: bool,
         detected_ts: float,
     ) -> str:
