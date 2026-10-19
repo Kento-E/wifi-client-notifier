@@ -32,7 +32,7 @@
       "type": "shell",
       "command": "ssh",
       "args": [
-        "user@raspberry-pi.local"
+        "raspberrypi"
       ],
       "problemMatcher": []
     },
@@ -41,7 +41,7 @@
       "type": "shell",
       "command": "ssh",
       "args": [
-        "pi@raspberrypi.local",
+        "raspberrypi",
         "cd ~/wifi-client-notifier && git pull"
       ],
       "problemMatcher": []
